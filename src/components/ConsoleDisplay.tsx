@@ -21,7 +21,6 @@ const ConsoleDisplay: React.FC = () => {
   const [isLobbyLocked, setIsLobbyLocked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(true);
-  const [selectionIndex, setSelectionIndex] = useState(0);
 
   // Generate a random 6-character lobby code
   const generateLobbyCode = () => {
@@ -134,7 +133,16 @@ const ConsoleDisplay: React.FC = () => {
         return;
       }
 
-      setIsLobbyLocked(session.is_locked || false);
+      const wasLocked = isLobbyLocked;
+      const nowLocked = session.is_locked || false;
+      
+      setIsLobbyLocked(nowLocked);
+      
+      // INSTANT REDIRECT: If lobby just got locked, immediately switch to editor selection
+      if (!wasLocked && nowLocked) {
+        console.log('Lobby locked - instantly switching to editor selection');
+        // No delay, immediate transition
+      }
       
     } catch (error) {
       console.error('Error loading session status:', error);
@@ -184,7 +192,7 @@ const ConsoleDisplay: React.FC = () => {
           }, 
           (payload) => {
             console.log('Session change detected:', payload);
-            // Reload session status immediately when changes occur
+            // INSTANT RELOAD: Reload session status immediately when changes occur
             loadSessionStatus();
           }
         )
@@ -199,16 +207,16 @@ const ConsoleDisplay: React.FC = () => {
         sessionChannel.unsubscribe();
       };
     }
-  }, [sessionId]);
+  }, [sessionId, isLobbyLocked]); // Added isLobbyLocked to dependencies
 
-  // Add periodic refresh as backup
+  // Reduced backup refresh interval for faster response
   useEffect(() => {
     if (!sessionId) return;
 
     const interval = setInterval(() => {
       loadDevices();
       loadSessionStatus();
-    }, 5000); // Refresh every 5 seconds as backup
+    }, 2000); // Reduced from 5 seconds to 2 seconds
 
     return () => clearInterval(interval);
   }, [sessionId]);
@@ -223,7 +231,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // Show editor selection if lobby is locked
+  // INSTANT TRANSITION: Show editor selection immediately when lobby is locked
   if (isLobbyLocked) {
     return (
       <EditorSelection

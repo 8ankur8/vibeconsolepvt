@@ -23,6 +23,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [isHost, setIsHost] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLobbyLocked, setIsLobbyLocked] = useState(false);
+  const [lastNavigationTime, setLastNavigationTime] = useState(0);
   
   const navigate = useNavigate();
 
@@ -42,9 +43,19 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       }
 
       setCurrentSessionId(session.id);
-      setIsLobbyLocked(session.is_locked || false);
-      if (session.is_locked) {
+      const wasLocked = isLobbyLocked;
+      const nowLocked = session.is_locked || false;
+      
+      setIsLobbyLocked(nowLocked);
+      
+      // INSTANT TRANSITION: If lobby just got locked, immediately switch to editor selection
+      if (!wasLocked && nowLocked) {
+        console.log('Lobby locked - instantly switching to editor selection mode');
         setGameStatus('editor_selection');
+      } else if (nowLocked) {
+        setGameStatus('editor_selection');
+      } else {
+        setGameStatus('waiting');
       }
       
       return session;
@@ -99,7 +110,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       
       // Set up real-time subscriptions
       const devicesSubscription = supabase
-        .channel('devices_changes')
+        .channel(`devices_changes_${currentSessionId}`)
         .on('postgres_changes', 
           { 
             event: '*', 
@@ -115,7 +126,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .subscribe();
 
       const sessionSubscription = supabase
-        .channel('session_changes')
+        .channel(`session_changes_${currentSessionId}`)
         .on('postgres_changes', 
           { 
             event: 'UPDATE', 
@@ -126,10 +137,17 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           (payload) => {
             console.log('Session change:', payload);
             const newData = payload.new as any;
-            setIsLobbyLocked(newData.is_locked || false);
-            if (newData.is_locked) {
+            const wasLocked = isLobbyLocked;
+            const nowLocked = newData.is_locked || false;
+            
+            setIsLobbyLocked(nowLocked);
+            
+            // INSTANT TRANSITION: Switch modes immediately when lock status changes
+            if (!wasLocked && nowLocked) {
+              console.log('Lobby locked - instantly switching to editor selection mode');
               setGameStatus('editor_selection');
-            } else {
+            } else if (wasLocked && !nowLocked) {
+              console.log('Lobby unlocked - switching back to waiting mode');
               setGameStatus('waiting');
             }
           }
@@ -141,7 +159,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         sessionSubscription.unsubscribe();
       };
     }
-  }, [currentSessionId, myPlayerId]);
+  }, [currentSessionId, myPlayerId, isLobbyLocked]);
 
   const joinLobby = async () => {
     if (!playerName.trim() || !lobbyCode) return;
@@ -211,8 +229,10 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         return;
       }
 
+      // INSTANT LOCAL UPDATE: Don't wait for real-time update
       setIsLobbyLocked(true);
       setGameStatus('editor_selection');
+      console.log('Lobby locked - immediately switching to editor selection');
     } catch (error) {
       console.error('Error locking lobby:', error);
     }
@@ -232,18 +252,29 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         return;
       }
 
+      // INSTANT LOCAL UPDATE: Don't wait for real-time update
       setIsLobbyLocked(false);
       setGameStatus('waiting');
+      console.log('Lobby unlocked - immediately switching to waiting');
     } catch (error) {
       console.error('Error unlocking lobby:', error);
     }
   };
 
-  // Send navigation input to Supabase (for real-time sync)
+  // ENHANCED: Send navigation input to Supabase with throttling
   const sendNavigation = async (direction: string) => {
     if (!currentSessionId) return;
 
+    // Throttle navigation to prevent spam
+    const currentTime = Date.now();
+    if (currentTime - lastNavigationTime < 150) {
+      console.log('Throttling navigation input');
+      return;
+    }
+
     try {
+      console.log('Sending navigation:', direction);
+      
       // Update selection index in session
       const { error } = await supabase
         .from('sessions')
@@ -251,7 +282,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           selected_editor: JSON.stringify({ 
             action: 'navigate', 
             direction, 
-            timestamp: Date.now(),
+            timestamp: currentTime,
             playerId: myPlayerId 
           })
         })
@@ -259,6 +290,9 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       if (error) {
         console.error('Error sending navigation:', error);
+      } else {
+        setLastNavigationTime(currentTime);
+        console.log('Navigation sent successfully');
       }
     } catch (error) {
       console.error('Error sending navigation:', error);
@@ -269,6 +303,8 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     if (!currentSessionId) return;
 
     try {
+      console.log('Sending selection');
+      
       // Send selection action
       const { error } = await supabase
         .from('sessions')
@@ -283,6 +319,8 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       if (error) {
         console.error('Error sending selection:', error);
+      } else {
+        console.log('Selection sent successfully');
       }
     } catch (error) {
       console.error('Error sending selection:', error);
@@ -419,7 +457,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           </div>
           <button
             onClick={lockLobby}
-            className="w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-600"
+            className="w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-600 active:bg-purple-700"
           >
             <Lock size={16} />
             Lock Lobby & Start Editor Selection
@@ -449,7 +487,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               <div className="mb-4">
                 <button
                   onClick={unlockLobby}
-                  className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm"
+                  className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
                 >
                   Unlock Lobby
                 </button>
@@ -469,43 +507,43 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             </div>
           </div>
 
-          {/* TV Remote Controls */}
+          {/* ENHANCED: TV Remote Controls with better feedback */}
           <div className="flex justify-center mb-6">
             <div className="relative w-48 h-48">
-              <div className="absolute inset-0 rounded-full bg-gray-800 border-2 border-gray-700">
+              <div className="absolute inset-0 rounded-full bg-gray-800 border-2 border-gray-700 shadow-2xl">
                 {/* Center button (Select) */}
                 <button
                   onClick={sendSelection}
-                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 border-indigo-400 transition-colors"
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 border-indigo-400 transition-all duration-150 shadow-lg active:scale-95"
                 >
                   <span className="text-xs font-bold">SEL</span>
                 </button>
                 
-                {/* Direction buttons */}
+                {/* Direction buttons with enhanced feedback */}
                 <button 
                   onClick={() => sendNavigation('up')}
-                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-t-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-colors flex items-center justify-center"
+                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-t-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronUp size={20} className="text-white" />
                 </button>
                 
                 <button 
                   onClick={() => sendNavigation('down')}
-                  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-b-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-colors flex items-center justify-center"
+                  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-b-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronDown size={20} className="text-white" />
                 </button>
                 
                 <button 
                   onClick={() => sendNavigation('right')}
-                  className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-r-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-colors flex items-center justify-center"
+                  className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-r-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronRight size={20} className="text-white" />
                 </button>
                 
                 <button 
                   onClick={() => sendNavigation('left')}
-                  className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-l-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-colors flex items-center justify-center"
+                  className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-l-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronLeft size={20} className="text-white" />
                 </button>
@@ -517,7 +555,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           <div className="grid grid-cols-2 gap-4">
             <button 
               onClick={sendSelection}
-              className="p-4 rounded-lg border-2 bg-indigo-500/20 hover:bg-indigo-500/30 active:bg-indigo-500/40 border-indigo-500/30 text-indigo-300 transition-colors flex flex-col items-center gap-2"
+              className="p-4 rounded-lg border-2 bg-indigo-500/20 hover:bg-indigo-500/30 active:bg-indigo-500/40 border-indigo-500/30 text-indigo-300 transition-all duration-150 flex flex-col items-center gap-2 active:scale-95"
             >
               <span className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold">A</span>
               <span className="text-sm">Select</span>
@@ -525,11 +563,25 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             
             <button 
               onClick={() => navigate('/')}
-              className="p-4 rounded-lg border-2 bg-red-500/20 hover:bg-red-500/30 active:bg-red-500/40 border-red-500/30 text-red-300 transition-colors flex flex-col items-center gap-2"
+              className="p-4 rounded-lg border-2 bg-red-500/20 hover:bg-red-500/30 active:bg-red-500/40 border-red-500/30 text-red-300 transition-all duration-150 flex flex-col items-center gap-2 active:scale-95"
             >
               <span className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold">B</span>
               <span className="text-sm">Exit</span>
             </button>
+          </div>
+          
+          {/* ENHANCED: Debug info for development */}
+          <div className="mt-6 bg-gray-800/30 rounded-lg p-3 text-xs text-gray-400">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex justify-between">
+                <span>Session:</span>
+                <span className="text-indigo-300 font-mono">{currentSessionId.slice(-8)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Player ID:</span>
+                <span className="text-purple-300 font-mono">{myPlayerId.slice(-8)}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
