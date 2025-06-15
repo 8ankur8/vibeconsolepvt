@@ -1,0 +1,332 @@
+import React, { useState, useEffect } from 'react';
+import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+interface EditorSelectionProps {
+  sessionId: string;
+  lobbyCode: string;
+  players: any[];
+  onBack: () => void;
+}
+
+interface Editor {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  icon: React.ComponentType<any>;
+  color: string;
+  bgGradient: string;
+  features: string[];
+}
+
+const editors: Editor[] = [
+  {
+    id: 'bolt',
+    name: 'Bolt.new',
+    description: 'AI-powered full-stack development platform',
+    url: 'https://bolt.new',
+    icon: Zap,
+    color: 'text-yellow-400',
+    bgGradient: 'from-yellow-500/20 to-orange-500/20',
+    features: ['AI Code Generation', 'Real-time Preview', 'Full-stack Support', 'Instant Deployment']
+  },
+  {
+    id: 'loveable',
+    name: 'Loveable',
+    description: 'Visual development platform for modern apps',
+    url: 'https://loveable.ai',
+    icon: Code,
+    color: 'text-pink-400',
+    bgGradient: 'from-pink-500/20 to-purple-500/20',
+    features: ['Visual Builder', 'Component Library', 'Responsive Design', 'Team Collaboration']
+  },
+  {
+    id: 'firebase',
+    name: 'Firebase Studio',
+    description: 'Google\'s app development platform',
+    url: 'https://console.firebase.google.com',
+    icon: Database,
+    color: 'text-orange-400',
+    bgGradient: 'from-orange-500/20 to-red-500/20',
+    features: ['Real-time Database', 'Authentication', 'Cloud Functions', 'Analytics']
+  }
+];
+
+const EditorSelection: React.FC<EditorSelectionProps> = ({ 
+  sessionId, 
+  lobbyCode, 
+  players, 
+  onBack 
+}) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedEditor, setSelectedEditor] = useState<Editor | null>(null);
+  const [showFullscreen, setShowFullscreen] = useState(false);
+
+  // Listen for navigation inputs from phones
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const subscription = supabase
+      .channel('editor_navigation')
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'sessions',
+          filter: `id=eq.${sessionId}`
+        }, 
+        (payload) => {
+          const newData = payload.new as any;
+          if (newData.selected_editor) {
+            try {
+              const editorData = JSON.parse(newData.selected_editor);
+              console.log('Navigation received:', editorData);
+              
+              if (editorData.action === 'navigate') {
+                handleNavigation(editorData.direction);
+              } else if (editorData.action === 'select') {
+                handleSelectEditor();
+              }
+            } catch (error) {
+              console.error('Error parsing editor data:', error);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [sessionId, selectedIndex]);
+
+  const handleSelectEditor = () => {
+    const editor = editors[selectedIndex];
+    setSelectedEditor(editor);
+    setShowFullscreen(true);
+  };
+
+  const handleCloseFullscreen = () => {
+    setShowFullscreen(false);
+    setSelectedEditor(null);
+  };
+
+  const handleNavigation = (direction: string) => {
+    switch (direction) {
+      case 'left':
+        setSelectedIndex(prev => prev > 0 ? prev - 1 : editors.length - 1);
+        break;
+      case 'right':
+        setSelectedIndex(prev => prev < editors.length - 1 ? prev + 1 : 0);
+        break;
+    }
+  };
+
+  // Keyboard navigation for console
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowLeft':
+          handleNavigation('left');
+          break;
+        case 'ArrowRight':
+          handleNavigation('right');
+          break;
+        case 'Enter':
+        case ' ':
+          handleSelectEditor();
+          break;
+        case 'Escape':
+          if (showFullscreen) {
+            handleCloseFullscreen();
+          } else {
+            onBack();
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [selectedIndex, showFullscreen]);
+
+  if (showFullscreen && selectedEditor) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black">
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-4">
+          <button
+            onClick={handleCloseFullscreen}
+            className="bg-black/50 hover:bg-black/70 text-white p-3 rounded-full backdrop-blur-md border border-white/20 transition-colors"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <div className="bg-black/50 backdrop-blur-md border border-white/20 rounded-lg px-4 py-2 text-white">
+            <div className="flex items-center gap-2">
+              <selectedEditor.icon size={20} className={selectedEditor.color} />
+              <span className="font-medium">{selectedEditor.name}</span>
+            </div>
+          </div>
+        </div>
+        
+        <iframe
+          src={selectedEditor.url}
+          className="w-full h-full border-0"
+          title={selectedEditor.name}
+          allow="fullscreen"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white">
+      {/* Header */}
+      <header className="p-4 border-b border-indigo-500/20 backdrop-blur-md bg-black/20">
+        <div className="container mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <div className="flex items-center gap-2">
+              <Code size={28} className="text-indigo-300" />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+                Select Editor
+              </h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full">
+              <Users size={16} />
+              <span>{players.length} players</span>
+            </div>
+            <div className="bg-purple-500/20 px-3 py-1 rounded-full">
+              <span className="font-mono text-lg">{lobbyCode}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-red-500/20 text-red-300 px-3 py-1 rounded-full">
+              <Lock size={16} />
+              <span>Locked</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-8">
+        {/* Instructions */}
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold mb-4">Choose Your Development Environment</h2>
+          <p className="text-xl text-indigo-200 mb-6">
+            Use your phone controller to navigate and select an editor
+          </p>
+          <div className="flex justify-center gap-8 text-sm text-indigo-300">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-6 bg-gray-700 rounded flex items-center justify-center">←→</div>
+              <span>Navigate</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-6 bg-indigo-500 rounded flex items-center justify-center">A</div>
+              <span>Select</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-6 bg-red-500 rounded flex items-center justify-center">B</div>
+              <span>Back</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Editor Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {editors.map((editor, index) => {
+            const isSelected = index === selectedIndex;
+            const IconComponent = editor.icon;
+            
+            return (
+              <div
+                key={editor.id}
+                className={`relative group transition-all duration-300 transform cursor-pointer ${
+                  isSelected 
+                    ? 'scale-105 z-10' 
+                    : 'scale-95 opacity-70'
+                }`}
+                onClick={() => {
+                  setSelectedIndex(index);
+                  setTimeout(() => handleSelectEditor(), 200);
+                }}
+              >
+                {/* Selection Ring */}
+                {isSelected && (
+                  <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur-lg opacity-75 animate-pulse"></div>
+                )}
+                
+                <div className={`relative bg-gradient-to-br ${editor.bgGradient} backdrop-blur-md border-2 ${
+                  isSelected ? 'border-indigo-400' : 'border-white/10'
+                } rounded-xl p-8 h-full transition-all duration-300`}>
+                  
+                  {/* Header */}
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className={`p-3 rounded-lg bg-black/30 ${editor.color}`}>
+                      <IconComponent size={32} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">{editor.name}</h3>
+                      <p className="text-gray-300">{editor.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Features */}
+                  <div className="space-y-3 mb-8">
+                    {editor.features.map((feature, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${editor.color.replace('text-', 'bg-')}`}></div>
+                        <span className="text-gray-200">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* URL Preview */}
+                  <div className="bg-black/30 rounded-lg p-3 mb-6">
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <ExternalLink size={16} />
+                      <span className="font-mono">{editor.url}</span>
+                    </div>
+                  </div>
+
+                  {/* Selection Indicator */}
+                  {isSelected && (
+                    <div className="absolute bottom-4 right-4">
+                      <div className="bg-indigo-500 text-white px-3 py-1 rounded-full text-sm font-medium animate-bounce">
+                        Press A to Select
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Connected Controllers */}
+        <div className="mt-12 bg-black/20 rounded-lg p-6 border border-indigo-500/20 max-w-2xl mx-auto">
+          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Users className="text-indigo-300" />
+            Connected Controllers
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            {players.map((player) => (
+              <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20">
+                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-white font-medium">{player.name}</span>
+                <span className="text-xs text-gray-400 ml-auto">Ready</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default EditorSelection;
