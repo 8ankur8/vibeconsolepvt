@@ -62,13 +62,16 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedEditor, setSelectedEditor] = useState<Editor | null>(null);
   const [showFullscreen, setShowFullscreen] = useState(false);
+  const [lastNavigationTime, setLastNavigationTime] = useState(0);
 
-  // Listen for navigation inputs from phones
+  // ENHANCED: Listen for navigation inputs from phones with better parsing
   useEffect(() => {
     if (!sessionId) return;
 
+    console.log('Setting up real-time navigation listener for session:', sessionId);
+
     const subscription = supabase
-      .channel('editor_navigation')
+      .channel(`editor_navigation_${sessionId}`)
       .on('postgres_changes', 
         { 
           event: 'UPDATE', 
@@ -78,14 +81,32 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         }, 
         (payload) => {
           const newData = payload.new as any;
+          console.log('Raw session update received:', newData);
+          
           if (newData.selected_editor) {
             try {
               const editorData = JSON.parse(newData.selected_editor);
-              console.log('Navigation received:', editorData);
+              console.log('Parsed navigation data:', editorData);
+              
+              // Prevent duplicate processing of the same event
+              const currentTime = Date.now();
+              if (editorData.timestamp && Math.abs(currentTime - editorData.timestamp) > 5000) {
+                console.log('Ignoring old navigation event');
+                return;
+              }
+              
+              // Prevent rapid-fire navigation
+              if (currentTime - lastNavigationTime < 200) {
+                console.log('Throttling navigation event');
+                return;
+              }
               
               if (editorData.action === 'navigate') {
+                console.log('Processing navigation:', editorData.direction);
                 handleNavigation(editorData.direction);
+                setLastNavigationTime(currentTime);
               } else if (editorData.action === 'select') {
+                console.log('Processing selection');
                 handleSelectEditor();
               }
             } catch (error) {
@@ -94,15 +115,19 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Navigation subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up navigation subscription');
       subscription.unsubscribe();
     };
-  }, [sessionId, selectedIndex]);
+  }, [sessionId, selectedIndex, lastNavigationTime]);
 
   const handleSelectEditor = () => {
     const editor = editors[selectedIndex];
+    console.log('Selecting editor:', editor.name);
     setSelectedEditor(editor);
     setShowFullscreen(true);
   };
@@ -113,25 +138,48 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   };
 
   const handleNavigation = (direction: string) => {
+    console.log('Handling navigation:', direction, 'Current index:', selectedIndex);
+    
     switch (direction) {
       case 'left':
-        setSelectedIndex(prev => prev > 0 ? prev - 1 : editors.length - 1);
+        setSelectedIndex(prev => {
+          const newIndex = prev > 0 ? prev - 1 : editors.length - 1;
+          console.log('Moving left to index:', newIndex);
+          return newIndex;
+        });
         break;
       case 'right':
-        setSelectedIndex(prev => prev < editors.length - 1 ? prev + 1 : 0);
+        setSelectedIndex(prev => {
+          const newIndex = prev < editors.length - 1 ? prev + 1 : 0;
+          console.log('Moving right to index:', newIndex);
+          return newIndex;
+        });
+        break;
+      case 'up':
+        // Optional: Could implement up/down navigation for different rows
+        break;
+      case 'down':
+        // Optional: Could implement up/down navigation for different rows
         break;
     }
   };
 
-  // Keyboard navigation for console
+  // Keyboard navigation for console (backup)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      console.log('Keyboard event:', e.key);
       switch (e.key) {
         case 'ArrowLeft':
           handleNavigation('left');
           break;
         case 'ArrowRight':
           handleNavigation('right');
+          break;
+        case 'ArrowUp':
+          handleNavigation('up');
+          break;
+        case 'ArrowDown':
+          handleNavigation('down');
           break;
         case 'Enter':
         case ' ':
@@ -235,6 +283,15 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
               <span>Back</span>
             </div>
           </div>
+          
+          {/* ENHANCED: Current selection indicator */}
+          <div className="mt-6 bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 max-w-md mx-auto">
+            <div className="flex items-center justify-center gap-2 text-indigo-300">
+              <span className="text-sm">Currently Selected:</span>
+              <span className="font-bold text-white">{editors[selectedIndex].name}</span>
+              <span className="text-xs bg-indigo-500 px-2 py-1 rounded">{selectedIndex + 1}/{editors.length}</span>
+            </div>
+          </div>
         </div>
 
         {/* Editor Cards */}
@@ -246,28 +303,33 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             return (
               <div
                 key={editor.id}
-                className={`relative group transition-all duration-300 transform cursor-pointer ${
+                className={`relative group transition-all duration-500 transform cursor-pointer ${
                   isSelected 
-                    ? 'scale-105 z-10' 
-                    : 'scale-95 opacity-70'
+                    ? 'scale-110 z-10' 
+                    : 'scale-95 opacity-60'
                 }`}
                 onClick={() => {
                   setSelectedIndex(index);
                   setTimeout(() => handleSelectEditor(), 200);
                 }}
               >
-                {/* Selection Ring */}
+                {/* ENHANCED: Selection Ring with animation */}
                 {isSelected && (
-                  <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur-lg opacity-75 animate-pulse"></div>
+                  <>
+                    <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-75 animate-pulse"></div>
+                    <div className="absolute -inset-4 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-2xl blur-md opacity-50 animate-ping"></div>
+                  </>
                 )}
                 
                 <div className={`relative bg-gradient-to-br ${editor.bgGradient} backdrop-blur-md border-2 ${
-                  isSelected ? 'border-indigo-400' : 'border-white/10'
-                } rounded-xl p-8 h-full transition-all duration-300`}>
+                  isSelected ? 'border-indigo-400 shadow-2xl shadow-indigo-500/25' : 'border-white/10'
+                } rounded-xl p-8 h-full transition-all duration-500`}>
                   
                   {/* Header */}
                   <div className="flex items-center gap-4 mb-6">
-                    <div className={`p-3 rounded-lg bg-black/30 ${editor.color}`}>
+                    <div className={`p-3 rounded-lg bg-black/30 ${editor.color} ${
+                      isSelected ? 'animate-pulse' : ''
+                    }`}>
                       <IconComponent size={32} />
                     </div>
                     <div>
@@ -280,7 +342,9 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                   <div className="space-y-3 mb-8">
                     {editor.features.map((feature, idx) => (
                       <div key={idx} className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${editor.color.replace('text-', 'bg-')}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${editor.color.replace('text-', 'bg-')} ${
+                          isSelected ? 'animate-pulse' : ''
+                        }`}></div>
                         <span className="text-gray-200">{feature}</span>
                       </div>
                     ))}
@@ -294,14 +358,25 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                     </div>
                   </div>
 
-                  {/* Selection Indicator */}
+                  {/* ENHANCED: Selection Indicator */}
                   {isSelected && (
                     <div className="absolute bottom-4 right-4">
-                      <div className="bg-indigo-500 text-white px-3 py-1 rounded-full text-sm font-medium animate-bounce">
-                        Press A to Select
+                      <div className="bg-indigo-500 text-white px-4 py-2 rounded-full text-sm font-medium animate-bounce shadow-lg">
+                        ✨ Press A to Select
                       </div>
                     </div>
                   )}
+                  
+                  {/* Index indicator */}
+                  <div className="absolute top-4 right-4">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      isSelected 
+                        ? 'bg-indigo-500 text-white' 
+                        : 'bg-gray-700 text-gray-300'
+                    }`}>
+                      {index + 1}
+                    </div>
+                  </div>
                 </div>
               </div>
             );
@@ -322,6 +397,18 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 <span className="text-xs text-gray-400 ml-auto">Ready</span>
               </div>
             ))}
+          </div>
+          
+          {/* ENHANCED: Debug info for development */}
+          <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
+            <div className="flex justify-between">
+              <span>Selected Index:</span>
+              <span className="text-indigo-300">{selectedIndex}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Session ID:</span>
+              <span className="text-indigo-300 font-mono">{sessionId.slice(-8)}</span>
+            </div>
           </div>
         </div>
       </div>
