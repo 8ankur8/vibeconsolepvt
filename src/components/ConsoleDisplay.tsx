@@ -148,12 +148,13 @@ const ConsoleDisplay: React.FC = () => {
 
   useEffect(() => {
     if (sessionId) {
+      // Initial load
       loadDevices();
       loadSessionStatus();
       
-      // Set up real-time subscription for devices
-      const devicesSubscription = supabase
-        .channel('devices_changes')
+      // Set up real-time subscription for devices with proper channel naming
+      const devicesChannel = supabase
+        .channel(`devices_${sessionId}`)
         .on('postgres_changes', 
           { 
             event: '*', 
@@ -162,15 +163,18 @@ const ConsoleDisplay: React.FC = () => {
             filter: `session_id=eq.${sessionId}`
           }, 
           (payload) => {
-            console.log('Device change:', payload);
+            console.log('Device change detected:', payload);
+            // Reload devices immediately when any change occurs
             loadDevices();
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Devices subscription status:', status);
+        });
 
-      // Set up real-time subscription for session changes
-      const sessionSubscription = supabase
-        .channel('session_changes')
+      // Set up real-time subscription for session changes with proper channel naming
+      const sessionChannel = supabase
+        .channel(`session_${sessionId}`)
         .on('postgres_changes', 
           { 
             event: 'UPDATE', 
@@ -179,17 +183,34 @@ const ConsoleDisplay: React.FC = () => {
             filter: `id=eq.${sessionId}`
           }, 
           (payload) => {
-            console.log('Session change:', payload);
+            console.log('Session change detected:', payload);
+            // Reload session status immediately when changes occur
             loadSessionStatus();
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Session subscription status:', status);
+        });
 
+      // Cleanup function
       return () => {
-        devicesSubscription.unsubscribe();
-        sessionSubscription.unsubscribe();
+        console.log('Cleaning up subscriptions');
+        devicesChannel.unsubscribe();
+        sessionChannel.unsubscribe();
       };
     }
+  }, [sessionId]);
+
+  // Add periodic refresh as backup
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const interval = setInterval(() => {
+      loadDevices();
+      loadSessionStatus();
+    }, 5000); // Refresh every 5 seconds as backup
+
+    return () => clearInterval(interval);
   }, [sessionId]);
 
   const copyConnectionUrl = async () => {
@@ -247,35 +268,63 @@ const ConsoleDisplay: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Game Area */}
           <div className="lg:col-span-2">
-            <div className="bg-black/20 rounded-lg p-8 border border-indigo-500/20 h-96 flex flex-col items-center justify-center">
-              <h2 className="text-3xl font-bold mb-4">Waiting for Players</h2>
-              <p className="text-indigo-200 mb-8 text-center">
-                Share the lobby code or scan the QR code to join the game
-              </p>
+            <div className="bg-black/20 rounded-lg p-8 border border-indigo-500/20 h-96 flex flex-col items-center justify-center relative overflow-hidden">
+              {/* Animated background pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 animate-pulse"></div>
+              </div>
               
-              {players.length === 0 ? (
-                <div className="text-center">
-                  <div className="text-6xl mb-4">🎮</div>
-                  <p className="text-gray-400">No players connected yet</p>
-                  <p className="text-sm text-gray-500 mt-2">First player to join becomes the host</p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <div className="text-4xl mb-4">👥</div>
-                  <p className="text-green-400 font-medium">
-                    {players.length} player{players.length > 1 ? 's' : ''} connected
-                  </p>
-                  {players.find(p => p.isHost) && (
-                    <p className="text-purple-300 text-sm mt-2 flex items-center justify-center gap-1">
-                      <Crown size={16} className="text-yellow-400" />
-                      Host: {players.find(p => p.isHost)?.name}
+              <div className="relative z-10 text-center">
+                <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+                  Waiting for Players
+                </h2>
+                <p className="text-indigo-200 mb-8 text-center max-w-md">
+                  Share the lobby code or scan the QR code to join the game
+                </p>
+                
+                {players.length === 0 ? (
+                  <div className="text-center">
+                    <div className="text-6xl mb-4 animate-bounce">🎮</div>
+                    <p className="text-gray-400 text-lg">No players connected yet</p>
+                    <p className="text-sm text-gray-500 mt-2">First player to join becomes the host</p>
+                    <div className="mt-4 flex items-center justify-center gap-2 text-sm text-indigo-300">
+                      <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
+                      <span>Waiting for connections...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="text-4xl mb-4 animate-pulse">👥</div>
+                    <p className="text-green-400 font-medium text-xl mb-2">
+                      {players.length} player{players.length > 1 ? 's' : ''} connected!
                     </p>
-                  )}
-                  <p className="text-gray-400 text-sm mt-2">
-                    Waiting for host to lock the lobby...
-                  </p>
-                </div>
-              )}
+                    {players.find(p => p.isHost) && (
+                      <p className="text-purple-300 text-sm mt-2 flex items-center justify-center gap-1">
+                        <Crown size={16} className="text-yellow-400" />
+                        Host: {players.find(p => p.isHost)?.name}
+                      </p>
+                    )}
+                    <p className="text-gray-400 text-sm mt-2">
+                      Waiting for host to lock the lobby...
+                    </p>
+                    
+                    {/* Player avatars */}
+                    <div className="flex justify-center gap-2 mt-4">
+                      {players.map((player, index) => (
+                        <div key={player.id} className="relative">
+                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
+                            {player.name.charAt(0).toUpperCase()}
+                          </div>
+                          {player.isHost && (
+                            <Crown size={12} className="absolute -top-1 -right-1 text-yellow-400" />
+                          )}
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-gray-900 animate-pulse"></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -359,15 +408,20 @@ const ConsoleDisplay: React.FC = () => {
               <div className="space-y-3">
                 {players.length === 0 ? (
                   <div className="text-center py-8">
-                    <div className="text-4xl mb-3">📱</div>
+                    <div className="text-4xl mb-3 animate-bounce">📱</div>
                     <p className="text-indigo-300 font-medium">Waiting for players...</p>
                     <p className="text-sm text-gray-400 mt-1">
                       First player to join becomes the host
                     </p>
+                    <div className="mt-3 flex items-center justify-center gap-2 text-xs text-indigo-400">
+                      <div className="w-1 h-1 bg-indigo-400 rounded-full animate-ping"></div>
+                      <div className="w-1 h-1 bg-indigo-400 rounded-full animate-ping" style={{animationDelay: '0.2s'}}></div>
+                      <div className="w-1 h-1 bg-indigo-400 rounded-full animate-ping" style={{animationDelay: '0.4s'}}></div>
+                    </div>
                   </div>
                 ) : (
                   players.map((player) => (
-                    <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20">
+                    <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20 transition-all hover:bg-indigo-900/40">
                       <div className={`w-3 h-3 rounded-full ${
                         player.status === 'connected' ? 'bg-green-400' : 'bg-gray-400'
                       } animate-pulse`}></div>
@@ -381,6 +435,9 @@ const ConsoleDisplay: React.FC = () => {
                         <div className="text-xs text-gray-400">
                           {player.isHost ? 'Host' : 'Player'} • Connected
                         </div>
+                      </div>
+                      <div className="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded">
+                        Online
                       </div>
                     </div>
                   ))
@@ -401,7 +458,10 @@ const ConsoleDisplay: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Status:</span>
-                  <span className="text-green-300">Open</span>
+                  <span className="text-green-300 flex items-center gap-1">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    Open
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Host Required:</span>
@@ -411,6 +471,12 @@ const ConsoleDisplay: React.FC = () => {
                   <span className="text-gray-400">Current Host:</span>
                   <span className="text-yellow-300">
                     {players.find(p => p.isHost)?.name || 'None'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Session ID:</span>
+                  <span className="text-gray-300 font-mono text-xs">
+                    {sessionId ? sessionId.slice(-8) : 'Loading...'}
                   </span>
                 </div>
               </div>
