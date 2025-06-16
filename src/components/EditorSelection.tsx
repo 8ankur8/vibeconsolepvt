@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -62,9 +62,17 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedEditor, setSelectedEditor] = useState<Editor | null>(null);
   const [showFullscreen, setShowFullscreen] = useState(false);
-  const [lastNavigationTime, setLastNavigationTime] = useState(0);
+  
+  // Use refs to prevent stale closures and unnecessary re-subscriptions
+  const selectedIndexRef = useRef(selectedIndex);
+  const lastNavigationTimeRef = useRef(0);
 
-  // ENHANCED: Listen for navigation inputs from phones with better parsing
+  // Keep ref updated with current selectedIndex
+  useEffect(() => {
+    selectedIndexRef.current = selectedIndex;
+  }, [selectedIndex]);
+
+  // Listen for navigation inputs from phones - FIXED SUBSCRIPTION
   useEffect(() => {
     if (!sessionId) return;
 
@@ -95,16 +103,10 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 return;
               }
               
-              // Prevent rapid-fire navigation
-              if (currentTime - lastNavigationTime < 200) {
-                console.log('Throttling navigation event');
-                return;
-              }
-              
               if (editorData.action === 'navigate') {
                 console.log('Processing navigation:', editorData.direction);
                 handleNavigation(editorData.direction);
-                setLastNavigationTime(currentTime);
+                lastNavigationTimeRef.current = currentTime;
               } else if (editorData.action === 'select') {
                 console.log('Processing selection');
                 handleSelectEditor();
@@ -123,10 +125,10 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
       console.log('Cleaning up navigation subscription');
       subscription.unsubscribe();
     };
-  }, [sessionId, selectedIndex, lastNavigationTime]);
+  }, [sessionId]); // Only depend on sessionId to prevent re-subscriptions
 
   const handleSelectEditor = () => {
-    const editor = editors[selectedIndex];
+    const editor = editors[selectedIndexRef.current]; // Use ref to get latest value
     console.log('Selecting editor:', editor.name);
     setSelectedEditor(editor);
     setShowFullscreen(true);
@@ -138,7 +140,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   };
 
   const handleNavigation = (direction: string) => {
-    console.log('Handling navigation:', direction, 'Current index:', selectedIndex);
+    console.log('Handling navigation:', direction, 'Current index:', selectedIndexRef.current);
     
     switch (direction) {
       case 'left':
@@ -197,7 +199,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [selectedIndex, showFullscreen]);
+  }, [showFullscreen]); // Only depend on showFullscreen
 
   if (showFullscreen && selectedEditor) {
     return (
@@ -284,7 +286,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             </div>
           </div>
           
-          {/* ENHANCED: Current selection indicator */}
+          {/* Current selection indicator */}
           <div className="mt-6 bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 max-w-md mx-auto">
             <div className="flex items-center justify-center gap-2 text-indigo-300">
               <span className="text-sm">Currently Selected:</span>
@@ -313,7 +315,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                   setTimeout(() => handleSelectEditor(), 200);
                 }}
               >
-                {/* ENHANCED: Selection Ring with animation */}
+                {/* Enhanced Selection Ring with animation */}
                 {isSelected && (
                   <>
                     <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-75 animate-pulse"></div>
@@ -358,7 +360,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                     </div>
                   </div>
 
-                  {/* ENHANCED: Selection Indicator */}
+                  {/* Enhanced Selection Indicator */}
                   {isSelected && (
                     <div className="absolute bottom-4 right-4">
                       <div className="bg-indigo-500 text-white px-4 py-2 rounded-full text-sm font-medium animate-bounce shadow-lg">
@@ -399,7 +401,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             ))}
           </div>
           
-          {/* ENHANCED: Debug info for development */}
+          {/* Debug info for development */}
           <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
             <div className="flex justify-between">
               <span>Selected Index:</span>
