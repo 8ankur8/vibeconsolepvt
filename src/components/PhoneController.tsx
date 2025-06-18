@@ -29,6 +29,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
   // Load session and check if it exists
   const loadSession = async () => {
+    console.log('🔍 Loading session for lobby code:', lobbyCode);
     try {
       const { data: session, error } = await supabase
         .from('sessions')
@@ -38,10 +39,12 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .single();
 
       if (error || !session) {
+        console.error('❌ Session not found:', error);
         setConnectionError('Lobby not found or inactive');
         return null;
       }
 
+      console.log('✅ Session loaded:', session);
       setCurrentSessionId(session.id);
       const wasLocked = isLobbyLocked;
       const nowLocked = session.is_locked || false;
@@ -50,17 +53,19 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       
       // INSTANT TRANSITION: If lobby just got locked, immediately switch to editor selection
       if (!wasLocked && nowLocked) {
-        console.log('Lobby locked - instantly switching to editor selection mode');
+        console.log('🔒 Lobby locked - instantly switching to editor selection mode');
         setGameStatus('editor_selection');
       } else if (nowLocked) {
+        console.log('🔒 Lobby is locked - setting editor selection mode');
         setGameStatus('editor_selection');
       } else {
+        console.log('🔓 Lobby is unlocked - setting waiting mode');
         setGameStatus('waiting');
       }
       
       return session;
     } catch (error) {
-      console.error('Error loading session:', error);
+      console.error('💥 Error loading session:', error);
       setConnectionError('Failed to load lobby');
       return null;
     }
@@ -68,8 +73,12 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
   // Load players in the session
   const loadPlayers = async () => {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+      console.log('⚠️ No session ID available for loading players');
+      return;
+    }
 
+    console.log('👥 Loading players for session:', currentSessionId);
     try {
       const { data: devices, error } = await supabase
         .from('devices')
@@ -78,9 +87,11 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .order('connected_at', { ascending: true });
 
       if (error) {
-        console.error('Error loading players:', error);
+        console.error('❌ Error loading players:', error);
         return;
       }
+
+      console.log('📱 Raw devices data:', devices);
 
       const mappedPlayers: Player[] = devices.map((device) => ({
         id: device.id,
@@ -89,26 +100,31 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       }));
 
       setPlayers(mappedPlayers);
+      console.log('✅ Players mapped:', mappedPlayers);
 
       // Check if current player is host
       const myDevice = devices.find(d => d.id === myPlayerId);
       if (myDevice) {
-        setIsHost(myDevice.is_leader || false);
+        const amHost = myDevice.is_leader || false;
+        setIsHost(amHost);
+        console.log('👑 Am I host?', amHost, 'My device:', myDevice);
       }
     } catch (error) {
-      console.error('Error loading players:', error);
+      console.error('💥 Error loading players:', error);
     }
   };
 
   useEffect(() => {
+    console.log('🚀 PhoneController mounted with lobby code:', lobbyCode);
     loadSession();
   }, [lobbyCode]);
 
   useEffect(() => {
     if (currentSessionId) {
+      console.log('🔄 Setting up subscriptions for session:', currentSessionId);
       loadPlayers();
       
-      // Set up real-time subscriptions
+      // Set up real-time subscriptions with unique channel names
       const devicesSubscription = supabase
         .channel(`devices_changes_${currentSessionId}`)
         .on('postgres_changes', 
@@ -119,11 +135,13 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             filter: `session_id=eq.${currentSessionId}`
           }, 
           (payload) => {
-            console.log('Device change:', payload);
+            console.log('📱 Device change detected:', payload);
             loadPlayers();
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('📱 Devices subscription status:', status);
+        });
 
       const sessionSubscription = supabase
         .channel(`session_changes_${currentSessionId}`)
@@ -135,7 +153,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             filter: `id=eq.${currentSessionId}`
           }, 
           (payload) => {
-            console.log('Session change:', payload);
+            console.log('🏠 Session change detected:', payload);
             const newData = payload.new as any;
             const wasLocked = isLobbyLocked;
             const nowLocked = newData.is_locked || false;
@@ -144,17 +162,20 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             
             // INSTANT TRANSITION: Switch modes immediately when lock status changes
             if (!wasLocked && nowLocked) {
-              console.log('Lobby locked - instantly switching to editor selection mode');
+              console.log('🔒 Lobby locked - instantly switching to editor selection mode');
               setGameStatus('editor_selection');
             } else if (wasLocked && !nowLocked) {
-              console.log('Lobby unlocked - switching back to waiting mode');
+              console.log('🔓 Lobby unlocked - switching back to waiting mode');
               setGameStatus('waiting');
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('🏠 Session subscription status:', status);
+        });
 
       return () => {
+        console.log('🧹 Cleaning up subscriptions');
         devicesSubscription.unsubscribe();
         sessionSubscription.unsubscribe();
       };
@@ -162,11 +183,18 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   }, [currentSessionId, myPlayerId, isLobbyLocked]);
 
   const joinLobby = async () => {
-    if (!playerName.trim() || !lobbyCode) return;
+    if (!playerName.trim() || !lobbyCode) {
+      console.log('⚠️ Missing player name or lobby code');
+      return;
+    }
 
+    console.log('🚪 Attempting to join lobby with name:', playerName.trim());
     try {
       const session = await loadSession();
-      if (!session) return;
+      if (!session) {
+        console.log('❌ Failed to load session, cannot join');
+        return;
+      }
 
       // Check if lobby is full (max 4 players)
       const { data: existingDevices, error: countError } = await supabase
@@ -175,17 +203,21 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .eq('session_id', session.id);
 
       if (countError) {
+        console.error('❌ Error checking lobby capacity:', countError);
         setConnectionError('Failed to check lobby capacity');
         return;
       }
 
+      console.log('📊 Current devices in lobby:', existingDevices.length);
       if (existingDevices.length >= 4) {
+        console.log('🚫 Lobby is full');
         setConnectionError('Lobby is full (max 4 players)');
         return;
       }
 
       // IMPORTANT: First player becomes host
       const isFirstPlayer = existingDevices.length === 0;
+      console.log('👑 Is first player (will be host)?', isFirstPlayer);
 
       // Add device to session
       const { data: device, error: deviceError } = await supabase
@@ -199,25 +231,31 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .single();
 
       if (deviceError) {
+        console.error('❌ Error joining lobby:', deviceError);
         setConnectionError('Failed to join lobby');
         return;
       }
 
+      console.log('✅ Successfully joined lobby:', device);
       setMyPlayerId(device.id);
       setIsJoined(true);
       setIsHost(isFirstPlayer);
       setConnectionError('');
 
-      console.log('Successfully joined lobby:', device, 'Is host:', isFirstPlayer);
+      console.log('🎉 Join complete - Player ID:', device.id, 'Is host:', isFirstPlayer);
     } catch (error) {
-      console.error('Error joining lobby:', error);
+      console.error('💥 Error joining lobby:', error);
       setConnectionError('Failed to join lobby');
     }
   };
 
   const lockLobby = async () => {
-    if (!isHost || !currentSessionId) return;
+    if (!isHost || !currentSessionId) {
+      console.log('⚠️ Cannot lock lobby - not host or no session ID');
+      return;
+    }
 
+    console.log('🔒 Host attempting to lock lobby');
     try {
       const { error } = await supabase
         .from('sessions')
@@ -225,22 +263,26 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .eq('id', currentSessionId);
 
       if (error) {
-        console.error('Error locking lobby:', error);
+        console.error('❌ Error locking lobby:', error);
         return;
       }
 
       // INSTANT LOCAL UPDATE: Don't wait for real-time update
       setIsLobbyLocked(true);
       setGameStatus('editor_selection');
-      console.log('Lobby locked - immediately switching to editor selection');
+      console.log('✅ Lobby locked - immediately switching to editor selection');
     } catch (error) {
-      console.error('Error locking lobby:', error);
+      console.error('💥 Error locking lobby:', error);
     }
   };
 
   const unlockLobby = async () => {
-    if (!isHost || !currentSessionId) return;
+    if (!isHost || !currentSessionId) {
+      console.log('⚠️ Cannot unlock lobby - not host or no session ID');
+      return;
+    }
 
+    console.log('🔓 Host attempting to unlock lobby');
     try {
       const { error } = await supabase
         .from('sessions')
@@ -248,32 +290,38 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .eq('id', currentSessionId);
 
       if (error) {
-        console.error('Error unlocking lobby:', error);
+        console.error('❌ Error unlocking lobby:', error);
         return;
       }
 
       // INSTANT LOCAL UPDATE: Don't wait for real-time update
       setIsLobbyLocked(false);
       setGameStatus('waiting');
-      console.log('Lobby unlocked - immediately switching to waiting');
+      console.log('✅ Lobby unlocked - immediately switching to waiting');
     } catch (error) {
-      console.error('Error unlocking lobby:', error);
+      console.error('💥 Error unlocking lobby:', error);
     }
   };
 
-  // ENHANCED: Send navigation input to Supabase with throttling
+  // ENHANCED: Send navigation input to Supabase with throttling and detailed logging
   const sendNavigation = async (direction: string) => {
-    if (!currentSessionId) return;
+    console.log('🎮 sendNavigation called with direction:', direction);
+    console.log('📊 Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
+    
+    if (!currentSessionId) {
+      console.log('❌ Cannot send navigation - no session ID');
+      return;
+    }
 
     // Throttle navigation to prevent spam
     const currentTime = Date.now();
     if (currentTime - lastNavigationTime < 150) {
-      console.log('Throttling navigation input');
+      console.log('⏱️ Throttling navigation input - too soon since last input');
       return;
     }
 
     try {
-      console.log('Sending navigation:', direction);
+      console.log('📤 Sending navigation:', direction, 'at timestamp:', currentTime);
       
       // Update selection index in session
       const { error } = await supabase
@@ -289,21 +337,27 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .eq('id', currentSessionId);
 
       if (error) {
-        console.error('Error sending navigation:', error);
+        console.error('❌ Error sending navigation:', error);
       } else {
         setLastNavigationTime(currentTime);
-        console.log('Navigation sent successfully');
+        console.log('✅ Navigation sent successfully');
       }
     } catch (error) {
-      console.error('Error sending navigation:', error);
+      console.error('💥 Error sending navigation:', error);
     }
   };
 
   const sendSelection = async () => {
-    if (!currentSessionId) return;
+    console.log('🎯 sendSelection called');
+    console.log('📊 Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
+    
+    if (!currentSessionId) {
+      console.log('❌ Cannot send selection - no session ID');
+      return;
+    }
 
     try {
-      console.log('Sending selection');
+      console.log('📤 Sending selection');
       
       // Send selection action
       const { error } = await supabase
@@ -318,12 +372,12 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .eq('id', currentSessionId);
 
       if (error) {
-        console.error('Error sending selection:', error);
+        console.error('❌ Error sending selection:', error);
       } else {
-        console.log('Selection sent successfully');
+        console.log('✅ Selection sent successfully');
       }
     } catch (error) {
-      console.error('Error sending selection:', error);
+      console.error('💥 Error sending selection:', error);
     }
   };
 
