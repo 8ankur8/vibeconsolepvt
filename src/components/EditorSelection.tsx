@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft } from 'lucide-react';
+import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import WebRTCDebugPanel from './WebRTCDebugPanel';
 
 interface EditorSelectionProps {
   sessionId: string;
   lobbyCode: string;
   players: any[];
   onBack: () => void;
+  webrtcStatus?: any;
+  onWebRTCMessage?: (message: any) => any;
 }
 
 interface Editor {
@@ -57,11 +60,14 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   sessionId, 
   lobbyCode, 
   players, 
-  onBack 
+  onBack,
+  webrtcStatus,
+  onWebRTCMessage
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedEditor, setSelectedEditor] = useState<Editor | null>(null);
   const [showFullscreen, setShowFullscreen] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   // Use refs to prevent stale closures and unnecessary re-subscriptions
   const selectedIndexRef = useRef(selectedIndex);
@@ -72,7 +78,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
     selectedIndexRef.current = selectedIndex;
   }, [selectedIndex]);
 
-  // Listen for navigation inputs from phones - FIXED SUBSCRIPTION
+  // Listen for navigation inputs from phones - ENHANCED WITH WEBRTC
   useEffect(() => {
     if (!sessionId) return;
 
@@ -132,6 +138,15 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
     console.log('Selecting editor:', editor.name);
     setSelectedEditor(editor);
     setShowFullscreen(true);
+
+    // Broadcast selection via WebRTC if available
+    if (onWebRTCMessage) {
+      const result = onWebRTCMessage({
+        type: 'selection',
+        data: { editor, selectedIndex: selectedIndexRef.current },
+      });
+      console.log('📡 WebRTC broadcast result:', result);
+    }
   };
 
   const handleCloseFullscreen = () => {
@@ -147,6 +162,15 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         setSelectedIndex(prev => {
           const newIndex = prev > 0 ? prev - 1 : editors.length - 1;
           console.log('Moving left to index:', newIndex);
+          
+          // Broadcast navigation via WebRTC if available
+          if (onWebRTCMessage) {
+            onWebRTCMessage({
+              type: 'navigation',
+              data: { direction, newIndex, editor: editors[newIndex] },
+            });
+          }
+          
           return newIndex;
         });
         break;
@@ -154,6 +178,15 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         setSelectedIndex(prev => {
           const newIndex = prev < editors.length - 1 ? prev + 1 : 0;
           console.log('Moving right to index:', newIndex);
+          
+          // Broadcast navigation via WebRTC if available
+          if (onWebRTCMessage) {
+            onWebRTCMessage({
+              type: 'navigation',
+              data: { direction, newIndex, editor: editors[newIndex] },
+            });
+          }
+          
           return newIndex;
         });
         break;
@@ -200,6 +233,12 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [showFullscreen]); // Only depend on showFullscreen
+
+  // Create device name mapping for debug panel
+  const deviceNames = players.reduce((acc, player) => {
+    acc[player.id] = player.name;
+    return acc;
+  }, {} as Record<string, string>);
 
   if (showFullscreen && selectedEditor) {
     return (
@@ -260,6 +299,23 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
               <Lock size={16} />
               <span>Locked</span>
             </div>
+            {/* WebRTC Status */}
+            {webrtcStatus && (
+              <button
+                onClick={() => setShowDebugPanel(!showDebugPanel)}
+                className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
+                  webrtcStatus.isInitialized 
+                    ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
+                    : 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30'
+                }`}
+              >
+                <Activity size={16} />
+                <span>WebRTC</span>
+                <div className={`w-2 h-2 rounded-full ${
+                  webrtcStatus.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-gray-400'
+                }`}></div>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -293,6 +349,11 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
               <span className="font-bold text-white">{editors[selectedIndex].name}</span>
               <span className="text-xs bg-indigo-500 px-2 py-1 rounded">{selectedIndex + 1}/{editors.length}</span>
             </div>
+            {webrtcStatus && (
+              <div className="mt-2 text-xs text-gray-400">
+                WebRTC: {webrtcStatus.connectedDevices.length} connected
+              </div>
+            )}
           </div>
         </div>
 
@@ -411,8 +472,26 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
               <span>Session ID:</span>
               <span className="text-indigo-300 font-mono">{sessionId.slice(-8)}</span>
             </div>
+            {webrtcStatus && (
+              <div className="flex justify-between">
+                <span>WebRTC Status:</span>
+                <span className={webrtcStatus.isInitialized ? 'text-green-300' : 'text-red-300'}>
+                  {webrtcStatus.isInitialized ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* WebRTC Debug Panel */}
+        {showDebugPanel && webrtcStatus && (
+          <div className="mt-8 max-w-4xl mx-auto">
+            <WebRTCDebugPanel
+              status={webrtcStatus}
+              deviceNames={deviceNames}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

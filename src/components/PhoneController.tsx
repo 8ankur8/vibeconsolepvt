@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor } from 'lucide-react';
+import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useWebRTC } from '../hooks/useWebRTC';
+import WebRTCDebugPanel from './WebRTCDebugPanel';
 
 interface PhoneControllerProps {
   lobbyCode: string;
@@ -24,8 +26,27 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLobbyLocked, setIsLobbyLocked] = useState(false);
   const [lastNavigationTime, setLastNavigationTime] = useState(0);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   const navigate = useNavigate();
+
+  // WebRTC integration for phone controller
+  const webrtc = useWebRTC({
+    sessionId: currentSessionId,
+    deviceId: myPlayerId,
+    isHost: false, // Phone controllers are never hosts in WebRTC context
+    onMessage: (message, fromDeviceId) => {
+      console.log('📩 Phone received WebRTC message from', fromDeviceId, ':', message);
+      // Handle WebRTC messages from console here
+    },
+    enabled: currentSessionId !== '' && myPlayerId !== '' && isLobbyLocked
+  });
+
+  // Create device name mapping for debug panel
+  const deviceNames = players.reduce((acc, player) => {
+    acc[player.id] = player.name;
+    return acc;
+  }, {} as Record<string, string>);
 
   // Load session and check if it exists
   const loadSession = async () => {
@@ -93,14 +114,17 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       console.log('📱 Raw devices data:', devices);
 
-      const mappedPlayers: Player[] = devices.map((device) => ({
-        id: device.id,
-        name: device.name,
-        isHost: device.is_leader || false
-      }));
+      // Filter out console device and only show phone controllers
+      const mappedPlayers: Player[] = devices
+        .filter(device => device.name !== 'Console') // Exclude console device
+        .map((device) => ({
+          id: device.id,
+          name: device.name,
+          isHost: device.is_leader || false
+        }));
 
       setPlayers(mappedPlayers);
-      console.log('✅ Players mapped:', mappedPlayers);
+      console.log('✅ Players mapped (phone controllers only):', mappedPlayers);
 
       // Check if current player is host
       const myDevice = devices.find(d => d.id === myPlayerId);
@@ -196,10 +220,10 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         return;
       }
 
-      // Check if lobby is full (max 4 players)
+      // Check if lobby is full (max 4 players, excluding console)
       const { data: existingDevices, error: countError } = await supabase
         .from('devices')
-        .select('id')
+        .select('id, name')
         .eq('session_id', session.id);
 
       if (countError) {
@@ -208,16 +232,19 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         return;
       }
 
-      console.log('📊 Current devices in lobby:', existingDevices.length);
-      if (existingDevices.length >= 4) {
+      // Count only phone controllers (exclude console)
+      const phoneControllers = existingDevices.filter(device => device.name !== 'Console');
+      console.log('📊 Current phone controllers in lobby:', phoneControllers.length);
+      
+      if (phoneControllers.length >= 4) {
         console.log('🚫 Lobby is full');
         setConnectionError('Lobby is full (max 4 players)');
         return;
       }
 
-      // IMPORTANT: First player becomes host
-      const isFirstPlayer = existingDevices.length === 0;
-      console.log('👑 Is first player (will be host)?', isFirstPlayer);
+      // IMPORTANT: First phone controller becomes host (not including console)
+      const isFirstPlayer = phoneControllers.length === 0;
+      console.log('👑 Is first phone controller (will be host)?', isFirstPlayer);
 
       // Add device to session
       const { data: device, error: deviceError } = await supabase
@@ -225,7 +252,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         .insert({
           session_id: session.id,
           name: playerName.trim(),
-          is_leader: isFirstPlayer // First player becomes host
+          is_leader: isFirstPlayer // First phone controller becomes host
         })
         .select()
         .single();
@@ -303,7 +330,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
-  // ENHANCED: Send navigation input to Supabase with throttling and detailed logging
+  // ENHANCED: Send navigation input via WebRTC first, fallback to Supabase
   const sendNavigation = async (direction: string) => {
     console.log('🎮 sendNavigation called with direction:', direction);
     console.log('📊 Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
@@ -323,25 +350,49 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     try {
       console.log('📤 Sending navigation:', direction, 'at timestamp:', currentTime);
       
-      // Update selection index in session
-      const { error } = await supabase
-        .from('sessions')
-        .update({ 
-          selected_editor: JSON.stringify({ 
-            action: 'navigate', 
-            direction, 
-            timestamp: currentTime,
-            playerId: myPlayerId 
-          })
-        })
-        .eq('id', currentSessionId);
+      // Try WebRTC first if available
+      const webrtcMessage = {
+        type: 'navigation' as const,
+        data: { direction, timestamp: currentTime, playerId: myPlayerId }
+      };
 
-      if (error) {
-        console.error('❌ Error sending navigation:', error);
-      } else {
-        setLastNavigationTime(currentTime);
-        console.log('✅ Navigation sent successfully');
+      // Find console device to send WebRTC message to
+      const consoleDevice = await supabase
+        .from('devices')
+        .select('id')
+        .eq('session_id', currentSessionId)
+        .eq('name', 'Console')
+        .single();
+
+      let webrtcSent = false;
+      if (consoleDevice.data && webrtc.status.isInitialized) {
+        webrtcSent = webrtc.sendMessage(consoleDevice.data.id, webrtcMessage);
+        console.log('📡 WebRTC navigation sent:', webrtcSent);
       }
+
+      // Fallback to Supabase if WebRTC failed
+      if (!webrtcSent) {
+        console.log('📤 Falling back to Supabase for navigation');
+        const { error } = await supabase
+          .from('sessions')
+          .update({ 
+            selected_editor: JSON.stringify({ 
+              action: 'navigate', 
+              direction, 
+              timestamp: currentTime,
+              playerId: myPlayerId 
+            })
+          })
+          .eq('id', currentSessionId);
+
+        if (error) {
+          console.error('❌ Error sending navigation via Supabase:', error);
+        } else {
+          console.log('✅ Navigation sent via Supabase');
+        }
+      }
+
+      setLastNavigationTime(currentTime);
     } catch (error) {
       console.error('💥 Error sending navigation:', error);
     }
@@ -359,22 +410,45 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     try {
       console.log('📤 Sending selection');
       
-      // Send selection action
-      const { error } = await supabase
-        .from('sessions')
-        .update({ 
-          selected_editor: JSON.stringify({ 
-            action: 'select', 
-            timestamp: Date.now(),
-            playerId: myPlayerId 
-          })
-        })
-        .eq('id', currentSessionId);
+      // Try WebRTC first if available
+      const webrtcMessage = {
+        type: 'selection' as const,
+        data: { timestamp: Date.now(), playerId: myPlayerId }
+      };
 
-      if (error) {
-        console.error('❌ Error sending selection:', error);
-      } else {
-        console.log('✅ Selection sent successfully');
+      // Find console device to send WebRTC message to
+      const consoleDevice = await supabase
+        .from('devices')
+        .select('id')
+        .eq('session_id', currentSessionId)
+        .eq('name', 'Console')
+        .single();
+
+      let webrtcSent = false;
+      if (consoleDevice.data && webrtc.status.isInitialized) {
+        webrtcSent = webrtc.sendMessage(consoleDevice.data.id, webrtcMessage);
+        console.log('📡 WebRTC selection sent:', webrtcSent);
+      }
+
+      // Fallback to Supabase if WebRTC failed
+      if (!webrtcSent) {
+        console.log('📤 Falling back to Supabase for selection');
+        const { error } = await supabase
+          .from('sessions')
+          .update({ 
+            selected_editor: JSON.stringify({ 
+              action: 'select', 
+              timestamp: Date.now(),
+              playerId: myPlayerId 
+            })
+          })
+          .eq('id', currentSessionId);
+
+        if (error) {
+          console.error('❌ Error sending selection via Supabase:', error);
+        } else {
+          console.log('✅ Selection sent via Supabase');
+        }
       }
     } catch (error) {
       console.error('💥 Error sending selection:', error);
@@ -490,6 +564,21 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         <div className="flex items-center gap-2 mb-3">
           <Users size={16} className="text-indigo-300" />
           <h3 className="font-semibold">Players ({players.length}/4)</h3>
+          {/* WebRTC Status */}
+          <button
+            onClick={() => setShowDebugPanel(!showDebugPanel)}
+            className={`ml-auto flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              webrtc.status.isInitialized 
+                ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
+                : 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30'
+            }`}
+          >
+            <Activity size={12} />
+            <span>WebRTC</span>
+            <div className={`w-1 h-1 rounded-full ${
+              webrtc.status.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-gray-400'
+            }`}></div>
+          </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {players.map((player) => (
@@ -501,6 +590,17 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           ))}
         </div>
       </div>
+
+      {/* WebRTC Debug Panel */}
+      {showDebugPanel && (
+        <div className="mb-6">
+          <WebRTCDebugPanel
+            status={webrtc.status}
+            deviceNames={deviceNames}
+            className="text-sm"
+          />
+        </div>
+      )}
 
       {/* Host Controls - Only show in waiting state */}
       {isHost && gameStatus === 'waiting' && (
@@ -535,6 +635,11 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               <Monitor size={48} className="text-purple-400 mx-auto mb-2" />
               <h2 className="text-xl font-bold">Control the Main Screen</h2>
               <p className="text-sm text-gray-400">Navigate and select editors on the console</p>
+              {webrtc.status.isInitialized && (
+                <p className="text-xs text-green-400 mt-1">
+                  WebRTC: {webrtc.status.connectedDevices.length > 0 ? 'Connected' : 'Connecting...'}
+                </p>
+              )}
             </div>
 
             {isHost && (
@@ -634,6 +739,16 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               <div className="flex justify-between">
                 <span>Player ID:</span>
                 <span className="text-purple-300 font-mono">{myPlayerId.slice(-8)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>WebRTC:</span>
+                <span className={webrtc.status.isInitialized ? 'text-green-300' : 'text-red-300'}>
+                  {webrtc.status.isInitialized ? 'Ready' : 'Disabled'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Connected:</span>
+                <span className="text-blue-300">{webrtc.status.connectedDevices.length}</span>
               </div>
             </div>
           </div>
