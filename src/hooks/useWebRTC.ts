@@ -47,7 +47,10 @@ export const useWebRTC = ({
 
   // Initialize WebRTC manager
   useEffect(() => {
-    if (!enabled || !sessionId || !deviceId) return;
+    if (!enabled || !sessionId || !deviceId) {
+      console.log('⚠️ WebRTC disabled or missing required params:', { enabled, sessionId: !!sessionId, deviceId: !!deviceId });
+      return;
+    }
 
     console.log('🚀 Initializing WebRTC manager', { sessionId, deviceId, isHost });
 
@@ -64,9 +67,9 @@ export const useWebRTC = ({
       handleConnectionStateChange
     );
 
-    setStatus(prev => ({ ...prev, isInitialized: true }));
+    setStatus(prev => ({ ...prev, isInitialized: true, lastError: undefined }));
 
-    // Set up signaling listener
+    // Set up signaling listener with better error handling
     const signalChannel = supabase
       .channel(`webrtc_signals_${sessionId}_${deviceId}`)
       .on('postgres_changes', 
@@ -79,24 +82,40 @@ export const useWebRTC = ({
         async (payload) => {
           console.log('📡 Received WebRTC signal:', payload);
           try {
-            await webrtcManager.current?.handleSignal(payload.new);
-            updateStatus();
+            if (webrtcManager.current) {
+              await webrtcManager.current.handleSignal(payload.new);
+              updateStatus();
+            }
           } catch (error) {
             console.error('Error handling WebRTC signal:', error);
-            setStatus(prev => ({ ...prev, lastError: error.message }));
+            setStatus(prev => ({ 
+              ...prev, 
+              lastError: `Signal handling error: ${error.message}` 
+            }));
           }
         }
       )
       .subscribe((status) => {
         console.log('📡 WebRTC signaling subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ WebRTC signaling channel ready');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ WebRTC signaling channel error');
+          setStatus(prev => ({ 
+            ...prev, 
+            lastError: 'Signaling channel error' 
+          }));
+        }
       });
 
     // Cleanup function
     return () => {
       console.log('🧹 Cleaning up WebRTC hook');
       signalChannel.unsubscribe();
-      webrtcManager.current?.cleanup();
-      webrtcManager.current = null;
+      if (webrtcManager.current) {
+        webrtcManager.current.cleanup();
+        webrtcManager.current = null;
+      }
       setStatus({
         isInitialized: false,
         connections: {},
@@ -114,12 +133,16 @@ export const useWebRTC = ({
     }
 
     try {
+      console.log(`🤝 Attempting to connect to device: ${targetDeviceId}`);
       await webrtcManager.current.connectToPeer(targetDeviceId);
       updateStatus();
       return true;
     } catch (error) {
       console.error('Error connecting to device:', error);
-      setStatus(prev => ({ ...prev, lastError: error.message }));
+      setStatus(prev => ({ 
+        ...prev, 
+        lastError: `Connection error: ${error.message}` 
+      }));
       return false;
     }
   };
@@ -131,7 +154,11 @@ export const useWebRTC = ({
       return false;
     }
 
-    return webrtcManager.current.sendMessage(targetDeviceId, message);
+    const result = webrtcManager.current.sendMessage(targetDeviceId, message);
+    if (result) {
+      updateStatus();
+    }
+    return result;
   };
 
   // Broadcast message to all connected devices
@@ -146,19 +173,26 @@ export const useWebRTC = ({
     return result;
   };
 
-  // Status update interval
+  // Status update interval (less frequent to reduce overhead)
   useEffect(() => {
     if (!webrtcManager.current) return;
 
-    const interval = setInterval(updateStatus, 2000);
+    const interval = setInterval(updateStatus, 3000); // Every 3 seconds
     return () => clearInterval(interval);
   }, [webrtcManager.current]);
+
+  // Get detailed status for debugging
+  const getDetailedStatus = () => {
+    if (!webrtcManager.current) return {};
+    return webrtcManager.current.getDetailedStatus();
+  };
 
   return {
     status,
     connectToDevice,
     sendMessage,
     broadcastMessage,
-    updateStatus
+    updateStatus,
+    getDetailedStatus
   };
 };

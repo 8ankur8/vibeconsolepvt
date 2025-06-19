@@ -314,6 +314,9 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 <div className={`w-2 h-2 rounded-full ${
                   webrtcStatus.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-gray-400'
                 }`}></div>
+                <span className="text-xs">
+                  {webrtcStatus.connectedDevices.length}/{Object.keys(webrtcStatus.connections).length}
+                </span>
               </button>
             )}
           </div>
@@ -351,7 +354,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             </div>
             {webrtcStatus && (
               <div className="mt-2 text-xs text-gray-400">
-                WebRTC: {webrtcStatus.connectedDevices.length} connected
+                WebRTC: {webrtcStatus.connectedDevices.length} connected, {Object.keys(webrtcStatus.connections).length} total
               </div>
             )}
           </div>
@@ -473,12 +476,20 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
               <span className="text-indigo-300 font-mono">{sessionId.slice(-8)}</span>
             </div>
             {webrtcStatus && (
-              <div className="flex justify-between">
-                <span>WebRTC Status:</span>
-                <span className={webrtcStatus.isInitialized ? 'text-green-300' : 'text-red-300'}>
-                  {webrtcStatus.isInitialized ? 'Active' : 'Inactive'}
-                </span>
-              </div>
+              <>
+                <div className="flex justify-between">
+                  <span>WebRTC Status:</span>
+                  <span className={webrtcStatus.isInitialized ? 'text-green-300' : 'text-red-300'}>
+                    {webrtcStatus.isInitialized ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Connected/Total:</span>
+                  <span className="text-blue-300">
+                    {webrtcStatus.connectedDevices.length}/{Object.keys(webrtcStatus.connections).length}
+                  </span>
+                </div>
+              </>
             )}
           </div>
         </div>
