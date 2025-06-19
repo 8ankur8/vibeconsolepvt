@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Code, Users, QrCode, Copy, Check, Lock, Crown, Wifi } from 'lucide-react';
+import { Code, Users, QrCode, Copy, Check, Lock, Crown, Wifi, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useWebRTC } from '../hooks/useWebRTC';
 import EditorSelection from './EditorSelection';
+import WebRTCDebugPanel from './WebRTCDebugPanel';
 
 interface Player {
   id: string;
@@ -21,6 +23,25 @@ const ConsoleDisplay: React.FC = () => {
   const [isLobbyLocked, setIsLobbyLocked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(true);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+
+  // WebRTC integration
+  const webrtc = useWebRTC({
+    sessionId,
+    deviceId: 'console', // Console acts as a special device
+    isHost: true,
+    onMessage: (message, fromDeviceId) => {
+      console.log('📩 Received WebRTC message from', fromDeviceId, ':', message);
+      // Handle WebRTC messages here (navigation, selection, etc.)
+    },
+    enabled: sessionId !== '' && isLobbyLocked
+  });
+
+  // Create device name mapping for debug panel
+  const deviceNames = players.reduce((acc, player) => {
+    acc[player.id] = player.name;
+    return acc;
+  }, {} as Record<string, string>);
 
   // Generate a random 6-character lobby code
   const generateLobbyCode = () => {
@@ -141,11 +162,27 @@ const ConsoleDisplay: React.FC = () => {
       // INSTANT REDIRECT: If lobby just got locked, immediately switch to editor selection
       if (!wasLocked && nowLocked) {
         console.log('Lobby locked - instantly switching to editor selection');
-        // No delay, immediate transition
+        // Initialize WebRTC connections to all players
+        initializeWebRTCConnections();
       }
       
     } catch (error) {
       console.error('Error loading session status:', error);
+    }
+  };
+
+  // Initialize WebRTC connections to all players
+  const initializeWebRTCConnections = async () => {
+    console.log('🚀 Initializing WebRTC connections to all players');
+    
+    // Wait a moment for WebRTC to be ready
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    for (const player of players) {
+      if (player.id !== 'console') { // Don't connect to ourselves
+        console.log(`🤝 Connecting to player: ${player.name} (${player.id})`);
+        await webrtc.connectToDevice(player.id);
+      }
     }
   };
 
@@ -239,6 +276,8 @@ const ConsoleDisplay: React.FC = () => {
         lobbyCode={lobbyCode}
         players={players}
         onBack={() => setIsLobbyLocked(false)}
+        webrtcStatus={webrtc.status}
+        onWebRTCMessage={webrtc.broadcastMessage}
       />
     );
   }
@@ -268,6 +307,21 @@ const ConsoleDisplay: React.FC = () => {
               <Wifi size={16} />
               <span>Live</span>
             </div>
+            {/* WebRTC Status Indicator */}
+            <button
+              onClick={() => setShowDebugPanel(!showDebugPanel)}
+              className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
+                webrtc.status.isInitialized 
+                  ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
+                  : 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30'
+              }`}
+            >
+              <Activity size={16} />
+              <span>WebRTC</span>
+              <div className={`w-2 h-2 rounded-full ${
+                webrtc.status.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-gray-400'
+              }`}></div>
+            </button>
           </div>
         </div>
       </header>
@@ -334,6 +388,17 @@ const ConsoleDisplay: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* WebRTC Debug Panel */}
+            {showDebugPanel && (
+              <div className="mt-6">
+                <WebRTCDebugPanel
+                  status={webrtc.status}
+                  deviceNames={deviceNames}
+                  onConnectToDevice={webrtc.connectToDevice}
+                />
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -482,6 +547,12 @@ const ConsoleDisplay: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-400">WebRTC:</span>
+                  <span className={`${webrtc.status.isInitialized ? 'text-green-300' : 'text-gray-300'}`}>
+                    {webrtc.status.isInitialized ? 'Ready' : 'Disabled'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-400">Session ID:</span>
                   <span className="text-gray-300 font-mono text-xs">
                     {sessionId ? sessionId.slice(-8) : 'Loading...'}
@@ -495,7 +566,8 @@ const ConsoleDisplay: React.FC = () => {
                   <li>• Console creates lobby and waits</li>
                   <li>• First player to join becomes host</li>
                   <li>• Host can lock lobby when ready</li>
-                  <li>• After locking, everyone gets remote controls</li>
+                  <li>• After locking, WebRTC connections establish</li>
+                  <li>• Real-time peer-to-peer communication begins</li>
                 </ul>
               </div>
             </div>
