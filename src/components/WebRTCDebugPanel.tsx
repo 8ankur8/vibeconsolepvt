@@ -57,8 +57,13 @@ const WebRTCDebugPanel: React.FC<WebRTCDebugPanelProps> = ({
     switch (state) {
       case 'connected':
       case 'open':
+      case 'stable':
         return 'text-green-400';
       case 'connecting':
+      case 'have-local-offer':
+      case 'have-remote-offer':
+      case 'have-local-pranswer':
+      case 'have-remote-pranswer':
         return 'text-yellow-400';
       case 'disconnected':
         return 'text-orange-400';
@@ -187,6 +192,18 @@ const WebRTCDebugPanel: React.FC<WebRTCDebugPanelProps> = ({
                       </span>
                     </div>
                     <div className="flex justify-between">
+                      <span>Signaling:</span>
+                      <span className={getStateColor(details.signalingState || 'unknown')}>
+                        {details.signalingState || 'unknown'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Role:</span>
+                      <span className="text-blue-400">
+                        {details.isInitiator ? 'Initiator' : 'Receiver'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
                       <span>Local SDP:</span>
                       <span className={details.localDescription ? 'text-green-400' : 'text-red-400'}>
                         {details.localDescription ? 'Set' : 'None'}
@@ -196,12 +213,6 @@ const WebRTCDebugPanel: React.FC<WebRTCDebugPanelProps> = ({
                       <span>Remote SDP:</span>
                       <span className={details.remoteDescription ? 'text-green-400' : 'text-red-400'}>
                         {details.remoteDescription ? 'Set' : 'None'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Role:</span>
-                      <span className="text-blue-400">
-                        {details.isInitiator ? 'Initiator' : 'Receiver'}
                       </span>
                     </div>
                   </div>

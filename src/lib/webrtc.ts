@@ -201,16 +201,20 @@ export class WebRTCManager {
         offerToReceiveVideo: false
       });
       
+      console.log(`🔧 Setting local description for ${targetDeviceId}:`, offer);
       await peerConnection.setLocalDescription(offer);
-      console.log(`📤 Sending offer to ${targetDeviceId}`);
+      console.log(`✅ Local description set for ${targetDeviceId}, signaling state: ${peerConnection.signalingState}`);
       
+      console.log(`📤 Sending offer to ${targetDeviceId}`);
       await this.sendSignal(targetDeviceId, 'offer', {
         sdp: offer,
         timestamp: Date.now(),
         deviceType: this.isHost ? 'console' : 'controller'
       });
+      
+      console.log(`🎯 Offer sent successfully to ${targetDeviceId}`);
     } catch (error) {
-      console.error(`Error creating offer for ${targetDeviceId}:`, error);
+      console.error(`💥 Error creating/sending offer for ${targetDeviceId}:`, error);
       this.connections.delete(targetDeviceId);
       throw error;
     }
@@ -241,6 +245,7 @@ export class WebRTCManager {
         // Set remote description and create answer
         console.log(`📝 Setting remote description and creating answer for ${sender_device_id}`);
         await connection.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        console.log(`✅ Remote description set for ${sender_device_id}, signaling state: ${connection.peerConnection.signalingState}`);
         
         // Process any pending ICE candidates
         const pendingCandidates = this.pendingCandidates.get(sender_device_id) || [];
@@ -250,8 +255,10 @@ export class WebRTCManager {
         }
         this.pendingCandidates.delete(sender_device_id);
         
+        console.log(`🔧 Creating answer for ${sender_device_id}`);
         const answer = await connection.peerConnection.createAnswer();
         await connection.peerConnection.setLocalDescription(answer);
+        console.log(`✅ Answer created and local description set for ${sender_device_id}, signaling state: ${connection.peerConnection.signalingState}`);
         
         console.log(`📤 Sending answer to ${sender_device_id}`);
         await this.sendSignal(sender_device_id, 'answer', {
@@ -264,6 +271,7 @@ export class WebRTCManager {
         // Handle answer
         console.log(`📝 Setting remote description from answer for ${sender_device_id}`);
         await connection.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        console.log(`✅ Remote description set from answer for ${sender_device_id}, signaling state: ${connection.peerConnection.signalingState}`);
         
         // Process any pending ICE candidates
         const pendingCandidates = this.pendingCandidates.get(sender_device_id) || [];
@@ -292,7 +300,7 @@ export class WebRTCManager {
         }
       }
     } catch (error) {
-      console.error(`Error handling ${type} signal from ${sender_device_id}:`, error);
+      console.error(`💥 Error handling ${type} signal from ${sender_device_id}:`, error);
       throw error;
     }
   }
@@ -418,6 +426,7 @@ export class WebRTCManager {
         connectionState: connection.peerConnection.connectionState,
         iceConnectionState: connection.peerConnection.iceConnectionState,
         iceGatheringState: connection.peerConnection.iceGatheringState,
+        signalingState: connection.peerConnection.signalingState,
         dataChannelState: connection.dataChannel?.readyState || 'none',
         isInitiator: connection.isInitiator,
         localDescription: !!connection.peerConnection.localDescription,
