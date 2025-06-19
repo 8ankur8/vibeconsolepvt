@@ -189,8 +189,6 @@ const ConsoleDisplay: React.FC = () => {
       // INSTANT REDIRECT: If lobby just got locked, immediately switch to editor selection
       if (!wasLocked && nowLocked) {
         console.log('🔒 Lobby locked - instantly switching to editor selection');
-        // Initialize WebRTC connections to all players
-        initializeWebRTCConnections();
       }
       
     } catch (error) {
@@ -198,18 +196,125 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // ENHANCED: Initialize WebRTC connections to all players (excluding console itself)
-  const initializeWebRTCConnections = async () => {
-    console.log('🚀 Initializing WebRTC connections to all players');
-    
-    // Wait a moment for WebRTC to be ready
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    for (const player of players) {
-      // Don't connect to console itself, only to phone controllers
-      if (player.id !== consoleDeviceId && player.deviceType === 'phone') {
-        console.log(`🤝 Connecting to player: ${player.name} (${player.id})`);
-        await webrtc.connectToDevice(player.id);
+  // NEW: Enhanced WebRTC connection management with detailed logging
+  useEffect(() => {
+    if (!sessionId || !consoleDeviceId || !isLobbyLocked || !webrtc.status.isInitialized) {
+      console.log('⚠️ WebRTC connection management disabled:', {
+        sessionId: !!sessionId,
+        consoleDeviceId: !!consoleDeviceId,
+        isLobbyLocked,
+        webrtcInitialized: webrtc.status.isInitialized
+      });
+      return;
+    }
+
+    console.log('🔄 Setting up enhanced WebRTC connection management');
+
+    const connectToMissingPeers = async () => {
+      // Get all phone controllers (exclude console)
+      const phoneControllers = players.filter(player => 
+        player.deviceType === 'phone' && player.id !== consoleDeviceId
+      );
+
+      // Get current WebRTC status
+      const { connections, connectedDevices } = webrtc.status;
+      
+      console.log('📊 Detailed WebRTC Connection Analysis:', {
+        totalPhoneControllers: phoneControllers.length,
+        phoneControllerIds: phoneControllers.map(p => ({ name: p.name, id: p.id.slice(-8) })),
+        totalConnections: Object.keys(connections).length,
+        connectionStates: Object.entries(connections).map(([id, state]) => ({ 
+          id: id.slice(-8), 
+          state,
+          name: deviceNames[id] || 'Unknown'
+        })),
+        connectedDevices: connectedDevices.length,
+        connectedDeviceIds: connectedDevices.map(id => ({ 
+          id: id.slice(-8), 
+          name: deviceNames[id] || 'Unknown' 
+        }))
+      });
+
+      // Find phone controllers that need WebRTC connections
+      const needConnection = phoneControllers.filter(player => {
+        const hasConnection = connections.hasOwnProperty(player.id);
+        const isConnected = connectedDevices.includes(player.id);
+        const connectionState = connections[player.id];
+        
+        console.log(`🔍 Analyzing ${player.name} (${player.id.slice(-8)}):`, {
+          hasConnection,
+          isConnected,
+          connectionState,
+          needsConnection: !hasConnection || (connectionState !== 'connected' && connectionState !== 'connecting')
+        });
+        
+        return !hasConnection || (connectionState !== 'connected' && connectionState !== 'connecting');
+      });
+
+      if (needConnection.length > 0) {
+        console.log(`🤝 Attempting to connect to ${needConnection.length} controllers:`, 
+          needConnection.map(p => `${p.name} (${p.id.slice(-8)})`));
+
+        // Attempt to connect to each controller that needs connection
+        for (const controller of needConnection) {
+          try {
+            console.log(`🔗 Initiating connection to ${controller.name} (${controller.id.slice(-8)})`);
+            const success = await webrtc.connectToDevice(controller.id);
+            
+            if (success) {
+              console.log(`✅ Connection initiated successfully for ${controller.name}`);
+            } else {
+              console.log(`❌ Failed to initiate connection for ${controller.name}`);
+            }
+            
+            // Small delay between connection attempts
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } catch (error) {
+            console.error(`💥 Error connecting to ${controller.name}:`, error);
+          }
+        }
+      } else {
+        console.log('✅ All phone controllers have WebRTC connections (connected or connecting)');
+      }
+
+      // Log detailed status for debugging
+      if (phoneControllers.length > 0) {
+        console.log('📋 Current WebRTC Status Summary:', {
+          phoneControllers: phoneControllers.length,
+          withConnections: phoneControllers.filter(p => connections.hasOwnProperty(p.id)).length,
+          fullyConnected: phoneControllers.filter(p => connectedDevices.includes(p.id)).length,
+          detailedStatus: webrtc.getDetailedStatus ? webrtc.getDetailedStatus() : 'Not available'
+        });
+      }
+    };
+
+    // Initial connection attempt (with delay to ensure WebRTC is ready)
+    const initialTimeout = setTimeout(connectToMissingPeers, 2000);
+
+    // Set up interval to continuously check and connect
+    const connectionInterval = setInterval(connectToMissingPeers, 8000); // Every 8 seconds
+
+    return () => {
+      console.log('🧹 Cleaning up enhanced WebRTC connection management');
+      clearTimeout(initialTimeout);
+      clearInterval(connectionInterval);
+    };
+  }, [sessionId, consoleDeviceId, isLobbyLocked, players, webrtc.status.isInitialized, webrtc.status.connections, webrtc.status.connectedDevices]);
+
+  // Manual connection trigger for debugging
+  const manualConnectAll = async () => {
+    console.log('🔧 Manual connection trigger activated');
+    const phoneControllers = players.filter(player => 
+      player.deviceType === 'phone' && player.id !== consoleDeviceId
+    );
+
+    for (const controller of phoneControllers) {
+      console.log(`🔗 Manually connecting to ${controller.name} (${controller.id.slice(-8)})`);
+      try {
+        await webrtc.connectToDevice(controller.id);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      } catch (error) {
+        console.error(`Error in manual connection to ${controller.name}:`, error);
       }
     }
   };
@@ -335,7 +440,7 @@ const ConsoleDisplay: React.FC = () => {
               <Wifi size={16} />
               <span>Live</span>
             </div>
-            {/* WebRTC Status Indicator */}
+            {/* Enhanced WebRTC Status Indicator */}
             <button
               onClick={() => setShowDebugPanel(!showDebugPanel)}
               className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
@@ -349,6 +454,9 @@ const ConsoleDisplay: React.FC = () => {
               <div className={`w-2 h-2 rounded-full ${
                 webrtc.status.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-gray-400'
               }`}></div>
+              <span className="text-xs">
+                {webrtc.status.connectedDevices.length}/{Object.keys(webrtc.status.connections).length}
+              </span>
             </button>
           </div>
         </div>
@@ -417,14 +525,50 @@ const ConsoleDisplay: React.FC = () => {
               </div>
             </div>
 
-            {/* WebRTC Debug Panel */}
+            {/* Enhanced WebRTC Debug Panel */}
             {showDebugPanel && (
               <div className="mt-6">
                 <WebRTCDebugPanel
                   status={webrtc.status}
                   deviceNames={deviceNames}
                   onConnectToDevice={webrtc.connectToDevice}
+                  getDetailedStatus={webrtc.getDetailedStatus}
                 />
+                
+                {/* Manual Connection Controls */}
+                <div className="mt-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+                  <h4 className="text-yellow-300 font-medium mb-2">Debug Controls</h4>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={manualConnectAll}
+                      disabled={!webrtc.status.isInitialized}
+                      className={`px-3 py-1 border rounded text-sm transition-colors ${
+                        webrtc.status.isInitialized
+                          ? 'bg-yellow-500/20 hover:bg-yellow-500/30 border-yellow-500/30 text-yellow-300'
+                          : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Force Connect All
+                    </button>
+                    <button
+                      onClick={() => webrtc.updateStatus()}
+                      disabled={!webrtc.status.isInitialized}
+                      className={`px-3 py-1 border rounded text-sm transition-colors ${
+                        webrtc.status.isInitialized
+                          ? 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/30 text-blue-300'
+                          : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Refresh Status
+                    </button>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-400">
+                    {webrtc.status.isInitialized 
+                      ? 'Use these controls to manually trigger WebRTC connections for debugging'
+                      : 'WebRTC manager not initialized - controls disabled'
+                    }
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -546,11 +690,11 @@ const ConsoleDisplay: React.FC = () => {
               </div>
             </div>
 
-            {/* Game Info */}
+            {/* Enhanced Game Info */}
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Wifi className="text-indigo-300" />
-                Lobby Status
+                System Status
               </h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
@@ -558,7 +702,7 @@ const ConsoleDisplay: React.FC = () => {
                   <span className="text-white">4</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Status:</span>
+                  <span className="text-gray-400">Lobby Status:</span>
                   <span className="text-green-300 flex items-center gap-1">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                     Open
@@ -581,6 +725,12 @@ const ConsoleDisplay: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-400">Connected/Total:</span>
+                  <span className="text-blue-300">
+                    {webrtc.status.connectedDevices.length}/{Object.keys(webrtc.status.connections).length}
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-400">Console ID:</span>
                   <span className="text-gray-300 font-mono text-xs">
                     {consoleDeviceId ? consoleDeviceId.slice(-8) : 'Loading...'}
@@ -595,13 +745,15 @@ const ConsoleDisplay: React.FC = () => {
               </div>
               
               <div className="mt-6 p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-                <h4 className="font-medium text-purple-300 mb-2">How it works:</h4>
+                <h4 className="font-medium text-purple-300 mb-2">WebRTC Status:</h4>
                 <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• Console creates lobby and waits</li>
-                  <li>• First player to join becomes host</li>
-                  <li>• Host can lock lobby when ready</li>
-                  <li>• After locking, WebRTC connections establish</li>
-                  <li>• Real-time peer-to-peer communication begins</li>
+                  <li>• Initialized: {webrtc.status.isInitialized ? '✅' : '❌'}</li>
+                  <li>• Total Connections: {Object.keys(webrtc.status.connections).length}</li>
+                  <li>• Active Connections: {webrtc.status.connectedDevices.length}</li>
+                  <li>• Open Data Channels: {Object.values(webrtc.status.dataChannels).filter(s => s === 'open').length}</li>
+                  {webrtc.status.lastError && (
+                    <li className="text-red-300">• Error: {webrtc.status.lastError}</li>
+                  )}
                 </ul>
               </div>
             </div>
