@@ -541,19 +541,32 @@ const ConsoleDisplay: React.FC = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={manualConnectAll}
-                      className="px-3 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 rounded text-yellow-300 text-sm transition-colors"
+                      disabled={!webrtc.status.isInitialized}
+                      className={`px-3 py-1 border rounded text-sm transition-colors ${
+                        webrtc.status.isInitialized
+                          ? 'bg-yellow-500/20 hover:bg-yellow-500/30 border-yellow-500/30 text-yellow-300'
+                          : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
+                      }`}
                     >
                       Force Connect All
                     </button>
                     <button
                       onClick={() => webrtc.updateStatus()}
-                      className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded text-blue-300 text-sm transition-colors"
+                      disabled={!webrtc.status.isInitialized}
+                      className={`px-3 py-1 border rounded text-sm transition-colors ${
+                        webrtc.status.isInitialized
+                          ? 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/30 text-blue-300'
+                          : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
+                      }`}
                     >
                       Refresh Status
                     </button>
                   </div>
                   <div className="mt-2 text-xs text-gray-400">
-                    Use these controls to manually trigger WebRTC connections for debugging
+                    {webrtc.status.isInitialized 
+                      ? 'Use these controls to manually trigger WebRTC connections for debugging'
+                      : 'WebRTC manager not initialized - controls disabled'
+                    }
                   </div>
                 </div>
               </div>
