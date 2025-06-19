@@ -16,6 +16,7 @@ interface Player {
 
 const ConsoleDisplay: React.FC = () => {
   const [sessionId, setSessionId] = useState<string>('');
+  const [consoleDeviceId, setConsoleDeviceId] = useState<string>(''); // NEW: Console's device ID
   const [lobbyCode, setLobbyCode] = useState<string>('');
   const [qrCodeData, setQrCodeData] = useState<string>('');
   const [connectionUrl, setConnectionUrl] = useState<string>('');
@@ -25,19 +26,19 @@ const ConsoleDisplay: React.FC = () => {
   const [isCreatingSession, setIsCreatingSession] = useState(true);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
-  // WebRTC integration
+  // WebRTC integration - NOW USES PROPER DEVICE ID
   const webrtc = useWebRTC({
     sessionId,
-    deviceId: 'console', // Console acts as a special device
+    deviceId: consoleDeviceId, // Use the actual console device ID from database
     isHost: true,
     onMessage: (message, fromDeviceId) => {
       console.log('📩 Received WebRTC message from', fromDeviceId, ':', message);
       // Handle WebRTC messages here (navigation, selection, etc.)
     },
-    enabled: sessionId !== '' && isLobbyLocked
+    enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked
   });
 
-  // Create device name mapping for debug panel
+  // Create device name mapping for debug panel (including console)
   const deviceNames = players.reduce((acc, player) => {
     acc[player.id] = player.name;
     return acc;
@@ -64,7 +65,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // Create session in Supabase (NO HOST CREATION)
+  // ENHANCED: Create session AND console device in Supabase
   const createSession = async () => {
     try {
       setIsCreatingSession(true);
@@ -72,8 +73,8 @@ const ConsoleDisplay: React.FC = () => {
       const baseUrl = window.location.origin;
       const connectionUrl = `${baseUrl}/controller?lobby=${code}`;
       
-      // Insert session into Supabase - NO HOST CREATION
-      const { data: session, error } = await supabase
+      // Step 1: Insert session into Supabase
+      const { data: session, error: sessionError } = await supabase
         .from('sessions')
         .insert({
           code,
@@ -84,28 +85,54 @@ const ConsoleDisplay: React.FC = () => {
         .select()
         .single();
 
-      if (error) {
-        console.error('Error creating session:', error);
+      if (sessionError) {
+        console.error('Error creating session:', sessionError);
         return;
       }
+
+      console.log('✅ Session created:', session);
+
+      // Step 2: Create console device entry in the database
+      const { data: consoleDevice, error: deviceError } = await supabase
+        .from('devices')
+        .insert({
+          session_id: session.id,
+          name: 'Console',
+          is_leader: true // Console is always the leader/host
+        })
+        .select()
+        .single();
+
+      if (deviceError) {
+        console.error('Error creating console device:', deviceError);
+        return;
+      }
+
+      console.log('✅ Console device created:', consoleDevice);
 
       // Generate QR code
       const qrCode = await generateQRCode(connectionUrl);
 
+      // Update state with all the new information
       setSessionId(session.id);
+      setConsoleDeviceId(consoleDevice.id); // CRITICAL: Store console's device ID
       setLobbyCode(code);
       setConnectionUrl(connectionUrl);
       setQrCodeData(qrCode);
       setIsCreatingSession(false);
 
-      console.log('Session created (no host):', session);
+      console.log('🎉 Session and console device setup complete:', {
+        sessionId: session.id,
+        consoleDeviceId: consoleDevice.id,
+        lobbyCode: code
+      });
     } catch (error) {
       console.error('Error creating session:', error);
       setIsCreatingSession(false);
     }
   };
 
-  // Load devices for the session
+  // ENHANCED: Load devices for the session (including console)
   const loadDevices = async () => {
     if (!sessionId) return;
 
@@ -121,17 +148,17 @@ const ConsoleDisplay: React.FC = () => {
         return;
       }
 
-      const mappedPlayers: Player[] = devices.map((device, index) => ({
+      const mappedPlayers: Player[] = devices.map((device) => ({
         id: device.id,
         name: device.name,
-        deviceType: 'phone',
-        isHost: device.is_leader || false, // Use database field
+        deviceType: device.name === 'Console' ? 'console' : 'phone',
+        isHost: device.is_leader || false,
         joinedAt: new Date(device.connected_at || '').getTime(),
         status: 'connected'
       }));
 
       setPlayers(mappedPlayers);
-      console.log('Players loaded:', mappedPlayers);
+      console.log('✅ Players loaded (including console):', mappedPlayers);
 
     } catch (error) {
       console.error('Error loading devices:', error);
@@ -161,7 +188,7 @@ const ConsoleDisplay: React.FC = () => {
       
       // INSTANT REDIRECT: If lobby just got locked, immediately switch to editor selection
       if (!wasLocked && nowLocked) {
-        console.log('Lobby locked - instantly switching to editor selection');
+        console.log('🔒 Lobby locked - instantly switching to editor selection');
         // Initialize WebRTC connections to all players
         initializeWebRTCConnections();
       }
@@ -171,7 +198,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // Initialize WebRTC connections to all players
+  // ENHANCED: Initialize WebRTC connections to all players (excluding console itself)
   const initializeWebRTCConnections = async () => {
     console.log('🚀 Initializing WebRTC connections to all players');
     
@@ -179,7 +206,8 @@ const ConsoleDisplay: React.FC = () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     for (const player of players) {
-      if (player.id !== 'console') { // Don't connect to ourselves
+      // Don't connect to console itself, only to phone controllers
+      if (player.id !== consoleDeviceId && player.deviceType === 'phone') {
         console.log(`🤝 Connecting to player: ${player.name} (${player.id})`);
         await webrtc.connectToDevice(player.id);
       }
@@ -296,7 +324,7 @@ const ConsoleDisplay: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full">
               <Users size={16} />
-              <span>{players.length}/4 players</span>
+              <span>{players.filter(p => p.deviceType === 'phone').length}/4 players</span>
             </div>
             {lobbyCode && (
               <div className="bg-purple-500/20 px-3 py-1 rounded-full">
@@ -344,7 +372,7 @@ const ConsoleDisplay: React.FC = () => {
                   Share the lobby code or scan the QR code to join the game
                 </p>
                 
-                {players.length === 0 ? (
+                {players.filter(p => p.deviceType === 'phone').length === 0 ? (
                   <div className="text-center">
                     <div className="text-6xl mb-4 animate-bounce">🎮</div>
                     <p className="text-gray-400 text-lg">No players connected yet</p>
@@ -358,21 +386,21 @@ const ConsoleDisplay: React.FC = () => {
                   <div className="text-center">
                     <div className="text-4xl mb-4 animate-pulse">👥</div>
                     <p className="text-green-400 font-medium text-xl mb-2">
-                      {players.length} player{players.length > 1 ? 's' : ''} connected!
+                      {players.filter(p => p.deviceType === 'phone').length} player{players.filter(p => p.deviceType === 'phone').length > 1 ? 's' : ''} connected!
                     </p>
-                    {players.find(p => p.isHost) && (
+                    {players.find(p => p.isHost && p.deviceType === 'phone') && (
                       <p className="text-purple-300 text-sm mt-2 flex items-center justify-center gap-1">
                         <Crown size={16} className="text-yellow-400" />
-                        Host: {players.find(p => p.isHost)?.name}
+                        Host: {players.find(p => p.isHost && p.deviceType === 'phone')?.name}
                       </p>
                     )}
                     <p className="text-gray-400 text-sm mt-2">
                       Waiting for host to lock the lobby...
                     </p>
                     
-                    {/* Player avatars */}
+                    {/* Player avatars (only phone controllers) */}
                     <div className="flex justify-center gap-2 mt-4">
-                      {players.map((player, index) => (
+                      {players.filter(p => p.deviceType === 'phone').map((player, index) => (
                         <div key={player.id} className="relative">
                           <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
                             {player.name.charAt(0).toUpperCase()}
@@ -476,10 +504,10 @@ const ConsoleDisplay: React.FC = () => {
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Users className="text-indigo-300" />
-                Players ({players.length}/4)
+                Players ({players.filter(p => p.deviceType === 'phone').length}/4)
               </h3>
               <div className="space-y-3">
-                {players.length === 0 ? (
+                {players.filter(p => p.deviceType === 'phone').length === 0 ? (
                   <div className="text-center py-8">
                     <div className="text-4xl mb-3 animate-bounce">📱</div>
                     <p className="text-indigo-300 font-medium">Waiting for players...</p>
@@ -493,7 +521,7 @@ const ConsoleDisplay: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  players.map((player) => (
+                  players.filter(p => p.deviceType === 'phone').map((player) => (
                     <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20 transition-all hover:bg-indigo-900/40">
                       <div className={`w-3 h-3 rounded-full ${
                         player.status === 'connected' ? 'bg-green-400' : 'bg-gray-400'
@@ -543,13 +571,19 @@ const ConsoleDisplay: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-400">Current Host:</span>
                   <span className="text-yellow-300">
-                    {players.find(p => p.isHost)?.name || 'None'}
+                    {players.find(p => p.isHost && p.deviceType === 'phone')?.name || 'None'}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">WebRTC:</span>
                   <span className={`${webrtc.status.isInitialized ? 'text-green-300' : 'text-gray-300'}`}>
                     {webrtc.status.isInitialized ? 'Ready' : 'Disabled'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Console ID:</span>
+                  <span className="text-gray-300 font-mono text-xs">
+                    {consoleDeviceId ? consoleDeviceId.slice(-8) : 'Loading...'}
                   </span>
                 </div>
                 <div className="flex justify-between">
