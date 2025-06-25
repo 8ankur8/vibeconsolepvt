@@ -35,8 +35,8 @@ export interface Device {
   name: string;
   device_type: 'phone' | 'console'; // New column from your schema
   is_host: boolean; // Renamed from is_leader in your schema
-  joined_at: string; // New column from your schema
-  last_seen: string; // New column from your schema
+  joined_at: number; // FIXED: Changed to number for Unix timestamp
+  last_seen: number; // FIXED: Changed to number for Unix timestamp
   connected_at?: string; // Legacy column for backward compatibility
 }
 
@@ -132,7 +132,7 @@ export const sessionHelpers = {
 };
 
 export const deviceHelpers = {
-  // Create device with enhanced schema fields
+  // Create device with enhanced schema fields - FIXED: Use Unix timestamps
   async createDevice(
     sessionId: string, 
     name: string, 
@@ -140,7 +140,7 @@ export const deviceHelpers = {
     isHost: boolean = false
   ): Promise<Device | null> {
     try {
-      const now = new Date().toISOString();
+      const now = Date.now(); // FIXED: Use Unix timestamp instead of ISO string
       
       const { data, error } = await supabase
         .from('devices')
@@ -149,8 +149,8 @@ export const deviceHelpers = {
           name,
           device_type: deviceType, // Using your new column
           is_host: isHost, // Using your renamed column
-          joined_at: now, // Using your new column
-          last_seen: now // Using your new column
+          joined_at: now, // FIXED: Using Unix timestamp
+          last_seen: now // FIXED: Using Unix timestamp
         })
         .select()
         .single();
@@ -168,12 +168,12 @@ export const deviceHelpers = {
     }
   },
 
-  // Update device activity using your new last_seen column
+  // Update device activity using your new last_seen column - FIXED: Use Unix timestamp
   async updateDeviceActivity(deviceId: string): Promise<boolean> {
     try {
       const { error } = await supabase
         .from('devices')
-        .update({ last_seen: new Date().toISOString() })
+        .update({ last_seen: Date.now() }) // FIXED: Use Unix timestamp instead of ISO string
         .eq('id', deviceId);
 
       if (error) {
@@ -456,16 +456,16 @@ export const monitoringHelpers = {
     }
   },
 
-  // Get active devices with last seen info
+  // Get active devices with last seen info - FIXED: Handle Unix timestamps
   async getActiveDevices(sessionId: string, maxInactiveMinutes: number = 5) {
     try {
-      const cutoff = new Date(Date.now() - maxInactiveMinutes * 60 * 1000).toISOString();
+      const cutoff = Date.now() - maxInactiveMinutes * 60 * 1000; // FIXED: Use Unix timestamp
       
       const { data, error } = await supabase
         .from('devices')
         .select('*')
         .eq('session_id', sessionId)
-        .gte('last_seen', cutoff) // Using your new last_seen column
+        .gte('last_seen', cutoff) // Using your new last_seen column with Unix timestamp
         .order('last_seen', { ascending: false });
 
       if (error) {

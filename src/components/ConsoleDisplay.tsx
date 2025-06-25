@@ -82,12 +82,12 @@ const ConsoleDisplay: React.FC = () => {
     enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked
   });
 
-  // Update device activity timestamp (uses your new last_seen column)
+  // Update device activity timestamp (uses your new last_seen column) - FIXED: Use Unix timestamp
   const updateDeviceActivity = async (deviceId: string) => {
     try {
       await supabase
         .from('devices')
-        .update({ last_seen: new Date().toISOString() })
+        .update({ last_seen: Date.now() }) // FIXED: Use Unix timestamp instead of ISO string
         .eq('id', deviceId);
     } catch (error) {
       console.error('Error updating device activity:', error);
@@ -115,7 +115,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // UPDATED: Create session and console device with new schema
+  // UPDATED: Create session and console device with new schema - FIXED: Use Unix timestamps
   const createSession = async () => {
     try {
       setIsCreatingSession(true);
@@ -142,7 +142,9 @@ const ConsoleDisplay: React.FC = () => {
 
       console.log('✅ Session created:', session);
 
-      // Step 2: Create console device entry with enhanced schema
+      // Step 2: Create console device entry with enhanced schema - FIXED: Use Unix timestamps
+      const now = Date.now(); // FIXED: Use Unix timestamp instead of ISO string
+      
       const { data: consoleDevice, error: deviceError } = await supabase
         .from('devices')
         .insert({
@@ -150,8 +152,8 @@ const ConsoleDisplay: React.FC = () => {
           name: 'Console',
           device_type: 'console', // Using your new device_type column
           is_host: true, // Using your renamed is_host column
-          joined_at: new Date().toISOString(), // Using your new joined_at column
-          last_seen: new Date().toISOString() // Using your new last_seen column
+          joined_at: now, // FIXED: Using Unix timestamp
+          last_seen: now // FIXED: Using Unix timestamp
         })
         .select()
         .single();
@@ -185,7 +187,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // UPDATED: Load devices with new schema fields
+  // UPDATED: Load devices with new schema fields - FIXED: Handle Unix timestamps
   const loadDevices = useCallback(async () => {
     if (!sessionId) return;
 
@@ -206,8 +208,8 @@ const ConsoleDisplay: React.FC = () => {
         name: device.name,
         deviceType: device.device_type || (device.name === 'Console' ? 'console' : 'phone'), // Using new device_type
         isHost: device.is_host || false, // Using renamed is_host column
-        joinedAt: new Date(device.joined_at || device.connected_at || '').getTime(), // Fallback for old data
-        lastSeen: new Date(device.last_seen || device.connected_at || '').getTime(), // Using new last_seen
+        joinedAt: device.joined_at || Date.now(), // FIXED: Handle Unix timestamp
+        lastSeen: device.last_seen || Date.now(), // FIXED: Handle Unix timestamp
         status: 'connected'
       }));
 
