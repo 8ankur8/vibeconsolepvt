@@ -49,7 +49,7 @@ export class InputRouter {
       this.onMappingChangeCallback?.(deviceId, defaultMappings);
     }
     
-    console.log(`🎮 Registered device: ${deviceName} (${deviceId.slice(-8)}) as ${deviceType}`);
+    console.log(`🎮 [InputRouter] Registered device: ${deviceName} (${deviceId.slice(-8)}) as ${deviceType}`);
   }
 
   // Create default input mappings for a device
@@ -119,11 +119,11 @@ export class InputRouter {
     ];
   }
 
-  // Process incoming WebRTC message with input data
+  // ENHANCED: Process incoming WebRTC message with input data
   processWebRTCInput(deviceId: string, message: any): ControllerInput | null {
     const deviceName = this.deviceNames.get(deviceId) || 'Unknown Device';
     
-    console.log(`📨 Processing WebRTC input from ${deviceName} (${deviceId.slice(-8)}):`, message);
+    console.log(`📨 [InputRouter] Processing WebRTC input from ${deviceName} (${deviceId.slice(-8)}):`, message);
 
     try {
       // Handle different message types and extract input events
@@ -132,12 +132,12 @@ export class InputRouter {
       if (message.type === 'navigation' || message.type === 'game_data') {
         inputEvent = this.extractInputFromMessage(message);
       } else {
-        console.log(`⚠️ Unhandled WebRTC message type: ${message.type}`);
+        console.log(`⚠️ [InputRouter] Unhandled WebRTC message type: ${message.type}`);
         return null;
       }
 
       if (!inputEvent) {
-        console.log(`⚠️ No input event extracted from message`);
+        console.log(`⚠️ [InputRouter] No input event extracted from message`);
         return null;
       }
 
@@ -152,22 +152,25 @@ export class InputRouter {
       this.addToHistory(controllerInput);
       this.onInputCallback?.(controllerInput);
 
-      console.log(`✅ Processed input from ${deviceName}: ${inputEvent.type}.${inputEvent.action}`);
+      console.log(`✅ [InputRouter] Processed WebRTC input from ${deviceName}: ${inputEvent.type}.${inputEvent.action}`);
       return controllerInput;
 
     } catch (error) {
-      console.error(`❌ Error processing WebRTC input from ${deviceName}:`, error);
+      console.error(`❌ [InputRouter] Error processing WebRTC input from ${deviceName}:`, error);
       return null;
     }
   }
 
-  // Extract input event from various message formats
+  // ENHANCED: Extract input event from various message formats
   private extractInputFromMessage(message: any): InputEvent | null {
     const data = message.data;
+    
+    console.log(`🔍 [InputRouter] Extracting input from message data:`, data);
     
     // Handle AirConsole-style dpad input
     if (data?.dpad?.directionchange) {
       const { key, pressed } = data.dpad.directionchange;
+      console.log(`🎮 [InputRouter] Extracted dpad input: ${key} (pressed: ${pressed})`);
       return {
         type: 'dpad',
         action: key,
@@ -180,6 +183,7 @@ export class InputRouter {
     if (data?.button) {
       const buttonName = Object.keys(data.button)[0];
       const buttonData = data.button[buttonName];
+      console.log(`🎮 [InputRouter] Extracted button input: ${buttonName}`, buttonData);
       return {
         type: 'button',
         action: buttonName,
@@ -190,6 +194,7 @@ export class InputRouter {
 
     // Handle swipe input
     if (data?.swipe) {
+      console.log(`🎮 [InputRouter] Extracted swipe input:`, data.swipe);
       return {
         type: 'swipe',
         action: data.swipe.direction || 'unknown',
@@ -200,6 +205,7 @@ export class InputRouter {
 
     // Handle touch input
     if (data?.touch) {
+      console.log(`🎮 [InputRouter] Extracted touch input:`, data.touch);
       return {
         type: 'touch',
         action: data.touch.action || 'tap',
@@ -210,6 +216,7 @@ export class InputRouter {
 
     // Handle accelerometer input
     if (data?.accelerometer) {
+      console.log(`🎮 [InputRouter] Extracted accelerometer input:`, data.accelerometer);
       return {
         type: 'accelerometer',
         action: 'motion',
@@ -218,15 +225,15 @@ export class InputRouter {
       };
     }
 
-    console.log(`⚠️ Unable to extract input from message data:`, data);
+    console.log(`⚠️ [InputRouter] Unable to extract input from message data:`, data);
     return null;
   }
 
-  // Process Supabase fallback input (when WebRTC fails)
+  // ENHANCED: Process Supabase fallback input (when WebRTC fails)
   processSupabaseInput(deviceId: string, inputData: any): ControllerInput | null {
     const deviceName = this.deviceNames.get(deviceId) || 'Unknown Device';
     
-    console.log(`📡 Processing Supabase fallback input from ${deviceName}:`, inputData);
+    console.log(`📡 [InputRouter] Processing Supabase fallback input from ${deviceName}:`, inputData);
 
     try {
       const inputEvent: InputEvent = {
@@ -247,11 +254,11 @@ export class InputRouter {
       this.addToHistory(controllerInput);
       this.onInputCallback?.(controllerInput);
 
-      console.log(`✅ Processed Supabase input from ${deviceName}: ${inputEvent.type}.${inputEvent.action}`);
+      console.log(`✅ [InputRouter] Processed Supabase input from ${deviceName}: ${inputEvent.type}.${inputEvent.action}`);
       return controllerInput;
 
     } catch (error) {
-      console.error(`❌ Error processing Supabase input from ${deviceName}:`, error);
+      console.error(`❌ [InputRouter] Error processing Supabase input from ${deviceName}:`, error);
       return null;
     }
   }
@@ -289,7 +296,7 @@ export class InputRouter {
     this.inputMappings.set(deviceId, mappings);
     this.onMappingChangeCallback?.(deviceId, mappings);
     
-    console.log(`🔄 Updated input mapping for ${deviceName}: ${inputType} → ${mappedAction}`);
+    console.log(`🔄 [InputRouter] Updated input mapping for ${deviceName}: ${inputType} → ${mappedAction}`);
   }
 
   // Add input to history with size limit
@@ -361,7 +368,7 @@ export class InputRouter {
     // Remove from history
     this.inputHistory = this.inputHistory.filter(input => input.deviceId !== deviceId);
     
-    console.log(`🗑️ Unregistered device: ${deviceName} (${deviceId.slice(-8)})`);
+    console.log(`🗑️ [InputRouter] Unregistered device: ${deviceName} (${deviceId.slice(-8)})`);
   }
 
   // Clear all data
@@ -369,50 +376,6 @@ export class InputRouter {
     this.deviceNames.clear();
     this.inputMappings.clear();
     this.inputHistory = [];
-    console.log('🧹 Cleared all input router data');
+    console.log('🧹 [InputRouter] Cleared all input router data');
   }
 }
-
-// Usage example:
-/*
-const inputRouter = new InputRouter(
-  (input) => {
-    console.log(`🎮 Input from ${input.deviceName}: ${input.input.type}.${input.input.action}`, input.input.data);
-    
-    // Process the input in your game logic
-    switch (input.input.type) {
-      case 'dpad':
-        handleDpadInput(input);
-        break;
-      case 'button':
-        handleButtonInput(input);
-        break;
-      case 'swipe':
-        handleSwipeInput(input);
-        break;
-    }
-  },
-  (deviceId, mappings) => {
-    console.log(`🔄 Input mappings updated for device ${deviceId}:`, mappings);
-  }
-);
-
-// Register devices
-inputRouter.registerDevice('device-1', 'Player 1', 'phone');
-inputRouter.registerDevice('console-id', 'Console', 'console');
-
-// Process WebRTC message
-const webrtcMessage = {
-  type: 'navigation',
-  data: {
-    dpad: {
-      directionchange: {
-        key: 'up',
-        pressed: true
-      }
-    }
-  },
-  timestamp: Date.now(),
-  senderId: 'device-1'
-};
-*/

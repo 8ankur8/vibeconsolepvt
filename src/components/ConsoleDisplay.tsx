@@ -39,40 +39,46 @@ const ConsoleDisplay: React.FC = () => {
     return acc;
   }, {} as Record<string, string>);
 
-  // Enhanced message handler for WebRTC messages with InputRouter integration
+  // ENHANCED: Improved message handler for WebRTC messages with better logging
   const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
     const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
-    console.log(`📩 WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
+    console.log(`📩 [CONSOLE] WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
     
-    // Process through InputRouter first
+    // CRITICAL: Process through InputRouter first
     if (inputRouterRef.current) {
+      console.log(`🎮 [CONSOLE] Processing message through InputRouter...`);
       const processedInput = inputRouterRef.current.processWebRTCInput(fromDeviceId, message);
       if (processedInput) {
-        console.log(`🎮 InputRouter processed input from ${deviceName}:`, processedInput);
+        console.log(`✅ [CONSOLE] InputRouter processed input from ${deviceName}:`, processedInput);
+        setLastProcessedInput(processedInput);
+      } else {
+        console.log(`⚠️ [CONSOLE] InputRouter failed to process input from ${deviceName}`);
       }
+    } else {
+      console.log(`❌ [CONSOLE] InputRouter not available!`);
     }
     
-    // Handle different message types
+    // Handle different message types for debugging
     switch (message.type) {
       case 'navigation':
-        console.log(`🎮 Navigation input from ${deviceName}:`, message.data);
+        console.log(`🎮 [CONSOLE] Navigation input from ${deviceName}:`, message.data);
         break;
       case 'selection':
-        console.log(`👆 Selection input from ${deviceName}:`, message.data);
+        console.log(`👆 [CONSOLE] Selection input from ${deviceName}:`, message.data);
         break;
       case 'game_data':
-        console.log(`🎯 Game data from ${deviceName}:`, message.data);
+        console.log(`🎯 [CONSOLE] Game data from ${deviceName}:`, message.data);
         break;
       case 'heartbeat':
-        console.log(`💓 Heartbeat from ${deviceName}`);
+        console.log(`💓 [CONSOLE] Heartbeat from ${deviceName}`);
         deviceHelpers.updateDeviceActivity(fromDeviceId);
         break;
       default:
-        console.log(`❓ Unknown message type from ${deviceName}:`, message);
+        console.log(`❓ [CONSOLE] Unknown message type from ${deviceName}:`, message);
     }
   }, [deviceNames]);
 
-  // WebRTC integration
+  // WebRTC integration with enhanced logging
   const webrtc = useWebRTC({
     sessionId,
     deviceId: consoleDeviceId,
@@ -81,23 +87,25 @@ const ConsoleDisplay: React.FC = () => {
     enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked
   });
 
-  // Initialize InputRouter
+  // Initialize InputRouter with enhanced logging
   useEffect(() => {
     if (sessionId && consoleDeviceId) {
-      console.log('🎮 Initializing InputRouter');
+      console.log('🎮 [CONSOLE] Initializing InputRouter');
       inputRouterRef.current = new InputRouter((input) => {
-        console.log(`🎯 InputRouter processed input:`, input);
+        console.log(`🎯 [CONSOLE] InputRouter processed input:`, input);
         setLastProcessedInput(input);
       });
 
       // Register console device
       inputRouterRef.current.registerDevice(consoleDeviceId, 'Console', 'console');
+      console.log('✅ [CONSOLE] InputRouter initialized and console device registered');
     }
 
     return () => {
       if (inputRouterRef.current) {
         inputRouterRef.current.clear();
         inputRouterRef.current = null;
+        console.log('🧹 [CONSOLE] InputRouter cleaned up');
       }
     };
   }, [sessionId, consoleDeviceId]);
@@ -105,12 +113,69 @@ const ConsoleDisplay: React.FC = () => {
   // Register devices with InputRouter when players change
   useEffect(() => {
     if (inputRouterRef.current && players.length > 0) {
-      console.log('🎮 Registering devices with InputRouter');
+      console.log('🎮 [CONSOLE] Registering devices with InputRouter');
       players.forEach(player => {
         inputRouterRef.current!.registerDevice(player.id, player.name, player.deviceType);
+        console.log(`📱 [CONSOLE] Registered device: ${player.name} (${player.deviceType})`);
       });
     }
   }, [players]);
+
+  // ENHANCED: Listen for Supabase fallback inputs
+  useEffect(() => {
+    if (!sessionId || !isLobbyLocked) return;
+
+    console.log('📡 [CONSOLE] Setting up Supabase fallback input listener');
+
+    const inputChannel = supabase
+      .channel(`console_input_fallback_${sessionId}`)
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'sessions',
+          filter: `id=eq.${sessionId}`
+        }, 
+        (payload) => {
+          const newData = payload.new as any;
+          console.log('📡 [CONSOLE] Supabase session update received:', newData);
+          
+          if (newData.selected_editor) {
+            try {
+              const inputData = JSON.parse(newData.selected_editor);
+              console.log('📡 [CONSOLE] Parsed input data:', inputData);
+              
+              // Process through InputRouter if it's a navigation/selection input
+              if (inputRouterRef.current && inputData.playerId && (inputData.action === 'navigate' || inputData.action === 'select')) {
+                console.log('🎮 [CONSOLE] Processing Supabase input through InputRouter');
+                
+                const processedInput = inputRouterRef.current.processSupabaseInput(inputData.playerId, {
+                  type: inputData.action === 'navigate' ? 'dpad' : 'button',
+                  action: inputData.action === 'navigate' ? inputData.direction : 'a',
+                  data: inputData,
+                  timestamp: inputData.timestamp || Date.now()
+                });
+                
+                if (processedInput) {
+                  console.log('✅ [CONSOLE] Supabase input processed:', processedInput);
+                  setLastProcessedInput(processedInput);
+                }
+              }
+            } catch (error) {
+              console.error('❌ [CONSOLE] Error parsing Supabase input data:', error);
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 [CONSOLE] Supabase input fallback subscription status:', status);
+      });
+
+    return () => {
+      console.log('🧹 [CONSOLE] Cleaning up Supabase input fallback subscription');
+      inputChannel.unsubscribe();
+    };
+  }, [sessionId, isLobbyLocked]);
 
   // Generate a random 6-character lobby code
   const generateLobbyCode = () => {
@@ -277,7 +342,7 @@ const ConsoleDisplay: React.FC = () => {
 
       const { connections, connectedDevices } = webrtc.status;
       
-      console.log('📊 WebRTC Connection Analysis:', {
+      console.log('📊 [CONSOLE] WebRTC Connection Analysis:', {
         totalPhoneControllers: phoneControllers.length,
         phoneControllers: phoneControllers.map(p => ({ name: p.name, id: p.id.slice(-8) })),
         totalConnections: Object.keys(connections).length,
@@ -293,7 +358,7 @@ const ConsoleDisplay: React.FC = () => {
           (connectionState !== 'connected' && connectionState !== 'connecting');
         
         if (needsConnection) {
-          console.log(`🔍 ${player.name} needs connection:`, {
+          console.log(`🔍 [CONSOLE] ${player.name} needs connection:`, {
             hasConnection,
             isConnected,
             connectionState
@@ -305,16 +370,16 @@ const ConsoleDisplay: React.FC = () => {
 
       for (const controller of needConnection) {
         try {
-          console.log(`🤝 Connecting to ${controller.name} (${controller.id.slice(-8)})`);
+          console.log(`🤝 [CONSOLE] Connecting to ${controller.name} (${controller.id.slice(-8)})`);
           await webrtc.connectToDevice(controller.id);
           
           await new Promise(resolve => setTimeout(resolve, 1500));
         } catch (error) {
-          console.error(`❌ Failed to connect to ${controller.name}:`, error);
+          console.error(`❌ [CONSOLE] Failed to connect to ${controller.name}:`, error);
         }
       }
 
-      console.log('📋 WebRTC Connection Summary:', {
+      console.log('📋 [CONSOLE] WebRTC Connection Summary:', {
         phoneControllers: phoneControllers.length,
         attempted: needConnection.length,
         currentConnections: Object.keys(webrtc.status.connections).length,
@@ -322,7 +387,7 @@ const ConsoleDisplay: React.FC = () => {
       });
 
     } catch (error) {
-      console.error('❌ Error in WebRTC connection management:', error);
+      console.error('❌ [CONSOLE] Error in WebRTC connection management:', error);
     } finally {
       isConnectingRef.current = false;
     }
@@ -338,7 +403,7 @@ const ConsoleDisplay: React.FC = () => {
       return;
     }
 
-    console.log('🔄 Starting WebRTC connection management');
+    console.log('🔄 [CONSOLE] Starting WebRTC connection management');
 
     const initialTimeout = setTimeout(() => {
       initializeWebRTCConnections();
@@ -349,7 +414,7 @@ const ConsoleDisplay: React.FC = () => {
     }, 10000);
 
     return () => {
-      console.log('🧹 Cleaning up WebRTC connection management');
+      console.log('🧹 [CONSOLE] Cleaning up WebRTC connection management');
       clearTimeout(initialTimeout);
       if (connectionIntervalRef.current) {
         clearInterval(connectionIntervalRef.current);
@@ -360,8 +425,37 @@ const ConsoleDisplay: React.FC = () => {
 
   // Manual connection trigger for debugging
   const manualConnectAll = async () => {
-    console.log('🔧 Manual connection trigger activated');
+    console.log('🔧 [CONSOLE] Manual connection trigger activated');
     await initializeWebRTCConnections();
+  };
+
+  // ENHANCED: Test input processing function
+  const testInputProcessing = () => {
+    console.log('🧪 [CONSOLE] Testing input processing...');
+    
+    if (!inputRouterRef.current) {
+      console.log('❌ [CONSOLE] InputRouter not available for testing');
+      return;
+    }
+
+    // Simulate a WebRTC message
+    const testMessage = {
+      type: 'game_data' as const,
+      data: {
+        dpad: {
+          directionchange: {
+            key: 'right',
+            pressed: true
+          }
+        }
+      },
+      timestamp: Date.now(),
+      senderId: 'test-device'
+    };
+
+    console.log('🧪 [CONSOLE] Simulating WebRTC message:', testMessage);
+    const result = inputRouterRef.current.processWebRTCInput('test-device', testMessage);
+    console.log('🧪 [CONSOLE] Test result:', result);
   };
 
   // Create session on component mount
@@ -578,7 +672,7 @@ const ConsoleDisplay: React.FC = () => {
                 
                 <div className="mt-4 bg-green-500/10 border border-green-500/20 rounded-lg p-4">
                   <h4 className="text-green-300 font-medium mb-2">✅ InputRouter Integration</h4>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mb-2">
                     <button
                       onClick={manualConnectAll}
                       disabled={!webrtc.status.isInitialized}
@@ -601,8 +695,19 @@ const ConsoleDisplay: React.FC = () => {
                     >
                       Refresh Status
                     </button>
+                    <button
+                      onClick={testInputProcessing}
+                      disabled={!inputRouterRef.current}
+                      className={`px-3 py-1 border rounded text-sm transition-colors ${
+                        inputRouterRef.current
+                          ? 'bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/30 text-purple-300'
+                          : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Test Input
+                    </button>
                   </div>
-                  <div className="mt-2 text-xs text-gray-400">
+                  <div className="text-xs text-gray-400">
                     InputRouter active - processing structured game_data messages
                   </div>
                   {lastProcessedInput && (
