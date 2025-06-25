@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity } from 'lucide-react';
+import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity, AlertCircle } from 'lucide-react';
 import { supabase, sessionHelpers, deviceHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { WebRTCMessage } from '../lib/webrtc';
@@ -29,6 +29,8 @@ const ConsoleDisplay: React.FC = () => {
   const [isCreatingSession, setIsCreatingSession] = useState(true);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [lastProcessedInput, setLastProcessedInput] = useState<ControllerInput | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // InputRouter integration
   const inputRouterRef = useRef<InputRouter | null>(null);
@@ -38,6 +40,57 @@ const ConsoleDisplay: React.FC = () => {
     acc[player.id] = player.name;
     return acc;
   }, {} as Record<string, string>);
+
+  // Check Supabase connection
+  const checkSupabaseConnection = async (): Promise<boolean> => {
+    try {
+      console.log('🔍 Checking Supabase connection...');
+      
+      // Simple health check by trying to select from sessions table
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('id')
+        .limit(1);
+
+      if (error) {
+        console.error('❌ Supabase connection check failed:', error);
+        setConnectionError(`Database error: ${error.message}`);
+        return false;
+      }
+
+      console.log('✅ Supabase connection successful');
+      setConnectionError(null);
+      return true;
+    } catch (error) {
+      console.error('❌ Supabase connection check exception:', error);
+      setConnectionError(`Network error: ${error.message || 'Failed to connect to database'}`);
+      return false;
+    }
+  };
+
+  // Retry connection with exponential backoff
+  const retryConnection = async (maxRetries: number = 3): Promise<boolean> => {
+    setIsRetrying(true);
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`🔄 Connection attempt ${attempt}/${maxRetries}`);
+      
+      const isConnected = await checkSupabaseConnection();
+      if (isConnected) {
+        setIsRetrying(false);
+        return true;
+      }
+      
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    setIsRetrying(false);
+    return false;
+  };
 
   // ENHANCED: Improved message handler for WebRTC messages with better logging
   const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
@@ -84,7 +137,7 @@ const ConsoleDisplay: React.FC = () => {
     deviceId: consoleDeviceId,
     isHost: true,
     onMessage: handleWebRTCMessage,
-    enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked
+    enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked && !connectionError
   });
 
   // Initialize InputRouter with enhanced logging
@@ -121,9 +174,9 @@ const ConsoleDisplay: React.FC = () => {
     }
   }, [players]);
 
-  // ENHANCED: Listen for Supabase fallback inputs
+  // ENHANCED: Listen for Supabase fallback inputs with connection error handling
   useEffect(() => {
-    if (!sessionId || !isLobbyLocked) return;
+    if (!sessionId || !isLobbyLocked || connectionError) return;
 
     console.log('📡 [CONSOLE] Setting up Supabase fallback input listener');
 
@@ -175,7 +228,7 @@ const ConsoleDisplay: React.FC = () => {
       console.log('🧹 [CONSOLE] Cleaning up Supabase input fallback subscription');
       inputChannel.unsubscribe();
     };
-  }, [sessionId, isLobbyLocked]);
+  }, [sessionId, isLobbyLocked, connectionError]);
 
   // Generate a random 6-character lobby code
   const generateLobbyCode = () => {
@@ -198,10 +251,23 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // FIXED: Create session and console device with proper error handling
+  // ENHANCED: Create session with connection check
   const createSession = async () => {
     try {
       setIsCreatingSession(true);
+      setConnectionError(null);
+
+      // First check if Supabase is accessible
+      const isConnected = await checkSupabaseConnection();
+      if (!isConnected) {
+        console.log('🔄 Attempting to retry connection...');
+        const retrySuccess = await retryConnection();
+        if (!retrySuccess) {
+          setIsCreatingSession(false);
+          return;
+        }
+      }
+
       const code = generateLobbyCode();
       const baseUrl = window.location.origin;
       const connectionUrl = `${baseUrl}/controller?lobby=${code}`;
@@ -212,13 +278,14 @@ const ConsoleDisplay: React.FC = () => {
       const session = await sessionHelpers.createSession(code);
       if (!session) {
         console.error('❌ Failed to create session');
+        setConnectionError('Failed to create session. Please check your database connection.');
         setIsCreatingSession(false);
         return;
       }
 
       console.log('✅ Session created:', session);
 
-      // Step 2: Create console device using helper (FIXED: Now uses proper BIGINT timestamp)
+      // Step 2: Create console device using helper
       const consoleDevice = await deviceHelpers.createDevice(
         session.id,
         'Console',
@@ -228,6 +295,7 @@ const ConsoleDisplay: React.FC = () => {
 
       if (!consoleDevice) {
         console.error('❌ Failed to create console device');
+        setConnectionError('Failed to create console device. Please check your database connection.');
         setIsCreatingSession(false);
         return;
       }
@@ -244,6 +312,7 @@ const ConsoleDisplay: React.FC = () => {
       setConnectionUrl(connectionUrl);
       setQrCodeData(qrCode);
       setIsCreatingSession(false);
+      setConnectionError(null);
 
       console.log('🎉 Session setup complete:', {
         sessionId: session.id,
@@ -252,13 +321,14 @@ const ConsoleDisplay: React.FC = () => {
       });
     } catch (error) {
       console.error('❌ Error creating session:', error);
+      setConnectionError(`Failed to create session: ${error.message || 'Unknown error'}`);
       setIsCreatingSession(false);
     }
   };
 
-  // FIXED: Load devices with proper timestamp conversion
+  // ENHANCED: Load devices with connection error handling
   const loadDevices = useCallback(async () => {
-    if (!sessionId) return;
+    if (!sessionId || connectionError) return;
 
     try {
       const devices = await deviceHelpers.getSessionDevices(sessionId);
@@ -281,12 +351,15 @@ const ConsoleDisplay: React.FC = () => {
 
     } catch (error) {
       console.error('❌ Error loading devices:', error);
+      if (error.message?.includes('fetch')) {
+        setConnectionError('Network error: Unable to load devices. Please check your connection.');
+      }
     }
-  }, [sessionId]);
+  }, [sessionId, connectionError]);
 
-  // Load session status
+  // ENHANCED: Load session status with improved error handling
   const loadSessionStatus = useCallback(async () => {
-    if (!sessionId) return;
+    if (!sessionId || connectionError) return;
 
     try {
       const { data: session, error } = await supabase
@@ -297,6 +370,9 @@ const ConsoleDisplay: React.FC = () => {
 
       if (error) {
         console.error('❌ Error loading session status:', error);
+        if (error.message?.includes('fetch') || error.code === 'PGRST301') {
+          setConnectionError('Network error: Unable to load session status. Please check your connection.');
+        }
         return;
       }
 
@@ -311,15 +387,18 @@ const ConsoleDisplay: React.FC = () => {
       
     } catch (error) {
       console.error('❌ Error loading session status:', error);
+      if (error.message?.includes('fetch')) {
+        setConnectionError('Network error: Unable to load session status. Please check your connection.');
+      }
     }
-  }, [sessionId, isLobbyLocked]);
+  }, [sessionId, isLobbyLocked, connectionError]);
 
   // WebRTC connection management
   const connectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isConnectingRef = useRef(false);
 
   const initializeWebRTCConnections = useCallback(async () => {
-    if (!sessionId || !consoleDeviceId || !isLobbyLocked || !webrtc.status.isInitialized) {
+    if (!sessionId || !consoleDeviceId || !isLobbyLocked || !webrtc.status.isInitialized || connectionError) {
       return;
     }
 
@@ -391,11 +470,11 @@ const ConsoleDisplay: React.FC = () => {
     } finally {
       isConnectingRef.current = false;
     }
-  }, [sessionId, consoleDeviceId, isLobbyLocked, players, webrtc.status.isInitialized, webrtc.connectToDevice]);
+  }, [sessionId, consoleDeviceId, isLobbyLocked, players, webrtc.status.isInitialized, webrtc.connectToDevice, connectionError]);
 
   // Set up connection management
   useEffect(() => {
-    if (!sessionId || !consoleDeviceId || !isLobbyLocked || !webrtc.status.isInitialized) {
+    if (!sessionId || !consoleDeviceId || !isLobbyLocked || !webrtc.status.isInitialized || connectionError) {
       if (connectionIntervalRef.current) {
         clearInterval(connectionIntervalRef.current);
         connectionIntervalRef.current = null;
@@ -421,12 +500,23 @@ const ConsoleDisplay: React.FC = () => {
         connectionIntervalRef.current = null;
       }
     };
-  }, [sessionId, consoleDeviceId, isLobbyLocked, webrtc.status.isInitialized, initializeWebRTCConnections]);
+  }, [sessionId, consoleDeviceId, isLobbyLocked, webrtc.status.isInitialized, initializeWebRTCConnections, connectionError]);
 
   // Manual connection trigger for debugging
   const manualConnectAll = async () => {
     console.log('🔧 [CONSOLE] Manual connection trigger activated');
     await initializeWebRTCConnections();
+  };
+
+  // Manual retry connection
+  const handleRetryConnection = async () => {
+    console.log('🔄 [CONSOLE] Manual retry connection triggered');
+    const success = await retryConnection();
+    if (success) {
+      // Reload data after successful connection
+      await loadDevices();
+      await loadSessionStatus();
+    }
   };
 
   // ENHANCED: Test input processing function
@@ -463,9 +553,9 @@ const ConsoleDisplay: React.FC = () => {
     createSession();
   }, []);
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions with connection error handling
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && !connectionError) {
       loadDevices();
       loadSessionStatus();
       
@@ -485,6 +575,9 @@ const ConsoleDisplay: React.FC = () => {
         )
         .subscribe((status) => {
           console.log('📱 Devices subscription status:', status);
+          if (status === 'CHANNEL_ERROR') {
+            setConnectionError('Real-time connection lost. Please refresh the page.');
+          }
         });
 
       const sessionChannel = supabase
@@ -503,6 +596,9 @@ const ConsoleDisplay: React.FC = () => {
         )
         .subscribe((status) => {
           console.log('🏠 Session subscription status:', status);
+          if (status === 'CHANNEL_ERROR') {
+            setConnectionError('Real-time connection lost. Please refresh the page.');
+          }
         });
 
       return () => {
@@ -511,11 +607,11 @@ const ConsoleDisplay: React.FC = () => {
         sessionChannel.unsubscribe();
       };
     }
-  }, [sessionId, loadDevices, loadSessionStatus]);
+  }, [sessionId, loadDevices, loadSessionStatus, connectionError]);
 
-  // Backup refresh interval
+  // Backup refresh interval with connection error handling
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || connectionError) return;
 
     const interval = setInterval(() => {
       loadDevices();
@@ -523,7 +619,7 @@ const ConsoleDisplay: React.FC = () => {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [sessionId, loadDevices, loadSessionStatus]);
+  }, [sessionId, loadDevices, loadSessionStatus, connectionError]);
 
   const copyConnectionUrl = async () => {
     try {
@@ -534,6 +630,59 @@ const ConsoleDisplay: React.FC = () => {
       console.error('❌ Failed to copy URL:', err);
     }
   };
+
+  // Show connection error screen
+  if (connectionError && !sessionId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center p-8">
+          <div className="mb-6">
+            <AlertCircle size={64} className="text-red-400 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-red-300 mb-2">Connection Error</h1>
+            <p className="text-gray-300 mb-4">{connectionError}</p>
+          </div>
+          
+          <div className="space-y-4">
+            <button
+              onClick={handleRetryConnection}
+              disabled={isRetrying}
+              className={`w-full px-6 py-3 rounded-lg font-medium transition-colors ${
+                isRetrying
+                  ? 'bg-gray-600 cursor-not-allowed'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              }`}
+            >
+              {isRetrying ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Retrying...</span>
+                </div>
+              ) : (
+                'Retry Connection'
+              )}
+            </button>
+            
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full px-6 py-3 rounded-lg font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+          
+          <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-left">
+            <h3 className="text-yellow-300 font-medium mb-2">Troubleshooting:</h3>
+            <ul className="text-sm text-gray-300 space-y-1">
+              <li>• Check your internet connection</li>
+              <li>• Verify Supabase configuration</li>
+              <li>• Ensure environment variables are set</li>
+              <li>• Try refreshing the page</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show editor selection when lobby is locked
   if (isLobbyLocked) {
@@ -571,9 +720,13 @@ const ConsoleDisplay: React.FC = () => {
                 <span className="font-mono text-lg">{lobbyCode}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 bg-green-500/20 text-green-300 px-3 py-1 rounded-full">
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
+              connectionError 
+                ? 'bg-red-500/20 text-red-300' 
+                : 'bg-green-500/20 text-green-300'
+            }`}>
               <Wifi size={16} />
-              <span>Live</span>
+              <span>{connectionError ? 'Offline' : 'Live'}</span>
             </div>
             <button
               onClick={() => setShowDebugPanel(!showDebugPanel)}
@@ -595,6 +748,29 @@ const ConsoleDisplay: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Connection Error Banner */}
+      {connectionError && sessionId && (
+        <div className="bg-red-500/20 border-b border-red-500/30 p-3">
+          <div className="container mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2 text-red-300">
+              <AlertCircle size={16} />
+              <span className="text-sm">{connectionError}</span>
+            </div>
+            <button
+              onClick={handleRetryConnection}
+              disabled={isRetrying}
+              className={`px-3 py-1 text-xs rounded transition-colors ${
+                isRetrying
+                  ? 'bg-gray-600 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700'
+              }`}
+            >
+              {isRetrying ? 'Retrying...' : 'Retry'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -675,9 +851,9 @@ const ConsoleDisplay: React.FC = () => {
                   <div className="flex gap-2 mb-2">
                     <button
                       onClick={manualConnectAll}
-                      disabled={!webrtc.status.isInitialized}
+                      disabled={!webrtc.status.isInitialized || !!connectionError}
                       className={`px-3 py-1 border rounded text-sm transition-colors ${
-                        webrtc.status.isInitialized
+                        webrtc.status.isInitialized && !connectionError
                           ? 'bg-green-500/20 hover:bg-green-500/30 border-green-500/30 text-green-300'
                           : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
                       }`}
@@ -686,9 +862,9 @@ const ConsoleDisplay: React.FC = () => {
                     </button>
                     <button
                       onClick={() => webrtc.updateStatus()}
-                      disabled={!webrtc.status.isInitialized}
+                      disabled={!webrtc.status.isInitialized || !!connectionError}
                       className={`px-3 py-1 border rounded text-sm transition-colors ${
-                        webrtc.status.isInitialized
+                        webrtc.status.isInitialized && !connectionError
                           ? 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/30 text-blue-300'
                           : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
                       }`}
@@ -697,18 +873,34 @@ const ConsoleDisplay: React.FC = () => {
                     </button>
                     <button
                       onClick={testInputProcessing}
-                      disabled={!inputRouterRef.current}
+                      disabled={!inputRouterRef.current || !!connectionError}
                       className={`px-3 py-1 border rounded text-sm transition-colors ${
-                        inputRouterRef.current
+                        inputRouterRef.current && !connectionError
                           ? 'bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/30 text-purple-300'
                           : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
                       }`}
                     >
                       Test Input
                     </button>
+                    {connectionError && (
+                      <button
+                        onClick={handleRetryConnection}
+                        disabled={isRetrying}
+                        className={`px-3 py-1 border rounded text-sm transition-colors ${
+                          isRetrying
+                            ? 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
+                            : 'bg-red-500/20 hover:bg-red-500/30 border-red-500/30 text-red-300'
+                        }`}
+                      >
+                        {isRetrying ? 'Retrying...' : 'Retry Connection'}
+                      </button>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400">
                     InputRouter active - processing structured game_data messages
+                    {connectionError && (
+                      <div className="text-red-400 mt-1">⚠️ Connection error detected</div>
+                    )}
                   </div>
                   {lastProcessedInput && (
                     <div className="mt-2 p-2 bg-purple-500/10 border border-purple-500/20 rounded text-xs">
@@ -869,6 +1061,12 @@ const ConsoleDisplay: React.FC = () => {
               </h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
+                  <span className="text-gray-400">Database:</span>
+                  <span className={connectionError ? 'text-red-300' : 'text-green-300'}>
+                    {connectionError ? 'Disconnected ❌' : 'Connected ✅'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-400">InputRouter:</span>
                   <span className="text-green-300">{inputRouterRef.current ? 'Active ✅' : 'Inactive'}</span>
                 </div>
@@ -886,8 +1084,8 @@ const ConsoleDisplay: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">WebRTC Status:</span>
-                  <span className={`${webrtc.status.isInitialized ? 'text-green-300' : 'text-gray-300'}`}>
-                    {webrtc.status.isInitialized ? 'Ready' : 'Disabled'}
+                  <span className={`${webrtc.status.isInitialized && !connectionError ? 'text-green-300' : 'text-gray-300'}`}>
+                    {webrtc.status.isInitialized && !connectionError ? 'Ready' : 'Disabled'}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -898,14 +1096,22 @@ const ConsoleDisplay: React.FC = () => {
                 </div>
               </div>
               
-              <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <h4 className="font-medium text-green-300 mb-2">✅ System Health:</h4>
+              <div className={`mt-6 p-4 border rounded-lg ${
+                connectionError 
+                  ? 'bg-red-500/10 border-red-500/20' 
+                  : 'bg-green-500/10 border-green-500/20'
+              }`}>
+                <h4 className={`font-medium mb-2 ${
+                  connectionError ? 'text-red-300' : 'text-green-300'
+                }`}>
+                  {connectionError ? '⚠️ System Issues:' : '✅ System Health:'}
+                </h4>
                 <ul className="text-xs text-gray-300 space-y-1">
                   <li>• InputRouter: ✅ Integrated</li>
                   <li>• Game Data Format: ✅ Structured</li>
-                  <li>• WebRTC Processing: ✅ Active</li>
-                  <li>• Fallback Support: ✅ Supabase</li>
-                  <li>• Real-time Updates: ✅ Active</li>
+                  <li>• WebRTC Processing: {connectionError ? '⚠️ Limited' : '✅ Active'}</li>
+                  <li>• Fallback Support: {connectionError ? '❌ Unavailable' : '✅ Supabase'}</li>
+                  <li>• Real-time Updates: {connectionError ? '❌ Offline' : '✅ Active'}</li>
                 </ul>
               </div>
             </div>
