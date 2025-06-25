@@ -109,7 +109,7 @@ const ConsoleDisplay: React.FC = () => {
 
       console.log('✅ Session created:', session);
 
-      // Step 2: Create console device using helper
+      // Step 2: Create console device using helper (FIXED: Now uses proper BIGINT timestamp)
       const consoleDevice = await deviceHelpers.createDevice(
         session.id,
         'Console',
@@ -147,7 +147,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // Load devices with proper timestamp conversion
+  // FIXED: Load devices with proper timestamp conversion
   const loadDevices = useCallback(async () => {
     if (!sessionId) return;
 
@@ -159,7 +159,10 @@ const ConsoleDisplay: React.FC = () => {
         name: device.name,
         deviceType: device.device_type || (device.name === 'Console' ? 'console' : 'phone'),
         isHost: device.is_host || false,
-        joinedAt: new Date(device.joined_at || device.connected_at || '').getTime(),
+        // FIXED: Handle both BIGINT (number) and legacy string timestamps
+        joinedAt: typeof device.joined_at === 'number' 
+          ? device.joined_at 
+          : new Date(device.joined_at || device.connected_at || '').getTime(),
         lastSeen: new Date(device.last_seen || device.connected_at || '').getTime(),
         status: 'connected'
       }));
@@ -555,7 +558,7 @@ const ConsoleDisplay: React.FC = () => {
                     </button>
                   </div>
                   <div className="mt-2 text-xs text-gray-400">
-                    Database operations working correctly - lobby code should be visible
+                    BIGINT timestamp issue resolved - device creation working correctly
                   </div>
                 </div>
               </div>
@@ -742,7 +745,7 @@ const ConsoleDisplay: React.FC = () => {
                 <h4 className="font-medium text-green-300 mb-2">✅ System Health:</h4>
                 <ul className="text-xs text-gray-300 space-y-1">
                   <li>• Database Schema: ✅ Updated</li>
-                  <li>• Timestamp Format: ✅ Fixed</li>
+                  <li>• Timestamp Format: ✅ Fixed (BIGINT)</li>
                   <li>• Session Creation: ✅ Working</li>
                   <li>• Device Registration: ✅ Functional</li>
                   <li>• Real-time Updates: ✅ Active</li>

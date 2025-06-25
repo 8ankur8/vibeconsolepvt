@@ -35,8 +35,8 @@ export interface Device {
   name: string;
   device_type: 'phone' | 'console';
   is_host: boolean;
-  joined_at: string; // Keep as string for ISO timestamps
-  last_seen: string; // Keep as string for ISO timestamps
+  joined_at: number; // FIXED: Changed to number for BIGINT compatibility
+  last_seen: string; // Keep as string for TIMESTAMPTZ
   connected_at?: string; // Legacy column for backward compatibility
 }
 
@@ -132,7 +132,7 @@ export const sessionHelpers = {
 };
 
 export const deviceHelpers = {
-  // Create device with proper ISO timestamp strings
+  // FIXED: Create device with proper BIGINT timestamp for joined_at
   async createDevice(
     sessionId: string, 
     name: string, 
@@ -141,6 +141,7 @@ export const deviceHelpers = {
   ): Promise<Device | null> {
     try {
       const now = new Date().toISOString();
+      const joinedAtTimestamp = Date.now(); // FIXED: Use milliseconds timestamp for BIGINT
       
       const { data, error } = await supabase
         .from('devices')
@@ -149,7 +150,7 @@ export const deviceHelpers = {
           name,
           device_type: deviceType,
           is_host: isHost,
-          joined_at: now,
+          joined_at: joinedAtTimestamp, // FIXED: Now using number instead of string
           last_seen: now
         })
         .select()
