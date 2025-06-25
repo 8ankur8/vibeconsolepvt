@@ -71,6 +71,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   const [selectedEditor, setSelectedEditor] = useState<Editor | null>(null);
   const [showFullscreen, setShowFullscreen] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [inputHistory, setInputHistory] = useState<ControllerInput[]>([]);
   
   // Use refs to prevent stale closures and unnecessary re-subscriptions
   const selectedIndexRef = useRef(selectedIndex);
@@ -82,34 +83,65 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
     selectedIndexRef.current = selectedIndex;
   }, [selectedIndex]);
 
-  // ENHANCED: Handle lastControllerInput from InputRouter
+  // ENHANCED: Handle lastControllerInput from InputRouter with detailed logging
   useEffect(() => {
-    if (!lastControllerInput) return;
-
-    // Prevent processing the same input multiple times
-    if (lastControllerInput.input.timestamp <= lastProcessedInputTimestampRef.current) {
+    if (!lastControllerInput) {
+      console.log('🎮 [EDITOR_SELECTION] No controller input received');
       return;
     }
 
-    console.log('🎮 Processing controller input in EditorSelection:', lastControllerInput);
+    console.log('🎮 [EDITOR_SELECTION] ===== NEW CONTROLLER INPUT RECEIVED =====');
+    console.log('🎮 [EDITOR_SELECTION] Full input object:', lastControllerInput);
+    console.log('🎮 [EDITOR_SELECTION] Device info:', {
+      deviceId: lastControllerInput.deviceId,
+      deviceName: lastControllerInput.deviceName,
+      deviceType: lastControllerInput.deviceType
+    });
+    console.log('🎮 [EDITOR_SELECTION] Input details:', {
+      type: lastControllerInput.input.type,
+      action: lastControllerInput.input.action,
+      data: lastControllerInput.input.data,
+      timestamp: lastControllerInput.input.timestamp
+    });
+    console.log('🎮 [EDITOR_SELECTION] Source:', lastControllerInput.webrtcMessage ? 'WebRTC' : 'Supabase');
+    console.log('🎮 [EDITOR_SELECTION] Current selected index:', selectedIndex);
+
+    // Prevent processing the same input multiple times
+    if (lastControllerInput.input.timestamp <= lastProcessedInputTimestampRef.current) {
+      console.log('🎮 [EDITOR_SELECTION] ⚠️ Duplicate input detected, skipping processing');
+      console.log('🎮 [EDITOR_SELECTION] Last processed timestamp:', lastProcessedInputTimestampRef.current);
+      console.log('🎮 [EDITOR_SELECTION] Current input timestamp:', lastControllerInput.input.timestamp);
+      return;
+    }
+
+    console.log('🎮 [EDITOR_SELECTION] ✅ Processing new input (timestamp check passed)');
     lastProcessedInputTimestampRef.current = lastControllerInput.input.timestamp;
 
-    // Handle different input types
+    // Add to input history for debugging
+    setInputHistory(prev => [lastControllerInput, ...prev.slice(0, 19)]);
+
+    // Handle different input types with detailed logging
     if (lastControllerInput.input.type === 'dpad') {
       const direction = lastControllerInput.input.action;
-      console.log(`🎮 Processing dpad input: ${direction}`);
+      console.log(`🎮 [EDITOR_SELECTION] Processing dpad input: ${direction}`);
+      console.log(`🎮 [EDITOR_SELECTION] Calling handleNavigation with direction: ${direction}`);
       handleNavigation(direction);
     } else if (lastControllerInput.input.type === 'button' && lastControllerInput.input.action === 'a') {
-      console.log('🎮 Processing button A input');
+      console.log('🎮 [EDITOR_SELECTION] Processing button A input');
+      console.log('🎮 [EDITOR_SELECTION] Calling handleSelectEditor');
       handleSelectEditor();
+    } else {
+      console.log(`🎮 [EDITOR_SELECTION] ⚠️ Unhandled input type: ${lastControllerInput.input.type}.${lastControllerInput.input.action}`);
     }
+
+    console.log('🎮 [EDITOR_SELECTION] ===== INPUT PROCESSING COMPLETE =====');
   }, [lastControllerInput]);
 
-  // Listen for navigation inputs from phones - ENHANCED WITH WEBRTC
+  // ENHANCED: Listen for navigation inputs from phones via Supabase with detailed logging
   useEffect(() => {
     if (!sessionId) return;
 
-    console.log('Setting up real-time navigation listener for session:', sessionId);
+    console.log('📡 [EDITOR_SELECTION] Setting up Supabase navigation listener for session:', sessionId);
 
     const subscription = supabase
       .channel(`editor_navigation_${sessionId}`)
@@ -121,77 +153,115 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
           filter: `id=eq.${sessionId}`
         }, 
         (payload) => {
+          console.log('📡 [EDITOR_SELECTION] ===== SUPABASE SESSION UPDATE =====');
+          console.log('📡 [EDITOR_SELECTION] Raw session update received:', payload);
+          
           const newData = payload.new as any;
-          console.log('Raw session update received:', newData);
+          console.log('📡 [EDITOR_SELECTION] New data:', newData);
           
           if (newData.selected_editor) {
             try {
               const editorData = JSON.parse(newData.selected_editor);
-              console.log('Parsed navigation data:', editorData);
+              console.log('📡 [EDITOR_SELECTION] Parsed navigation data:', editorData);
               
               // Prevent duplicate processing of the same event
               const currentTime = Date.now();
               if (editorData.timestamp && Math.abs(currentTime - editorData.timestamp) > 5000) {
-                console.log('Ignoring old navigation event');
+                console.log('📡 [EDITOR_SELECTION] ⚠️ Ignoring old navigation event (>5s old)');
+                console.log('📡 [EDITOR_SELECTION] Event timestamp:', editorData.timestamp);
+                console.log('📡 [EDITOR_SELECTION] Current time:', currentTime);
+                console.log('📡 [EDITOR_SELECTION] Age (ms):', currentTime - editorData.timestamp);
                 return;
               }
               
               if (editorData.action === 'navigate') {
-                console.log('Processing navigation:', editorData.direction);
+                console.log('📡 [EDITOR_SELECTION] Processing Supabase navigation:', editorData.direction);
+                console.log('📡 [EDITOR_SELECTION] Player info:', {
+                  playerId: editorData.playerId,
+                  playerName: editorData.playerName,
+                  source: editorData.source
+                });
                 handleNavigation(editorData.direction);
                 lastNavigationTimeRef.current = currentTime;
               } else if (editorData.action === 'select') {
-                console.log('Processing selection');
+                console.log('📡 [EDITOR_SELECTION] Processing Supabase selection');
+                console.log('📡 [EDITOR_SELECTION] Player info:', {
+                  playerId: editorData.playerId,
+                  playerName: editorData.playerName,
+                  source: editorData.source
+                });
                 handleSelectEditor();
+              } else {
+                console.log('📡 [EDITOR_SELECTION] ⚠️ Unknown action:', editorData.action);
               }
             } catch (error) {
-              console.error('Error parsing editor data:', error);
+              console.error('📡 [EDITOR_SELECTION] ❌ Error parsing editor data:', error);
+              console.error('📡 [EDITOR_SELECTION] Raw selected_editor value:', newData.selected_editor);
             }
+          } else {
+            console.log('📡 [EDITOR_SELECTION] ⚠️ No selected_editor in update');
           }
+          
+          console.log('📡 [EDITOR_SELECTION] ===== SUPABASE UPDATE COMPLETE =====');
         }
       )
       .subscribe((status) => {
-        console.log('Navigation subscription status:', status);
+        console.log('📡 [EDITOR_SELECTION] Supabase navigation subscription status:', status);
       });
 
     return () => {
-      console.log('Cleaning up navigation subscription');
+      console.log('📡 [EDITOR_SELECTION] Cleaning up Supabase navigation subscription');
       subscription.unsubscribe();
     };
   }, [sessionId]); // Only depend on sessionId to prevent re-subscriptions
 
   const handleSelectEditor = () => {
     const editor = editors[selectedIndexRef.current]; // Use ref to get latest value
-    console.log('Selecting editor:', editor.name);
+    console.log('🎯 [EDITOR_SELECTION] ===== SELECTING EDITOR =====');
+    console.log('🎯 [EDITOR_SELECTION] Selected editor:', editor.name);
+    console.log('🎯 [EDITOR_SELECTION] Selected index:', selectedIndexRef.current);
+    console.log('🎯 [EDITOR_SELECTION] Editor details:', editor);
+    
     setSelectedEditor(editor);
     setShowFullscreen(true);
 
     // Broadcast selection via WebRTC if available
     if (onWebRTCMessage) {
+      console.log('📡 [EDITOR_SELECTION] Broadcasting selection via WebRTC');
       const result = onWebRTCMessage({
         type: 'selection',
         data: { editor, selectedIndex: selectedIndexRef.current },
       });
-      console.log('📡 WebRTC broadcast result:', result);
+      console.log('📡 [EDITOR_SELECTION] WebRTC broadcast result:', result);
+    } else {
+      console.log('📡 [EDITOR_SELECTION] ⚠️ No WebRTC message handler available');
     }
+    
+    console.log('🎯 [EDITOR_SELECTION] ===== EDITOR SELECTION COMPLETE =====');
   };
 
   const handleCloseFullscreen = () => {
+    console.log('🎯 [EDITOR_SELECTION] Closing fullscreen editor');
     setShowFullscreen(false);
     setSelectedEditor(null);
   };
 
   const handleNavigation = (direction: string) => {
-    console.log('Handling navigation:', direction, 'Current index:', selectedIndexRef.current);
+    console.log('🧭 [EDITOR_SELECTION] ===== HANDLING NAVIGATION =====');
+    console.log('🧭 [EDITOR_SELECTION] Direction:', direction);
+    console.log('🧭 [EDITOR_SELECTION] Current index (ref):', selectedIndexRef.current);
+    console.log('🧭 [EDITOR_SELECTION] Current index (state):', selectedIndex);
+    console.log('🧭 [EDITOR_SELECTION] Total editors:', editors.length);
     
     switch (direction) {
       case 'left':
         setSelectedIndex(prev => {
           const newIndex = prev > 0 ? prev - 1 : editors.length - 1;
-          console.log('Moving left to index:', newIndex);
+          console.log('🧭 [EDITOR_SELECTION] Moving left: from', prev, 'to', newIndex);
           
           // Broadcast navigation via WebRTC if available
           if (onWebRTCMessage) {
+            console.log('📡 [EDITOR_SELECTION] Broadcasting left navigation via WebRTC');
             onWebRTCMessage({
               type: 'navigation',
               data: { direction, newIndex, editor: editors[newIndex] },
@@ -204,10 +274,11 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
       case 'right':
         setSelectedIndex(prev => {
           const newIndex = prev < editors.length - 1 ? prev + 1 : 0;
-          console.log('Moving right to index:', newIndex);
+          console.log('🧭 [EDITOR_SELECTION] Moving right: from', prev, 'to', newIndex);
           
           // Broadcast navigation via WebRTC if available
           if (onWebRTCMessage) {
+            console.log('📡 [EDITOR_SELECTION] Broadcasting right navigation via WebRTC');
             onWebRTCMessage({
               type: 'navigation',
               data: { direction, newIndex, editor: editors[newIndex] },
@@ -218,39 +289,50 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         });
         break;
       case 'up':
-        // Optional: Could implement up/down navigation for different rows
+        console.log('🧭 [EDITOR_SELECTION] Up navigation (not implemented)');
         break;
       case 'down':
-        // Optional: Could implement up/down navigation for different rows
+        console.log('🧭 [EDITOR_SELECTION] Down navigation (not implemented)');
         break;
+      default:
+        console.log('🧭 [EDITOR_SELECTION] ⚠️ Unknown direction:', direction);
     }
+    
+    console.log('🧭 [EDITOR_SELECTION] ===== NAVIGATION COMPLETE =====');
   };
 
   // Keyboard navigation for console (backup)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      console.log('Keyboard event:', e.key);
+      console.log('⌨️ [EDITOR_SELECTION] Keyboard event:', e.key);
       switch (e.key) {
         case 'ArrowLeft':
+          console.log('⌨️ [EDITOR_SELECTION] Keyboard left arrow');
           handleNavigation('left');
           break;
         case 'ArrowRight':
+          console.log('⌨️ [EDITOR_SELECTION] Keyboard right arrow');
           handleNavigation('right');
           break;
         case 'ArrowUp':
+          console.log('⌨️ [EDITOR_SELECTION] Keyboard up arrow');
           handleNavigation('up');
           break;
         case 'ArrowDown':
+          console.log('⌨️ [EDITOR_SELECTION] Keyboard down arrow');
           handleNavigation('down');
           break;
         case 'Enter':
         case ' ':
+          console.log('⌨️ [EDITOR_SELECTION] Keyboard select (Enter/Space)');
           handleSelectEditor();
           break;
         case 'Escape':
           if (showFullscreen) {
+            console.log('⌨️ [EDITOR_SELECTION] Keyboard escape (close fullscreen)');
             handleCloseFullscreen();
           } else {
+            console.log('⌨️ [EDITOR_SELECTION] Keyboard escape (go back)');
             onBack();
           }
           break;
@@ -266,6 +348,35 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
     acc[player.id] = player.name;
     return acc;
   }, {} as Record<string, string>);
+
+  // ENHANCED: Debug function to test input processing
+  const testInputProcessing = () => {
+    console.log('🧪 [EDITOR_SELECTION] ===== TESTING INPUT PROCESSING =====');
+    
+    // Simulate a controller input
+    const testInput: ControllerInput = {
+      deviceId: 'test-device-123',
+      deviceName: 'Test Controller',
+      deviceType: 'phone',
+      input: {
+        type: 'dpad',
+        action: 'right',
+        data: { pressed: true, direction: 'right' },
+        timestamp: Date.now()
+      },
+      webrtcMessage: false
+    };
+    
+    console.log('🧪 [EDITOR_SELECTION] Simulating controller input:', testInput);
+    
+    // Add to history
+    setInputHistory(prev => [testInput, ...prev.slice(0, 19)]);
+    
+    // Process the test input
+    handleNavigation('right');
+    
+    console.log('🧪 [EDITOR_SELECTION] ===== TEST COMPLETE =====');
+  };
 
   if (showFullscreen && selectedEditor) {
     return (
@@ -408,6 +519,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                     : 'scale-95 opacity-60'
                 }`}
                 onClick={() => {
+                  console.log('🖱️ [EDITOR_SELECTION] Mouse click on editor:', editor.name, 'index:', index);
                   setSelectedIndex(index);
                   setTimeout(() => handleSelectEditor(), 200);
                 }}
@@ -498,25 +610,25 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             ))}
           </div>
           
-          {/* Debug info for development */}
+          {/* Enhanced Debug info for development */}
           <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
-            <div className="flex justify-between">
+            <div className="flex justify-between mb-2">
               <span>Selected Index:</span>
               <span className="text-indigo-300">{selectedIndex}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between mb-2">
               <span>Session ID:</span>
               <span className="text-indigo-300 font-mono">{sessionId.slice(-8)}</span>
             </div>
             {webrtcStatus && (
               <>
-                <div className="flex justify-between">
+                <div className="flex justify-between mb-2">
                   <span>WebRTC Status:</span>
                   <span className={webrtcStatus.isInitialized ? 'text-green-300' : 'text-red-300'}>
                     {webrtcStatus.isInitialized ? 'Active' : 'Inactive'}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between mb-2">
                   <span>Connected/Total:</span>
                   <span className="text-blue-300">
                     {webrtcStatus.connectedDevices.length}/{Object.keys(webrtcStatus.connections).length}
@@ -526,20 +638,83 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             )}
             {lastControllerInput && (
               <>
-                <div className="flex justify-between">
+                <div className="flex justify-between mb-2">
                   <span>InputRouter:</span>
                   <span className="text-green-300">Active ✅</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between mb-2">
                   <span>Last Input:</span>
                   <span className="text-purple-300">
                     {lastControllerInput.input.type}.{lastControllerInput.input.action}
                   </span>
                 </div>
+                <div className="flex justify-between mb-2">
+                  <span>Input Source:</span>
+                  <span className={lastControllerInput.webrtcMessage ? 'text-green-300' : 'text-yellow-300'}>
+                    {lastControllerInput.webrtcMessage ? 'WebRTC' : 'Supabase'}
+                  </span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span>Device:</span>
+                  <span className="text-blue-300">{lastControllerInput.deviceName}</span>
+                </div>
               </>
             )}
+            <div className="flex justify-between mb-2">
+              <span>Input History:</span>
+              <span className="text-purple-300">{inputHistory.length} entries</span>
+            </div>
+            
+            {/* Test button */}
+            <div className="mt-3 pt-2 border-t border-gray-600">
+              <button
+                onClick={testInputProcessing}
+                className="w-full py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded text-purple-300 text-sm transition-colors"
+              >
+                🧪 Test Input Processing
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* ENHANCED: Input History Panel */}
+        {inputHistory.length > 0 && (
+          <div className="mt-8 bg-black/20 rounded-lg p-6 border border-indigo-500/20 max-w-4xl mx-auto">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Activity className="text-indigo-300" />
+              Input History ({inputHistory.length})
+            </h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {inputHistory.map((input, index) => (
+                <div key={index} className="p-3 bg-gray-800/50 rounded border border-gray-600 text-sm">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-white">{input.deviceName}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        input.webrtcMessage ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'
+                      }`}>
+                        {input.webrtcMessage ? 'WebRTC' : 'Supabase'}
+                      </span>
+                      <span className="text-gray-400 text-xs">
+                        {new Date(input.input.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-gray-300">
+                    <span className="text-indigo-300">{input.input.type}</span>
+                    <span className="text-gray-500">.</span>
+                    <span className="text-purple-300">{input.input.action}</span>
+                    {input.input.data && Object.keys(input.input.data).length > 0 && (
+                      <span className="text-gray-400 ml-2">
+                        {JSON.stringify(input.input.data)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* WebRTC Debug Panel */}
         {showDebugPanel && webrtcStatus && (
