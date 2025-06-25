@@ -18,7 +18,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   },
 });
 
-// Enhanced TypeScript interfaces matching your new database schema
+// Enhanced TypeScript interfaces matching your database schema
 export interface Session {
   id: string;
   code: string;
@@ -26,17 +26,17 @@ export interface Session {
   is_locked: boolean;
   selected_editor: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface Device {
   id: string;
   session_id: string;
   name: string;
-  device_type: 'phone' | 'console'; // New column from your schema
-  is_host: boolean; // Renamed from is_leader in your schema
-  joined_at: string; // FIXED: Back to string for proper ISO timestamp
-  last_seen: string; // FIXED: Back to string for proper ISO timestamp
+  device_type: 'phone' | 'console';
+  is_host: boolean;
+  joined_at: string; // Keep as string for ISO timestamps
+  last_seen: string; // Keep as string for ISO timestamps
   connected_at?: string; // Legacy column for backward compatibility
 }
 
@@ -47,11 +47,11 @@ export interface WebRTCSignal {
   receiver_device_id: string;
   type: 'offer' | 'answer' | 'candidate';
   payload: any;
-  processed: boolean; // New column from your schema
+  processed: boolean;
   created_at: string;
 }
 
-// Enhanced helper functions for your new schema
+// Enhanced helper functions
 export const sessionHelpers = {
   // Create a new session with proper defaults
   async createSession(code: string): Promise<Session | null> {
@@ -72,7 +72,7 @@ export const sessionHelpers = {
         return null;
       }
 
-      console.log('✅ Session created with enhanced schema:', data);
+      console.log('✅ Session created:', data);
       return data;
     } catch (error) {
       console.error('❌ Exception creating session:', error);
@@ -80,7 +80,7 @@ export const sessionHelpers = {
     }
   },
 
-  // Get session by code with enhanced error handling
+  // Get session by code
   async getSessionByCode(code: string): Promise<Session | null> {
     try {
       const { data, error } = await supabase
@@ -132,7 +132,7 @@ export const sessionHelpers = {
 };
 
 export const deviceHelpers = {
-  // FIXED: Create device with proper ISO timestamp strings
+  // Create device with proper ISO timestamp strings
   async createDevice(
     sessionId: string, 
     name: string, 
@@ -140,7 +140,7 @@ export const deviceHelpers = {
     isHost: boolean = false
   ): Promise<Device | null> {
     try {
-      const now = new Date().toISOString(); // CRITICAL FIX: Use ISO string, not timestamp number
+      const now = new Date().toISOString();
       
       const { data, error } = await supabase
         .from('devices')
@@ -149,8 +149,8 @@ export const deviceHelpers = {
           name,
           device_type: deviceType,
           is_host: isHost,
-          joined_at: now, // ISO string
-          last_seen: now  // ISO string
+          joined_at: now,
+          last_seen: now
         })
         .select()
         .single();
@@ -160,7 +160,7 @@ export const deviceHelpers = {
         return null;
       }
 
-      console.log(`✅ Device created with enhanced schema: ${name} (${deviceType})`);
+      console.log(`✅ Device created: ${name} (${deviceType})`);
       return data;
     } catch (error) {
       console.error('❌ Exception creating device:', error);
@@ -168,12 +168,12 @@ export const deviceHelpers = {
     }
   },
 
-  // FIXED: Update device activity with proper ISO timestamp
+  // Update device activity
   async updateDeviceActivity(deviceId: string): Promise<boolean> {
     try {
       const { error } = await supabase
         .from('devices')
-        .update({ last_seen: new Date().toISOString() }) // CRITICAL FIX: Use ISO string
+        .update({ last_seen: new Date().toISOString() })
         .eq('id', deviceId);
 
       if (error) {
@@ -188,7 +188,7 @@ export const deviceHelpers = {
     }
   },
 
-  // Get devices for session with enhanced data
+  // Get devices for session
   async getSessionDevices(sessionId: string): Promise<Device[]> {
     try {
       const { data, error } = await supabase
@@ -232,7 +232,7 @@ export const deviceHelpers = {
 };
 
 export const webrtcHelpers = {
-  // Send WebRTC signal with enhanced error handling and retry logic
+  // Send WebRTC signal
   async sendSignal(
     sessionId: string,
     senderDeviceId: string,
@@ -258,12 +258,11 @@ export const webrtcHelpers = {
           console.error(`❌ Error sending signal (attempt ${attempt}):`, error);
           if (attempt === retries) return false;
           
-          // Exponential backoff
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           continue;
         }
 
-        console.log(`📤 Signal sent successfully: ${type} from ${senderDeviceId.slice(-8)} to ${receiverDeviceId.slice(-8)}`);
+        console.log(`📤 Signal sent: ${type} from ${senderDeviceId.slice(-8)} to ${receiverDeviceId.slice(-8)}`);
         return true;
       } catch (error) {
         console.error(`❌ Exception sending signal (attempt ${attempt}):`, error);
@@ -296,7 +295,7 @@ export const webrtcHelpers = {
     }
   },
 
-  // Subscribe to WebRTC signals with enhanced filtering
+  // Subscribe to WebRTC signals
   subscribeToWebRTCSignals(
     sessionId: string,
     deviceId: string,
@@ -328,7 +327,6 @@ export const webrtcHelpers = {
             const signal = payload.new as WebRTCSignal;
             onSignal(signal);
             
-            // Automatically mark as processed if using the processed column feature
             if (!includeProcessed && signal.id) {
               await webrtcHelpers.markSignalProcessed(signal.id);
             }
@@ -343,11 +341,7 @@ export const webrtcHelpers = {
         if (status === 'SUBSCRIBED') {
           console.log('✅ WebRTC signaling channel ready');
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ WebRTC signaling channel error - check database permissions');
-        } else if (status === 'TIMED_OUT') {
-          console.error('⏰ WebRTC signaling subscription timed out');
-        } else if (status === 'CLOSED') {
-          console.log('🔒 WebRTC signaling channel closed');
+          console.error('❌ WebRTC signaling channel error');
         }
       });
 
@@ -355,9 +349,9 @@ export const webrtcHelpers = {
   }
 };
 
-// Enhanced real-time subscription helpers
+// Real-time subscription helpers
 export const realtimeHelpers = {
-  // Subscribe to device changes with deduplication
+  // Subscribe to device changes
   subscribeToDevices(
     sessionId: string,
     onDeviceChange: (payload: any) => void,
@@ -380,7 +374,6 @@ export const realtimeHelpers = {
         (payload) => {
           console.log('📱 Device change detected:', payload);
           
-          // Simple deduplication
           if (enableDeduplication && JSON.stringify(payload) === JSON.stringify(lastPayload)) {
             console.log('🔄 Duplicate device change ignored');
             return;
@@ -392,10 +385,6 @@ export const realtimeHelpers = {
       )
       .subscribe((status) => {
         console.log(`📱 Devices subscription status: ${status}`);
-        
-        if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Devices subscription error - check RLS policies');
-        }
       });
 
     return channel;
@@ -426,90 +415,16 @@ export const realtimeHelpers = {
       )
       .subscribe((status) => {
         console.log(`🏠 Session subscription status: ${status}`);
-        
-        if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Session subscription error - check RLS policies');
-        }
       });
 
     return channel;
   }
 };
 
-// Enhanced monitoring and statistics
-export const monitoringHelpers = {
-  // Get session statistics using your enhanced schema
-  async getSessionStats(sessionId: string) {
-    try {
-      const { data, error } = await supabase
-        .rpc('get_session_statistics', { p_session_id: sessionId });
-
-      if (error) {
-        console.error('❌ Error getting session stats:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('❌ Exception getting session stats:', error);
-      return null;
-    }
-  },
-
-  // FIXED: Get active devices with proper timestamp handling
-  async getActiveDevices(sessionId: string, maxInactiveMinutes: number = 5) {
-    try {
-      const cutoff = new Date(Date.now() - maxInactiveMinutes * 60 * 1000).toISOString();
-      
-      const { data, error } = await supabase
-        .from('devices')
-        .select('*')
-        .eq('session_id', sessionId)
-        .gte('last_seen', cutoff)
-        .order('last_seen', { ascending: false });
-
-      if (error) {
-        console.error('❌ Error getting active devices:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('❌ Exception getting active devices:', error);
-      return [];
-    }
-  },
-
-  // Clean up old processed signals
-  async cleanupOldSignals(olderThanHours: number = 1) {
-    try {
-      const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000).toISOString();
-      
-      const { error } = await supabase
-        .from('webrtc_signals')
-        .delete()
-        .eq('processed', true)
-        .lt('created_at', cutoff);
-
-      if (error) {
-        console.error('❌ Error cleaning up old signals:', error);
-        return false;
-      }
-
-      console.log('🧹 Old processed signals cleaned up');
-      return true;
-    } catch (error) {
-      console.error('❌ Exception cleaning up old signals:', error);
-      return false;
-    }
-  }
-};
-
-// Export all helpers for easy access
+// Export all helpers
 export default {
   sessionHelpers,
   deviceHelpers,
   webrtcHelpers,
-  realtimeHelpers,
-  monitoringHelpers
+  realtimeHelpers
 };
