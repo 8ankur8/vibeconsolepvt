@@ -415,3 +415,4 @@ const webrtcMessage = {
   timestamp: Date.now(),
   senderId: 'device-1'
 };
+*/
