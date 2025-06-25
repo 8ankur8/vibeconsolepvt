@@ -35,8 +35,8 @@ export interface Device {
   name: string;
   device_type: 'phone' | 'console'; // New column from your schema
   is_host: boolean; // Renamed from is_leader in your schema
-  joined_at: number; // FIXED: Changed to number for Unix timestamp
-  last_seen: number; // FIXED: Changed to number for Unix timestamp
+  joined_at: string; // FIXED: Back to string for proper ISO timestamp
+  last_seen: string; // FIXED: Back to string for proper ISO timestamp
   connected_at?: string; // Legacy column for backward compatibility
 }
 
@@ -132,7 +132,7 @@ export const sessionHelpers = {
 };
 
 export const deviceHelpers = {
-  // Create device with enhanced schema fields - FIXED: Use Unix timestamps
+  // FIXED: Create device with proper ISO timestamp strings
   async createDevice(
     sessionId: string, 
     name: string, 
@@ -140,17 +140,17 @@ export const deviceHelpers = {
     isHost: boolean = false
   ): Promise<Device | null> {
     try {
-      const now = Date.now(); // FIXED: Use Unix timestamp instead of ISO string
+      const now = new Date().toISOString(); // CRITICAL FIX: Use ISO string, not timestamp number
       
       const { data, error } = await supabase
         .from('devices')
         .insert({
           session_id: sessionId,
           name,
-          device_type: deviceType, // Using your new column
-          is_host: isHost, // Using your renamed column
-          joined_at: now, // FIXED: Using Unix timestamp
-          last_seen: now // FIXED: Using Unix timestamp
+          device_type: deviceType,
+          is_host: isHost,
+          joined_at: now, // ISO string
+          last_seen: now  // ISO string
         })
         .select()
         .single();
@@ -168,12 +168,12 @@ export const deviceHelpers = {
     }
   },
 
-  // Update device activity using your new last_seen column - FIXED: Use Unix timestamp
+  // FIXED: Update device activity with proper ISO timestamp
   async updateDeviceActivity(deviceId: string): Promise<boolean> {
     try {
       const { error } = await supabase
         .from('devices')
-        .update({ last_seen: Date.now() }) // FIXED: Use Unix timestamp instead of ISO string
+        .update({ last_seen: new Date().toISOString() }) // CRITICAL FIX: Use ISO string
         .eq('id', deviceId);
 
       if (error) {
@@ -195,7 +195,7 @@ export const deviceHelpers = {
         .from('devices')
         .select('*')
         .eq('session_id', sessionId)
-        .order('joined_at', { ascending: true }); // Using your new column
+        .order('joined_at', { ascending: true });
 
       if (error) {
         console.error('❌ Error fetching devices:', error);
@@ -214,7 +214,7 @@ export const deviceHelpers = {
     try {
       const { data, error } = await supabase
         .from('devices')
-        .select('is_host') // Using your renamed column
+        .select('is_host')
         .eq('id', deviceId)
         .single();
 
@@ -251,7 +251,7 @@ export const webrtcHelpers = {
             receiver_device_id: receiverDeviceId,
             type,
             payload,
-            processed: false // Using your new column
+            processed: false
           });
 
         if (error) {
@@ -276,7 +276,7 @@ export const webrtcHelpers = {
     return false;
   },
 
-  // Mark signal as processed (using your new column)
+  // Mark signal as processed
   async markSignalProcessed(signalId: string): Promise<boolean> {
     try {
       const { error } = await supabase
@@ -436,7 +436,7 @@ export const realtimeHelpers = {
   }
 };
 
-// Enhanced monitoring and statistics (works with your new schema)
+// Enhanced monitoring and statistics
 export const monitoringHelpers = {
   // Get session statistics using your enhanced schema
   async getSessionStats(sessionId: string) {
@@ -456,16 +456,16 @@ export const monitoringHelpers = {
     }
   },
 
-  // Get active devices with last seen info - FIXED: Handle Unix timestamps
+  // FIXED: Get active devices with proper timestamp handling
   async getActiveDevices(sessionId: string, maxInactiveMinutes: number = 5) {
     try {
-      const cutoff = Date.now() - maxInactiveMinutes * 60 * 1000; // FIXED: Use Unix timestamp
+      const cutoff = new Date(Date.now() - maxInactiveMinutes * 60 * 1000).toISOString();
       
       const { data, error } = await supabase
         .from('devices')
         .select('*')
         .eq('session_id', sessionId)
-        .gte('last_seen', cutoff) // Using your new last_seen column with Unix timestamp
+        .gte('last_seen', cutoff)
         .order('last_seen', { ascending: false });
 
       if (error) {
@@ -488,7 +488,7 @@ export const monitoringHelpers = {
       const { error } = await supabase
         .from('webrtc_signals')
         .delete()
-        .eq('processed', true) // Using your new processed column
+        .eq('processed', true)
         .lt('created_at', cutoff);
 
       if (error) {
