@@ -3,6 +3,7 @@ import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity } from 'lucide-
 import { supabase, sessionHelpers, deviceHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { WebRTCMessage } from '../lib/webrtc';
+import { InputRouter, ControllerInput } from '../lib/inputRouter';
 import EditorSelection from './EditorSelection';
 import WebRTCDebugPanel from './WebRTCDebugPanel';
 
@@ -27,6 +28,10 @@ const ConsoleDisplay: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(true);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [lastProcessedInput, setLastProcessedInput] = useState<ControllerInput | null>(null);
+
+  // InputRouter integration
+  const inputRouterRef = useRef<InputRouter | null>(null);
 
   // Create device name mapping for WebRTC messages and debug panel
   const deviceNames = players.reduce((acc, player) => {
@@ -34,10 +39,18 @@ const ConsoleDisplay: React.FC = () => {
     return acc;
   }, {} as Record<string, string>);
 
-  // Enhanced message handler for WebRTC messages
+  // Enhanced message handler for WebRTC messages with InputRouter integration
   const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
     const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
     console.log(`📩 WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
+    
+    // Process through InputRouter first
+    if (inputRouterRef.current) {
+      const processedInput = inputRouterRef.current.processWebRTCInput(fromDeviceId, message);
+      if (processedInput) {
+        console.log(`🎮 InputRouter processed input from ${deviceName}:`, processedInput);
+      }
+    }
     
     // Handle different message types
     switch (message.type) {
@@ -67,6 +80,37 @@ const ConsoleDisplay: React.FC = () => {
     onMessage: handleWebRTCMessage,
     enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked
   });
+
+  // Initialize InputRouter
+  useEffect(() => {
+    if (sessionId && consoleDeviceId) {
+      console.log('🎮 Initializing InputRouter');
+      inputRouterRef.current = new InputRouter((input) => {
+        console.log(`🎯 InputRouter processed input:`, input);
+        setLastProcessedInput(input);
+      });
+
+      // Register console device
+      inputRouterRef.current.registerDevice(consoleDeviceId, 'Console', 'console');
+    }
+
+    return () => {
+      if (inputRouterRef.current) {
+        inputRouterRef.current.clear();
+        inputRouterRef.current = null;
+      }
+    };
+  }, [sessionId, consoleDeviceId]);
+
+  // Register devices with InputRouter when players change
+  useEffect(() => {
+    if (inputRouterRef.current && players.length > 0) {
+      console.log('🎮 Registering devices with InputRouter');
+      players.forEach(player => {
+        inputRouterRef.current!.registerDevice(player.id, player.name, player.deviceType);
+      });
+    }
+  }, [players]);
 
   // Generate a random 6-character lobby code
   const generateLobbyCode = () => {
@@ -407,6 +451,7 @@ const ConsoleDisplay: React.FC = () => {
         onBack={() => setIsLobbyLocked(false)}
         webrtcStatus={webrtc.status}
         onWebRTCMessage={webrtc.broadcastMessage}
+        lastControllerInput={lastProcessedInput}
       />
     );
   }
@@ -532,7 +577,7 @@ const ConsoleDisplay: React.FC = () => {
                 />
                 
                 <div className="mt-4 bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                  <h4 className="text-green-300 font-medium mb-2">✅ Status: Fixed</h4>
+                  <h4 className="text-green-300 font-medium mb-2">✅ InputRouter Integration</h4>
                   <div className="flex gap-2">
                     <button
                       onClick={manualConnectAll}
@@ -558,8 +603,17 @@ const ConsoleDisplay: React.FC = () => {
                     </button>
                   </div>
                   <div className="mt-2 text-xs text-gray-400">
-                    BIGINT timestamp issue resolved - device creation working correctly
+                    InputRouter active - processing structured game_data messages
                   </div>
+                  {lastProcessedInput && (
+                    <div className="mt-2 p-2 bg-purple-500/10 border border-purple-500/20 rounded text-xs">
+                      <div className="text-purple-300 font-medium">Last Input:</div>
+                      <div className="text-gray-300">
+                        {lastProcessedInput.deviceName}: {lastProcessedInput.input.type}.{lastProcessedInput.input.action}
+                        {lastProcessedInput.webrtcMessage ? ' (WebRTC)' : ' (Supabase)'}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -710,16 +764,14 @@ const ConsoleDisplay: React.FC = () => {
               </h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Database:</span>
-                  <span className="text-green-300">Connected ✅</span>
+                  <span className="text-gray-400">InputRouter:</span>
+                  <span className="text-green-300">{inputRouterRef.current ? 'Active ✅' : 'Inactive'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Session Creation:</span>
-                  <span className="text-green-300">Working ✅</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Lobby Code:</span>
-                  <span className="text-green-300">{lobbyCode ? 'Generated ✅' : 'Pending...'}</span>
+                  <span className="text-gray-400">Last Input:</span>
+                  <span className="text-purple-300">
+                    {lastProcessedInput ? `${lastProcessedInput.input.type}.${lastProcessedInput.input.action}` : 'None'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Current Host:</span>
@@ -744,10 +796,10 @@ const ConsoleDisplay: React.FC = () => {
               <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
                 <h4 className="font-medium text-green-300 mb-2">✅ System Health:</h4>
                 <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• Database Schema: ✅ Updated</li>
-                  <li>• Timestamp Format: ✅ Fixed (BIGINT)</li>
-                  <li>• Session Creation: ✅ Working</li>
-                  <li>• Device Registration: ✅ Functional</li>
+                  <li>• InputRouter: ✅ Integrated</li>
+                  <li>• Game Data Format: ✅ Structured</li>
+                  <li>• WebRTC Processing: ✅ Active</li>
+                  <li>• Fallback Support: ✅ Supabase</li>
                   <li>• Real-time Updates: ✅ Active</li>
                 </ul>
               </div>

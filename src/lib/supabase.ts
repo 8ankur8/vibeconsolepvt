@@ -332,7 +332,7 @@ export const webrtcHelpers = {
     }
   },
 
-  // Subscribe to WebRTC signals
+  // ENHANCED: Subscribe to WebRTC signals with refined filter
   subscribeToWebRTCSignals(
     sessionId: string,
     deviceId: string,
@@ -355,7 +355,8 @@ export const webrtcHelpers = {
           event: 'INSERT', 
           schema: 'public', 
           table: 'webrtc_signals',
-          filter: `receiver_device_id=eq.${deviceId}${includeProcessed ? '' : ',processed=eq.false'}`
+          // ENHANCED: Refined filter - removed processed filter to ensure all signals are received
+          filter: `receiver_device_id=eq.${deviceId}`
         }, 
         async (payload) => {
           console.log('📡 Received WebRTC signal:', payload);

@@ -37,6 +37,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     isHost: false,
     onMessage: (message, fromDeviceId) => {
       console.log('📩 Phone received WebRTC message from', fromDeviceId, ':', message);
+      // Handle WebRTC messages from console here
     },
     enabled: currentSessionId !== '' && myPlayerId !== '' && isLobbyLocked
   });
@@ -336,7 +337,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
-  // Send navigation input via WebRTC first, fallback to Supabase
+  // ENHANCED: Send navigation input via WebRTC with structured game_data format
   const sendNavigation = async (direction: string) => {
     console.log('🎮 sendNavigation called with direction:', direction);
     console.log('📊 Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
@@ -356,10 +357,17 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     try {
       console.log('📤 Sending navigation:', direction, 'at timestamp:', currentTime);
       
-      // Try WebRTC first if available
+      // ENHANCED: Send structured game_data message for InputRouter compatibility
       const webrtcMessage = {
-        type: 'navigation' as const,
-        data: { direction, timestamp: currentTime, playerId: myPlayerId }
+        type: 'game_data' as const,
+        data: {
+          dpad: {
+            directionchange: {
+              key: direction,
+              pressed: true
+            }
+          }
+        }
       };
 
       // Find console device to send WebRTC message to
@@ -373,7 +381,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       let webrtcSent = false;
       if (consoleDevice.data && webrtc.status.isInitialized) {
         webrtcSent = webrtc.sendMessage(consoleDevice.data.id, webrtcMessage);
-        console.log('📡 WebRTC navigation sent:', webrtcSent);
+        console.log('📡 WebRTC navigation sent:', webrtcSent, 'Message:', webrtcMessage);
       }
 
       // Fallback to Supabase if WebRTC failed
@@ -404,6 +412,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
+  // ENHANCED: Send selection input via WebRTC with structured game_data format
   const sendSelection = async () => {
     console.log('🎯 sendSelection called');
     console.log('📊 Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
@@ -416,10 +425,16 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     try {
       console.log('📤 Sending selection');
       
-      // Try WebRTC first if available
+      // ENHANCED: Send structured game_data message for InputRouter compatibility
       const webrtcMessage = {
-        type: 'selection' as const,
-        data: { timestamp: Date.now(), playerId: myPlayerId }
+        type: 'game_data' as const,
+        data: {
+          button: {
+            a: {
+              pressed: true
+            }
+          }
+        }
       };
 
       // Find console device to send WebRTC message to
@@ -433,7 +448,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       let webrtcSent = false;
       if (consoleDevice.data && webrtc.status.isInitialized) {
         webrtcSent = webrtc.sendMessage(consoleDevice.data.id, webrtcMessage);
-        console.log('📡 WebRTC selection sent:', webrtcSent);
+        console.log('📡 WebRTC selection sent:', webrtcSent, 'Message:', webrtcMessage);
       }
 
       // Fallback to Supabase if WebRTC failed
@@ -764,7 +779,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               </div>
             </div>
             <div className="mt-2 text-center text-green-400 text-xs">
-              ✅ Enhanced error logging active
+              ✅ Enhanced input format: game_data with dpad/button structure
             </div>
           </div>
         </div>

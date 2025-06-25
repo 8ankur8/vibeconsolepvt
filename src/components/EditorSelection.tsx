@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { ControllerInput } from '../lib/inputRouter';
 import WebRTCDebugPanel from './WebRTCDebugPanel';
 
 interface EditorSelectionProps {
@@ -10,6 +11,7 @@ interface EditorSelectionProps {
   onBack: () => void;
   webrtcStatus?: any;
   onWebRTCMessage?: (message: any) => any;
+  lastControllerInput?: ControllerInput | null;
 }
 
 interface Editor {
@@ -62,7 +64,8 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   players, 
   onBack,
   webrtcStatus,
-  onWebRTCMessage
+  onWebRTCMessage,
+  lastControllerInput
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedEditor, setSelectedEditor] = useState<Editor | null>(null);
@@ -72,11 +75,35 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   // Use refs to prevent stale closures and unnecessary re-subscriptions
   const selectedIndexRef = useRef(selectedIndex);
   const lastNavigationTimeRef = useRef(0);
+  const lastProcessedInputTimestampRef = useRef(0);
 
   // Keep ref updated with current selectedIndex
   useEffect(() => {
     selectedIndexRef.current = selectedIndex;
   }, [selectedIndex]);
+
+  // ENHANCED: Handle lastControllerInput from InputRouter
+  useEffect(() => {
+    if (!lastControllerInput) return;
+
+    // Prevent processing the same input multiple times
+    if (lastControllerInput.input.timestamp <= lastProcessedInputTimestampRef.current) {
+      return;
+    }
+
+    console.log('🎮 Processing controller input in EditorSelection:', lastControllerInput);
+    lastProcessedInputTimestampRef.current = lastControllerInput.input.timestamp;
+
+    // Handle different input types
+    if (lastControllerInput.input.type === 'dpad') {
+      const direction = lastControllerInput.input.action;
+      console.log(`🎮 Processing dpad input: ${direction}`);
+      handleNavigation(direction);
+    } else if (lastControllerInput.input.type === 'button' && lastControllerInput.input.action === 'a') {
+      console.log('🎮 Processing button A input');
+      handleSelectEditor();
+    }
+  }, [lastControllerInput]);
 
   // Listen for navigation inputs from phones - ENHANCED WITH WEBRTC
   useEffect(() => {
@@ -357,6 +384,12 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 WebRTC: {webrtcStatus.connectedDevices.length} connected, {Object.keys(webrtcStatus.connections).length} total
               </div>
             )}
+            {lastControllerInput && (
+              <div className="mt-2 text-xs text-purple-300">
+                Last Input: {lastControllerInput.deviceName} - {lastControllerInput.input.type}.{lastControllerInput.input.action}
+                {lastControllerInput.webrtcMessage ? ' (WebRTC)' : ' (Supabase)'}
+              </div>
+            )}
           </div>
         </div>
 
@@ -487,6 +520,20 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                   <span>Connected/Total:</span>
                   <span className="text-blue-300">
                     {webrtcStatus.connectedDevices.length}/{Object.keys(webrtcStatus.connections).length}
+                  </span>
+                </div>
+              </>
+            )}
+            {lastControllerInput && (
+              <>
+                <div className="flex justify-between">
+                  <span>InputRouter:</span>
+                  <span className="text-green-300">Active ✅</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Last Input:</span>
+                  <span className="text-purple-300">
+                    {lastControllerInput.input.type}.{lastControllerInput.input.action}
                   </span>
                 </div>
               </>
