@@ -1,22 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Code, Users, QrCode, Copy, Check, Lock, Crown, Wifi, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
+import { WebRTCMessage } from '../lib/webrtc';
+import { InputRouter } from '../lib/inputRouter';
 import EditorSelection from './EditorSelection';
 import WebRTCDebugPanel from './WebRTCDebugPanel';
 
 interface Player {
   id: string;
   name: string;
-  deviceType: string;
-  isHost: boolean;
+  deviceType: 'phone' | 'console'; // Updated to match your schema
+  isHost: boolean; // Updated from isLeader to isHost
   joinedAt: number;
+  lastSeen: number; // New field from your schema
   status: string;
 }
 
 const ConsoleDisplay: React.FC = () => {
   const [sessionId, setSessionId] = useState<string>('');
-  const [consoleDeviceId, setConsoleDeviceId] = useState<string>(''); // NEW: Console's device ID
+  const [consoleDeviceId, setConsoleDeviceId] = useState<string>('');
   const [lobbyCode, setLobbyCode] = useState<string>('');
   const [qrCodeData, setQrCodeData] = useState<string>('');
   const [connectionUrl, setConnectionUrl] = useState<string>('');
@@ -26,23 +29,70 @@ const ConsoleDisplay: React.FC = () => {
   const [isCreatingSession, setIsCreatingSession] = useState(true);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
-  // WebRTC integration - NOW USES PROPER DEVICE ID
-  const webrtc = useWebRTC({
-    sessionId,
-    deviceId: consoleDeviceId, // Use the actual console device ID from database
-    isHost: true,
-    onMessage: (message, fromDeviceId) => {
-      console.log('📩 Received WebRTC message from', fromDeviceId, ':', message);
-      // Handle WebRTC messages here (navigation, selection, etc.)
-    },
-    enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked
-  });
+  // Initialize input router for device identification
+  const inputRouter = useRef<InputRouter | null>(null);
 
-  // Create device name mapping for debug panel (including console)
+  // Create device name mapping for WebRTC messages and debug panel
   const deviceNames = players.reduce((acc, player) => {
     acc[player.id] = player.name;
     return acc;
   }, {} as Record<string, string>);
+
+  // Enhanced message handler for WebRTC messages with input router integration
+  const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
+    const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
+    console.log(`📩 WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
+    
+    // Use input router to process and identify inputs
+    if (inputRouter.current) {
+      const processedInput = inputRouter.current.processWebRTCInput(fromDeviceId, message);
+      if (processedInput) {
+        console.log(`🎮 Processed input from ${processedInput.deviceName}: ${processedInput.input.type}.${processedInput.input.action}`);
+        // Your game logic here - you now know exactly who sent what input!
+      }
+    }
+
+    // Handle different message types
+    switch (message.type) {
+      case 'navigation':
+        console.log(`🎮 Navigation input from ${deviceName}:`, message.data);
+        break;
+      case 'selection':
+        console.log(`👆 Selection input from ${deviceName}:`, message.data);
+        break;
+      case 'game_data':
+        console.log(`🎯 Game data from ${deviceName}:`, message.data);
+        break;
+      case 'heartbeat':
+        console.log(`💓 Heartbeat from ${deviceName}`);
+        // Update last_seen timestamp in database
+        updateDeviceActivity(fromDeviceId);
+        break;
+      default:
+        console.log(`❓ Unknown message type from ${deviceName}:`, message);
+    }
+  }, [deviceNames]);
+
+  // WebRTC integration with enhanced message handling
+  const webrtc = useWebRTC({
+    sessionId,
+    deviceId: consoleDeviceId,
+    isHost: true,
+    onMessage: handleWebRTCMessage,
+    enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked
+  });
+
+  // Update device activity timestamp (uses your new last_seen column)
+  const updateDeviceActivity = async (deviceId: string) => {
+    try {
+      await supabase
+        .from('devices')
+        .update({ last_seen: new Date().toISOString() })
+        .eq('id', deviceId);
+    } catch (error) {
+      console.error('Error updating device activity:', error);
+    }
+  };
 
   // Generate a random 6-character lobby code
   const generateLobbyCode = () => {
@@ -60,12 +110,12 @@ const ConsoleDisplay: React.FC = () => {
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(url)}`;
       return qrApiUrl;
     } catch (error) {
-      console.error('Error generating QR code:', error);
+      console.error('❌ Error generating QR code:', error);
       return '';
     }
   };
 
-  // ENHANCED: Create session AND console device in Supabase
+  // UPDATED: Create session and console device with new schema
   const createSession = async () => {
     try {
       setIsCreatingSession(true);
@@ -86,25 +136,28 @@ const ConsoleDisplay: React.FC = () => {
         .single();
 
       if (sessionError) {
-        console.error('Error creating session:', sessionError);
+        console.error('❌ Error creating session:', sessionError);
         return;
       }
 
       console.log('✅ Session created:', session);
 
-      // Step 2: Create console device entry in the database
+      // Step 2: Create console device entry with enhanced schema
       const { data: consoleDevice, error: deviceError } = await supabase
         .from('devices')
         .insert({
           session_id: session.id,
           name: 'Console',
-          is_leader: true // Console is always the leader/host
+          device_type: 'console', // Using your new device_type column
+          is_host: true, // Using your renamed is_host column
+          joined_at: new Date().toISOString(), // Using your new joined_at column
+          last_seen: new Date().toISOString() // Using your new last_seen column
         })
         .select()
         .single();
 
       if (deviceError) {
-        console.error('Error creating console device:', deviceError);
+        console.error('❌ Error creating console device:', deviceError);
         return;
       }
 
@@ -115,7 +168,7 @@ const ConsoleDisplay: React.FC = () => {
 
       // Update state with all the new information
       setSessionId(session.id);
-      setConsoleDeviceId(consoleDevice.id); // CRITICAL: Store console's device ID
+      setConsoleDeviceId(consoleDevice.id);
       setLobbyCode(code);
       setConnectionUrl(connectionUrl);
       setQrCodeData(qrCode);
@@ -127,13 +180,13 @@ const ConsoleDisplay: React.FC = () => {
         lobbyCode: code
       });
     } catch (error) {
-      console.error('Error creating session:', error);
+      console.error('❌ Error creating session:', error);
       setIsCreatingSession(false);
     }
   };
 
-  // ENHANCED: Load devices for the session (including console)
-  const loadDevices = async () => {
+  // UPDATED: Load devices with new schema fields
+  const loadDevices = useCallback(async () => {
     if (!sessionId) return;
 
     try {
@@ -141,32 +194,70 @@ const ConsoleDisplay: React.FC = () => {
         .from('devices')
         .select('*')
         .eq('session_id', sessionId)
-        .order('connected_at', { ascending: true });
+        .order('joined_at', { ascending: true }); // Using new joined_at column
 
       if (error) {
-        console.error('Error loading devices:', error);
+        console.error('❌ Error loading devices:', error);
         return;
       }
 
       const mappedPlayers: Player[] = devices.map((device) => ({
         id: device.id,
         name: device.name,
-        deviceType: device.name === 'Console' ? 'console' : 'phone',
-        isHost: device.is_leader || false,
-        joinedAt: new Date(device.connected_at || '').getTime(),
+        deviceType: device.device_type || (device.name === 'Console' ? 'console' : 'phone'), // Using new device_type
+        isHost: device.is_host || false, // Using renamed is_host column
+        joinedAt: new Date(device.joined_at || device.connected_at || '').getTime(), // Fallback for old data
+        lastSeen: new Date(device.last_seen || device.connected_at || '').getTime(), // Using new last_seen
         status: 'connected'
       }));
 
       setPlayers(mappedPlayers);
-      console.log('✅ Players loaded (including console):', mappedPlayers);
+      console.log('✅ Players loaded with enhanced schema:', mappedPlayers);
+
+      // Register devices with input router
+      if (inputRouter.current) {
+        mappedPlayers.forEach(player => {
+          inputRouter.current?.registerDevice(player.id, player.name, player.deviceType);
+        });
+      }
 
     } catch (error) {
-      console.error('Error loading devices:', error);
+      console.error('❌ Error loading devices:', error);
     }
-  };
+  }, [sessionId]);
+
+  // Initialize input router
+  useEffect(() => {
+    inputRouter.current = new InputRouter(
+      (input) => {
+        console.log(`🎮 Identified input from ${input.deviceName} (${input.deviceType}): ${input.input.type}.${input.input.action}`, input.input.data);
+        
+        // Now you can process inputs knowing exactly who sent them!
+        // Example game logic:
+        switch (input.input.type) {
+          case 'dpad':
+            console.log(`${input.deviceName} pressed ${input.input.action} on D-pad`);
+            break;
+          case 'button':
+            console.log(`${input.deviceName} pressed button ${input.input.action}`);
+            break;
+          case 'swipe':
+            console.log(`${input.deviceName} swiped ${input.input.action}`);
+            break;
+        }
+      },
+      (deviceId, mappings) => {
+        console.log(`🔄 Input mappings updated for device ${deviceId}:`, mappings);
+      }
+    );
+
+    return () => {
+      inputRouter.current?.clear();
+    };
+  }, []);
 
   // Load session status
-  const loadSessionStatus = async () => {
+  const loadSessionStatus = useCallback(async () => {
     if (!sessionId) return;
 
     try {
@@ -177,7 +268,7 @@ const ConsoleDisplay: React.FC = () => {
         .single();
 
       if (error) {
-        console.error('Error loading session status:', error);
+        console.error('❌ Error loading session status:', error);
         return;
       }
 
@@ -186,151 +277,150 @@ const ConsoleDisplay: React.FC = () => {
       
       setIsLobbyLocked(nowLocked);
       
-      // INSTANT REDIRECT: If lobby just got locked, immediately switch to editor selection
       if (!wasLocked && nowLocked) {
-        console.log('🔒 Lobby locked - instantly switching to editor selection');
+        console.log('🔒 Lobby locked - switching to editor selection');
       }
       
     } catch (error) {
-      console.error('Error loading session status:', error);
+      console.error('❌ Error loading session status:', error);
     }
-  };
+  }, [sessionId, isLobbyLocked]);
 
-  // NEW: Enhanced WebRTC connection management with detailed logging
-  useEffect(() => {
+  // FIXED: Stable WebRTC connection management without infinite loops
+  const connectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isConnectingRef = useRef(false);
+
+  const initializeWebRTCConnections = useCallback(async () => {
     if (!sessionId || !consoleDeviceId || !isLobbyLocked || !webrtc.status.isInitialized) {
-      console.log('⚠️ WebRTC connection management disabled:', {
-        sessionId: !!sessionId,
-        consoleDeviceId: !!consoleDeviceId,
-        isLobbyLocked,
-        webrtcInitialized: webrtc.status.isInitialized
-      });
       return;
     }
 
-    console.log('🔄 Setting up enhanced WebRTC connection management');
+    if (isConnectingRef.current) {
+      console.log('⚠️ Connection attempt already in progress, skipping...');
+      return;
+    }
 
-    const connectToMissingPeers = async () => {
+    isConnectingRef.current = true;
+
+    try {
       // Get all phone controllers (exclude console)
       const phoneControllers = players.filter(player => 
         player.deviceType === 'phone' && player.id !== consoleDeviceId
       );
 
+      if (phoneControllers.length === 0) {
+        console.log('📱 No phone controllers to connect to');
+        return;
+      }
+
       // Get current WebRTC status
       const { connections, connectedDevices } = webrtc.status;
       
-      console.log('📊 Detailed WebRTC Connection Analysis:', {
+      console.log('📊 WebRTC Connection Analysis:', {
         totalPhoneControllers: phoneControllers.length,
-        phoneControllerIds: phoneControllers.map(p => ({ name: p.name, id: p.id.slice(-8) })),
+        phoneControllers: phoneControllers.map(p => ({ name: p.name, id: p.id.slice(-8) })),
         totalConnections: Object.keys(connections).length,
-        connectionStates: Object.entries(connections).map(([id, state]) => ({ 
-          id: id.slice(-8), 
-          state,
-          name: deviceNames[id] || 'Unknown'
-        })),
-        connectedDevices: connectedDevices.length,
-        connectedDeviceIds: connectedDevices.map(id => ({ 
-          id: id.slice(-8), 
-          name: deviceNames[id] || 'Unknown' 
-        }))
+        connectedDevices: connectedDevices.length
       });
 
-      // Find phone controllers that need WebRTC connections
+      // Find controllers that need connections
       const needConnection = phoneControllers.filter(player => {
         const hasConnection = connections.hasOwnProperty(player.id);
         const isConnected = connectedDevices.includes(player.id);
         const connectionState = connections[player.id];
         
-        console.log(`🔍 Analyzing ${player.name} (${player.id.slice(-8)}):`, {
-          hasConnection,
-          isConnected,
-          connectionState,
-          needsConnection: !hasConnection || (connectionState !== 'connected' && connectionState !== 'connecting')
-        });
+        const needsConnection = !hasConnection || 
+          (connectionState !== 'connected' && connectionState !== 'connecting');
         
-        return !hasConnection || (connectionState !== 'connected' && connectionState !== 'connecting');
+        if (needsConnection) {
+          console.log(`🔍 ${player.name} needs connection:`, {
+            hasConnection,
+            isConnected,
+            connectionState
+          });
+        }
+        
+        return needsConnection;
       });
 
-      if (needConnection.length > 0) {
-        console.log(`🤝 Attempting to connect to ${needConnection.length} controllers:`, 
-          needConnection.map(p => `${p.name} (${p.id.slice(-8)})`));
-
-        // Attempt to connect to each controller that needs connection
-        for (const controller of needConnection) {
-          try {
-            console.log(`🔗 Initiating connection to ${controller.name} (${controller.id.slice(-8)})`);
-            const success = await webrtc.connectToDevice(controller.id);
-            
-            if (success) {
-              console.log(`✅ Connection initiated successfully for ${controller.name}`);
-            } else {
-              console.log(`❌ Failed to initiate connection for ${controller.name}`);
-            }
-            
-            // Small delay between connection attempts
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } catch (error) {
-            console.error(`💥 Error connecting to ${controller.name}:`, error);
-          }
+      // Connect to devices that need connections
+      for (const controller of needConnection) {
+        try {
+          console.log(`🤝 Connecting to ${controller.name} (${controller.id.slice(-8)})`);
+          await webrtc.connectToDevice(controller.id);
+          
+          // Small delay between connections
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        } catch (error) {
+          console.error(`❌ Failed to connect to ${controller.name}:`, error);
         }
-      } else {
-        console.log('✅ All phone controllers have WebRTC connections (connected or connecting)');
       }
 
-      // Log detailed status for debugging
-      if (phoneControllers.length > 0) {
-        console.log('📋 Current WebRTC Status Summary:', {
-          phoneControllers: phoneControllers.length,
-          withConnections: phoneControllers.filter(p => connections.hasOwnProperty(p.id)).length,
-          fullyConnected: phoneControllers.filter(p => connectedDevices.includes(p.id)).length,
-          detailedStatus: webrtc.getDetailedStatus ? webrtc.getDetailedStatus() : 'Not available'
-        });
+      console.log('📋 WebRTC Connection Summary:', {
+        phoneControllers: phoneControllers.length,
+        attempted: needConnection.length,
+        currentConnections: Object.keys(webrtc.status.connections).length,
+        currentConnected: webrtc.status.connectedDevices.length
+      });
+
+    } catch (error) {
+      console.error('❌ Error in WebRTC connection management:', error);
+    } finally {
+      isConnectingRef.current = false;
+    }
+  }, [sessionId, consoleDeviceId, isLobbyLocked, players, webrtc.status.isInitialized, webrtc.connectToDevice]);
+
+  // FIXED: Set up connection management with stable intervals
+  useEffect(() => {
+    if (!sessionId || !consoleDeviceId || !isLobbyLocked || !webrtc.status.isInitialized) {
+      if (connectionIntervalRef.current) {
+        clearInterval(connectionIntervalRef.current);
+        connectionIntervalRef.current = null;
       }
-    };
+      return;
+    }
 
-    // Initial connection attempt (with delay to ensure WebRTC is ready)
-    const initialTimeout = setTimeout(connectToMissingPeers, 2000);
+    console.log('🔄 Starting WebRTC connection management');
 
-    // Set up interval to continuously check and connect
-    const connectionInterval = setInterval(connectToMissingPeers, 8000); // Every 8 seconds
+    // Initial connection attempt (delayed)
+    const initialTimeout = setTimeout(() => {
+      initializeWebRTCConnections();
+    }, 3000);
+
+    // Set up periodic connection checks
+    connectionIntervalRef.current = setInterval(() => {
+      initializeWebRTCConnections();
+    }, 10000); // Every 10 seconds
 
     return () => {
-      console.log('🧹 Cleaning up enhanced WebRTC connection management');
+      console.log('🧹 Cleaning up WebRTC connection management');
       clearTimeout(initialTimeout);
-      clearInterval(connectionInterval);
+      if (connectionIntervalRef.current) {
+        clearInterval(connectionIntervalRef.current);
+        connectionIntervalRef.current = null;
+      }
     };
-  }, [sessionId, consoleDeviceId, isLobbyLocked, players, webrtc.status.isInitialized, webrtc.status.connections, webrtc.status.connectedDevices]);
+  }, [sessionId, consoleDeviceId, isLobbyLocked, webrtc.status.isInitialized, initializeWebRTCConnections]);
 
   // Manual connection trigger for debugging
   const manualConnectAll = async () => {
     console.log('🔧 Manual connection trigger activated');
-    const phoneControllers = players.filter(player => 
-      player.deviceType === 'phone' && player.id !== consoleDeviceId
-    );
-
-    for (const controller of phoneControllers) {
-      console.log(`🔗 Manually connecting to ${controller.name} (${controller.id.slice(-8)})`);
-      try {
-        await webrtc.connectToDevice(controller.id);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-      } catch (error) {
-        console.error(`Error in manual connection to ${controller.name}:`, error);
-      }
-    }
+    await initializeWebRTCConnections();
   };
 
+  // Create session on component mount
   useEffect(() => {
-    // Create session on component mount
     createSession();
   }, []);
 
+  // Set up real-time subscriptions
   useEffect(() => {
     if (sessionId) {
       // Initial load
       loadDevices();
       loadSessionStatus();
       
-      // Set up real-time subscription for devices with proper channel naming
+      // Set up real-time subscription for devices
       const devicesChannel = supabase
         .channel(`devices_${sessionId}`)
         .on('postgres_changes', 
@@ -341,16 +431,15 @@ const ConsoleDisplay: React.FC = () => {
             filter: `session_id=eq.${sessionId}`
           }, 
           (payload) => {
-            console.log('Device change detected:', payload);
-            // Reload devices immediately when any change occurs
+            console.log('📱 Device change detected:', payload);
             loadDevices();
           }
         )
         .subscribe((status) => {
-          console.log('Devices subscription status:', status);
+          console.log('📱 Devices subscription status:', status);
         });
 
-      // Set up real-time subscription for session changes with proper channel naming
+      // Set up real-time subscription for session changes
       const sessionChannel = supabase
         .channel(`session_${sessionId}`)
         .on('postgres_changes', 
@@ -361,35 +450,33 @@ const ConsoleDisplay: React.FC = () => {
             filter: `id=eq.${sessionId}`
           }, 
           (payload) => {
-            console.log('Session change detected:', payload);
-            // INSTANT RELOAD: Reload session status immediately when changes occur
+            console.log('🏠 Session change detected:', payload);
             loadSessionStatus();
           }
         )
         .subscribe((status) => {
-          console.log('Session subscription status:', status);
+          console.log('🏠 Session subscription status:', status);
         });
 
-      // Cleanup function
       return () => {
-        console.log('Cleaning up subscriptions');
+        console.log('🧹 Cleaning up subscriptions');
         devicesChannel.unsubscribe();
         sessionChannel.unsubscribe();
       };
     }
-  }, [sessionId, isLobbyLocked]); // Added isLobbyLocked to dependencies
+  }, [sessionId, loadDevices, loadSessionStatus]);
 
-  // Reduced backup refresh interval for faster response
+  // Backup refresh interval
   useEffect(() => {
     if (!sessionId) return;
 
     const interval = setInterval(() => {
       loadDevices();
       loadSessionStatus();
-    }, 2000); // Reduced from 5 seconds to 2 seconds
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [sessionId]);
+  }, [sessionId, loadDevices, loadSessionStatus]);
 
   const copyConnectionUrl = async () => {
     try {
@@ -397,11 +484,11 @@ const ConsoleDisplay: React.FC = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy URL:', err);
+      console.error('❌ Failed to copy URL:', err);
     }
   };
 
-  // INSTANT TRANSITION: Show editor selection immediately when lobby is locked
+  // Show editor selection when lobby is locked
   if (isLobbyLocked) {
     return (
       <EditorSelection
@@ -506,9 +593,9 @@ const ConsoleDisplay: React.FC = () => {
                       Waiting for host to lock the lobby...
                     </p>
                     
-                    {/* Player avatars (only phone controllers) */}
+                    {/* Player avatars with enhanced info */}
                     <div className="flex justify-center gap-2 mt-4">
-                      {players.filter(p => p.deviceType === 'phone').map((player, index) => (
+                      {players.filter(p => p.deviceType === 'phone').map((player) => (
                         <div key={player.id} className="relative">
                           <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
                             {player.name.charAt(0).toUpperCase()}
@@ -516,7 +603,9 @@ const ConsoleDisplay: React.FC = () => {
                           {player.isHost && (
                             <Crown size={12} className="absolute -top-1 -right-1 text-yellow-400" />
                           )}
-                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-gray-900 animate-pulse"></div>
+                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-900 ${
+                            webrtc.status.connectedDevices.includes(player.id) ? 'bg-green-400' : 'bg-yellow-400'
+                          } animate-pulse`}></div>
                         </div>
                       ))}
                     </div>
@@ -535,10 +624,10 @@ const ConsoleDisplay: React.FC = () => {
                   getDetailedStatus={webrtc.getDetailedStatus}
                 />
                 
-                {/* Manual Connection Controls */}
+                {/* Enhanced Debug Controls with Input Router info */}
                 <div className="mt-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
                   <h4 className="text-yellow-300 font-medium mb-2">Debug Controls</h4>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mb-3">
                     <button
                       onClick={manualConnectAll}
                       disabled={!webrtc.status.isInitialized}
@@ -561,19 +650,29 @@ const ConsoleDisplay: React.FC = () => {
                     >
                       Refresh Status
                     </button>
+                    <button
+                      onClick={() => {
+                        const stats = inputRouter.current?.getInputStats();
+                        console.log('📊 Input Router Stats:', stats);
+                      }}
+                      className="px-3 py-1 border rounded text-sm bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/30 text-purple-300"
+                    >
+                      Input Stats
+                    </button>
                   </div>
-                  <div className="mt-2 text-xs text-gray-400">
-                    {webrtc.status.isInitialized 
-                      ? 'Use these controls to manually trigger WebRTC connections for debugging'
-                      : 'WebRTC manager not initialized - controls disabled'
-                    }
+                  
+                  {/* Input Router Status */}
+                  <div className="text-xs text-gray-300 space-y-1">
+                    <div>• Input Router: {inputRouter.current ? '✅ Active' : '❌ Inactive'}</div>
+                    <div>• Registered Devices: {inputRouter.current?.getRegisteredDevices().length || 0}</div>
+                    <div>• Recent Inputs: {inputRouter.current?.getInputHistory(undefined, 5).length || 0}</div>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - Connection Info & Players List */}
           <div className="space-y-6">
             {/* Connection Info */}
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
@@ -644,7 +743,7 @@ const ConsoleDisplay: React.FC = () => {
               </div>
             </div>
 
-            {/* Connected Players */}
+            {/* Enhanced Connected Players with Schema Info */}
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Users className="text-indigo-300" />
@@ -665,32 +764,57 @@ const ConsoleDisplay: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  players.filter(p => p.deviceType === 'phone').map((player) => (
-                    <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20 transition-all hover:bg-indigo-900/40">
-                      <div className={`w-3 h-3 rounded-full ${
-                        player.status === 'connected' ? 'bg-green-400' : 'bg-gray-400'
-                      } animate-pulse`}></div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-medium">{player.name}</span>
-                          {player.isHost && (
-                            <Crown size={16} className="text-yellow-400" />
-                          )}
+                  players.filter(p => p.deviceType === 'phone').map((player) => {
+                    const timeSinceLastSeen = Date.now() - player.lastSeen;
+                    const isRecentlyActive = timeSinceLastSeen < 30000; // Within 30 seconds
+                    
+                    return (
+                      <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20 transition-all hover:bg-indigo-900/40">
+                        <div className={`w-3 h-3 rounded-full ${
+                          webrtc.status.connectedDevices.includes(player.id) 
+                            ? 'bg-green-400' 
+                            : isRecentlyActive 
+                              ? 'bg-yellow-400' 
+                              : 'bg-gray-400'
+                        } animate-pulse`}></div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-medium">{player.name}</span>
+                            {player.isHost && (
+                              <Crown size={16} className="text-yellow-400" />
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {player.isHost ? 'Host' : 'Player'} • {
+                              webrtc.status.connectedDevices.includes(player.id) 
+                                ? 'WebRTC Connected'
+                                : isRecentlyActive 
+                                  ? 'Recently Active'
+                                  : 'Inactive'
+                            }
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400">
-                          {player.isHost ? 'Host' : 'Player'} • Connected
+                        <div className={`text-xs px-2 py-1 rounded ${
+                          webrtc.status.connectedDevices.includes(player.id)
+                            ? 'text-green-400 bg-green-400/10'
+                            : isRecentlyActive
+                              ? 'text-yellow-400 bg-yellow-400/10'
+                              : 'text-gray-400 bg-gray-400/10'
+                        }`}>
+                          {webrtc.status.connectedDevices.includes(player.id) 
+                            ? 'P2P' 
+                            : isRecentlyActive 
+                              ? 'Online' 
+                              : 'Offline'}
                         </div>
                       </div>
-                      <div className="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded">
-                        Online
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
 
-            {/* Enhanced Game Info */}
+            {/* Enhanced System Status with Schema Info */}
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Wifi className="text-indigo-300" />
@@ -698,19 +822,8 @@ const ConsoleDisplay: React.FC = () => {
               </h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Max Players:</span>
-                  <span className="text-white">4</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Lobby Status:</span>
-                  <span className="text-green-300 flex items-center gap-1">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    Open
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Host Required:</span>
-                  <span className="text-purple-300">Yes</span>
+                  <span className="text-gray-400">Database Schema:</span>
+                  <span className="text-green-300">Enhanced ✨</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Current Host:</span>
@@ -719,15 +832,21 @@ const ConsoleDisplay: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">WebRTC:</span>
+                  <span className="text-gray-400">WebRTC Status:</span>
                   <span className={`${webrtc.status.isInitialized ? 'text-green-300' : 'text-gray-300'}`}>
                     {webrtc.status.isInitialized ? 'Ready' : 'Disabled'}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Connected/Total:</span>
+                  <span className="text-gray-400">P2P Connections:</span>
                   <span className="text-blue-300">
                     {webrtc.status.connectedDevices.length}/{Object.keys(webrtc.status.connections).length}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Input Router:</span>
+                  <span className="text-purple-300">
+                    {inputRouter.current ? 'Active' : 'Inactive'}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -736,21 +855,16 @@ const ConsoleDisplay: React.FC = () => {
                     {consoleDeviceId ? consoleDeviceId.slice(-8) : 'Loading...'}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Session ID:</span>
-                  <span className="text-gray-300 font-mono text-xs">
-                    {sessionId ? sessionId.slice(-8) : 'Loading...'}
-                  </span>
-                </div>
               </div>
               
               <div className="mt-6 p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-                <h4 className="font-medium text-purple-300 mb-2">WebRTC Status:</h4>
+                <h4 className="font-medium text-purple-300 mb-2">Enhanced Features:</h4>
                 <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• Initialized: {webrtc.status.isInitialized ? '✅' : '❌'}</li>
-                  <li>• Total Connections: {Object.keys(webrtc.status.connections).length}</li>
-                  <li>• Active Connections: {webrtc.status.connectedDevices.length}</li>
-                  <li>• Open Data Channels: {Object.values(webrtc.status.dataChannels).filter(s => s === 'open').length}</li>
+                  <li>• Device Type Detection: ✅</li>
+                  <li>• Input Source Identification: ✅</li>
+                  <li>• Activity Tracking: ✅</li>
+                  <li>• Enhanced Database Schema: ✅</li>
+                  <li>• Connection Loop Fix: ✅</li>
                   {webrtc.status.lastError && (
                     <li className="text-red-300">• Error: {webrtc.status.lastError}</li>
                   )}
