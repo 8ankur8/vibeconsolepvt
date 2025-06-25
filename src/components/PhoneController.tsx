@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, sessionHelpers, deviceHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
 import WebRTCDebugPanel from './WebRTCDebugPanel';
 
@@ -34,10 +34,9 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const webrtc = useWebRTC({
     sessionId: currentSessionId,
     deviceId: myPlayerId,
-    isHost: false, // Phone controllers are never hosts in WebRTC context
+    isHost: false,
     onMessage: (message, fromDeviceId) => {
       console.log('📩 Phone received WebRTC message from', fromDeviceId, ':', message);
-      // Handle WebRTC messages from console here
     },
     enabled: currentSessionId !== '' && myPlayerId !== '' && isLobbyLocked
   });
@@ -52,15 +51,10 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const loadSession = async () => {
     console.log('🔍 Loading session for lobby code:', lobbyCode);
     try {
-      const { data: session, error } = await supabase
-        .from('sessions')
-        .select('id, is_locked')
-        .eq('code', lobbyCode)
-        .eq('is_active', true)
-        .single();
-
-      if (error || !session) {
-        console.error('❌ Session not found:', error);
+      const session = await sessionHelpers.getSessionByCode(lobbyCode);
+      
+      if (!session) {
+        console.error('❌ Session not found for lobby code:', lobbyCode);
         setConnectionError('Lobby not found or inactive');
         return null;
       }
@@ -72,7 +66,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       
       setIsLobbyLocked(nowLocked);
       
-      // INSTANT TRANSITION: If lobby just got locked, immediately switch to editor selection
       if (!wasLocked && nowLocked) {
         console.log('🔒 Lobby locked - instantly switching to editor selection mode');
         setGameStatus('editor_selection');
@@ -101,26 +94,17 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
     console.log('👥 Loading players for session:', currentSessionId);
     try {
-      const { data: devices, error } = await supabase
-        .from('devices')
-        .select('*')
-        .eq('session_id', currentSessionId)
-        .order('connected_at', { ascending: true });
-
-      if (error) {
-        console.error('❌ Error loading players:', error);
-        return;
-      }
+      const devices = await deviceHelpers.getSessionDevices(currentSessionId);
 
       console.log('📱 Raw devices data:', devices);
 
       // Filter out console device and only show phone controllers
       const mappedPlayers: Player[] = devices
-        .filter(device => device.name !== 'Console') // Exclude console device
+        .filter(device => device.device_type !== 'console' && device.name !== 'Console')
         .map((device) => ({
           id: device.id,
           name: device.name,
-          isHost: device.is_leader || false
+          isHost: device.is_host || false
         }));
 
       setPlayers(mappedPlayers);
@@ -129,7 +113,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       // Check if current player is host
       const myDevice = devices.find(d => d.id === myPlayerId);
       if (myDevice) {
-        const amHost = myDevice.is_leader || false;
+        const amHost = myDevice.is_host || false;
         setIsHost(amHost);
         console.log('👑 Am I host?', amHost, 'My device:', myDevice);
       }
@@ -184,7 +168,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             
             setIsLobbyLocked(nowLocked);
             
-            // INSTANT TRANSITION: Switch modes immediately when lock status changes
             if (!wasLocked && nowLocked) {
               console.log('🔒 Lobby locked - instantly switching to editor selection mode');
               setGameStatus('editor_selection');
@@ -221,19 +204,18 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       }
 
       // Check if lobby is full (max 4 players, excluding console)
-      const { data: existingDevices, error: countError } = await supabase
-        .from('devices')
-        .select('id, name')
-        .eq('session_id', session.id);
+      const existingDevices = await deviceHelpers.getSessionDevices(session.id);
 
-      if (countError) {
-        console.error('❌ Error checking lobby capacity:', countError);
+      if (!existingDevices) {
+        console.error('❌ Failed to get existing devices');
         setConnectionError('Failed to check lobby capacity');
         return;
       }
 
       // Count only phone controllers (exclude console)
-      const phoneControllers = existingDevices.filter(device => device.name !== 'Console');
+      const phoneControllers = existingDevices.filter(device => 
+        device.device_type !== 'console' && device.name !== 'Console'
+      );
       console.log('📊 Current phone controllers in lobby:', phoneControllers.length);
       
       if (phoneControllers.length >= 4) {
@@ -242,24 +224,53 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         return;
       }
 
-      // IMPORTANT: First phone controller becomes host (not including console)
+      // First phone controller becomes host (not including console)
       const isFirstPlayer = phoneControllers.length === 0;
       console.log('👑 Is first phone controller (will be host)?', isFirstPlayer);
 
-      // Add device to session
-      const { data: device, error: deviceError } = await supabase
-        .from('devices')
-        .insert({
-          session_id: session.id,
-          name: playerName.trim(),
-          is_leader: isFirstPlayer // First phone controller becomes host
-        })
-        .select()
-        .single();
+      // ENHANCED: Create device with detailed error logging
+      console.log('📝 Creating device with parameters:', {
+        sessionId: session.id,
+        name: playerName.trim(),
+        deviceType: 'phone',
+        isHost: isFirstPlayer
+      });
 
-      if (deviceError) {
-        console.error('❌ Error joining lobby:', deviceError);
-        setConnectionError('Failed to join lobby');
+      const device = await deviceHelpers.createDevice(
+        session.id,
+        playerName.trim(),
+        'phone',
+        isFirstPlayer
+      );
+
+      if (!device) {
+        // ENHANCED: Get the last error from Supabase for detailed logging
+        console.error('❌ Device creation failed - checking Supabase for detailed error...');
+        
+        // Try to get more specific error information
+        try {
+          const { error: testError } = await supabase
+            .from('devices')
+            .select('id')
+            .eq('session_id', session.id)
+            .limit(1);
+          
+          if (testError) {
+            console.error('❌ Supabase connection test failed:', {
+              code: testError.code,
+              message: testError.message,
+              details: testError.details,
+              hint: testError.hint
+            });
+            setConnectionError(`Database error: ${testError.message}`);
+          } else {
+            console.error('❌ Device creation failed but Supabase connection is working');
+            setConnectionError('Failed to create player device - unknown error');
+          }
+        } catch (testError) {
+          console.error('❌ Supabase connection test exception:', testError);
+          setConnectionError('Database connection failed');
+        }
         return;
       }
 
@@ -271,8 +282,8 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       console.log('🎉 Join complete - Player ID:', device.id, 'Is host:', isFirstPlayer);
     } catch (error) {
-      console.error('💥 Error joining lobby:', error);
-      setConnectionError('Failed to join lobby');
+      console.error('💥 Exception during lobby join:', error);
+      setConnectionError(`Failed to join lobby: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -284,17 +295,13 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
     console.log('🔒 Host attempting to lock lobby');
     try {
-      const { error } = await supabase
-        .from('sessions')
-        .update({ is_locked: true })
-        .eq('id', currentSessionId);
-
-      if (error) {
-        console.error('❌ Error locking lobby:', error);
+      const success = await sessionHelpers.lockSession(currentSessionId);
+      
+      if (!success) {
+        console.error('❌ Failed to lock lobby');
         return;
       }
 
-      // INSTANT LOCAL UPDATE: Don't wait for real-time update
       setIsLobbyLocked(true);
       setGameStatus('editor_selection');
       console.log('✅ Lobby locked - immediately switching to editor selection');
@@ -321,7 +328,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         return;
       }
 
-      // INSTANT LOCAL UPDATE: Don't wait for real-time update
       setIsLobbyLocked(false);
       setGameStatus('waiting');
       console.log('✅ Lobby unlocked - immediately switching to waiting');
@@ -330,7 +336,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
-  // ENHANCED: Send navigation input via WebRTC first, fallback to Supabase
+  // Send navigation input via WebRTC first, fallback to Supabase
   const sendNavigation = async (direction: string) => {
     console.log('🎮 sendNavigation called with direction:', direction);
     console.log('📊 Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
@@ -502,7 +508,11 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
             {connectionError && (
               <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-3 text-red-300 text-sm">
-                {connectionError}
+                <div className="font-medium mb-1">Connection Error:</div>
+                <div>{connectionError}</div>
+                <div className="mt-2 text-xs text-red-400">
+                  Check console for detailed error information
+                </div>
               </div>
             )}
 
@@ -521,6 +531,9 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             <div className="text-center text-sm text-gray-400">
               <p>First player to join becomes the host</p>
               <p>Maximum 4 players per lobby</p>
+              <div className="mt-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded text-blue-300 text-xs">
+                ✅ Enhanced error logging active - check browser console for details
+              </div>
             </div>
           </div>
         </div>
@@ -564,7 +577,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         <div className="flex items-center gap-2 mb-3">
           <Users size={16} className="text-indigo-300" />
           <h3 className="font-semibold">Players ({players.length}/4)</h3>
-          {/* WebRTC Status */}
           <button
             onClick={() => setShowDebugPanel(!showDebugPanel)}
             className={`ml-auto flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
@@ -666,7 +678,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             </div>
           </div>
 
-          {/* ENHANCED: TV Remote Controls with better feedback */}
+          {/* TV Remote Controls with better feedback */}
           <div className="flex justify-center mb-6">
             <div className="relative w-48 h-48">
               <div className="absolute inset-0 rounded-full bg-gray-800 border-2 border-gray-700 shadow-2xl">
@@ -729,7 +741,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             </button>
           </div>
           
-          {/* ENHANCED: Debug info for development */}
+          {/* Debug info for development */}
           <div className="mt-6 bg-gray-800/30 rounded-lg p-3 text-xs text-gray-400">
             <div className="grid grid-cols-2 gap-2">
               <div className="flex justify-between">
@@ -750,6 +762,9 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                 <span>Connected:</span>
                 <span className="text-blue-300">{webrtc.status.connectedDevices.length}</span>
               </div>
+            </div>
+            <div className="mt-2 text-center text-green-400 text-xs">
+              ✅ Enhanced error logging active
             </div>
           </div>
         </div>

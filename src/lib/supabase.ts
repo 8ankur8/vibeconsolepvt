@@ -132,7 +132,7 @@ export const sessionHelpers = {
 };
 
 export const deviceHelpers = {
-  // FIXED: Create device with proper BIGINT timestamp for joined_at
+  // ENHANCED: Create device with proper BIGINT timestamp and explicit connected_at
   async createDevice(
     sessionId: string, 
     name: string, 
@@ -141,7 +141,17 @@ export const deviceHelpers = {
   ): Promise<Device | null> {
     try {
       const now = new Date().toISOString();
-      const joinedAtTimestamp = Date.now(); // FIXED: Use milliseconds timestamp for BIGINT
+      const joinedAtTimestamp = Date.now(); // Use milliseconds timestamp for BIGINT
+      
+      console.log('📝 Creating device with explicit parameters:', {
+        session_id: sessionId,
+        name,
+        device_type: deviceType,
+        is_host: isHost,
+        joined_at: joinedAtTimestamp,
+        last_seen: now,
+        connected_at: now // ENHANCED: Explicitly set connected_at
+      });
       
       const { data, error } = await supabase
         .from('devices')
@@ -150,21 +160,47 @@ export const deviceHelpers = {
           name,
           device_type: deviceType,
           is_host: isHost,
-          joined_at: joinedAtTimestamp, // FIXED: Now using number instead of string
-          last_seen: now
+          joined_at: joinedAtTimestamp, // BIGINT timestamp
+          last_seen: now, // TIMESTAMPTZ
+          connected_at: now // ENHANCED: Explicitly set connected_at for compatibility
         })
         .select()
         .single();
 
       if (error) {
-        console.error('❌ Error creating device:', error);
+        // ENHANCED: Detailed error logging with full error object
+        console.error('❌ DETAILED ERROR creating device:', {
+          error: error,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          insertData: {
+            session_id: sessionId,
+            name,
+            device_type: deviceType,
+            is_host: isHost,
+            joined_at: joinedAtTimestamp,
+            last_seen: now,
+            connected_at: now
+          }
+        });
         return null;
       }
 
-      console.log(`✅ Device created: ${name} (${deviceType})`);
+      console.log(`✅ Device created successfully: ${name} (${deviceType})`, data);
       return data;
     } catch (error) {
-      console.error('❌ Exception creating device:', error);
+      // ENHANCED: Catch and log any exceptions with full details
+      console.error('❌ EXCEPTION creating device:', {
+        error: error,
+        message: error.message,
+        stack: error.stack,
+        sessionId,
+        name,
+        deviceType,
+        isHost
+      });
       return null;
     }
   },
