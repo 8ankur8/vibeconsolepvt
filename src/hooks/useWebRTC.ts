@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { WebRTCManager, WebRTCMessage } from '../lib/webrtc';
 import { supabase } from '../lib/supabase';
 
@@ -16,6 +16,8 @@ interface WebRTCStatus {
   dataChannels: Record<string, RTCDataChannelState | 'none'>;
   connectedDevices: string[];
   lastError?: string;
+  totalConnections: number;
+  readyConnections: number;
 }
 
 export const useWebRTC = ({ 
@@ -30,48 +32,113 @@ export const useWebRTC = ({
     isInitialized: false,
     connections: {},
     dataChannels: {},
-    connectedDevices: []
+    connectedDevices: [],
+    totalConnections: 0,
+    readyConnections: 0
   });
 
-  // Update status from WebRTC manager
-  const updateStatus = () => {
+  // Memoized status update to prevent unnecessary re-renders
+  const updateStatus = useCallback(() => {
     if (!webrtcManager.current) return;
+    
+    const connections = webrtcManager.current.getConnectionStatus();
+    const dataChannels = webrtcManager.current.getDataChannelStatus();
+    const connectedDevices = webrtcManager.current.getConnectedDevices();
     
     setStatus(prev => ({
       ...prev,
-      connections: webrtcManager.current!.getConnectionStatus(),
-      dataChannels: webrtcManager.current!.getDataChannelStatus(),
-      connectedDevices: webrtcManager.current!.getConnectedDevices()
+      connections,
+      dataChannels,
+      connectedDevices,
+      totalConnections: Object.keys(connections).length,
+      readyConnections: connectedDevices.length
     }));
-  };
+  }, []);
+
+  // Stable connection state change handler
+  const connectionStateChangeHandler = useCallback((deviceId: string, state: RTCPeerConnectionState) => {
+    console.log(`🔗 Connection state changed for ${deviceId}: ${state}`);
+    updateStatus();
+  }, [updateStatus]);
 
   // Initialize WebRTC manager
   useEffect(() => {
     if (!enabled || !sessionId || !deviceId) {
-      console.log('⚠️ WebRTC disabled or missing required params:', { enabled, sessionId: !!sessionId, deviceId: !!deviceId });
+      console.log('⚠️ WebRTC disabled or missing required params:', { 
+        enabled, 
+        sessionId: !!sessionId, 
+        deviceId: !!deviceId 
+      });
+      return;
+    }
+
+    // Prevent duplicate initialization
+    if (webrtcManager.current) {
+      console.log('⚠️ WebRTC manager already initialized, skipping...');
       return;
     }
 
     console.log('🚀 Initializing WebRTC manager', { sessionId, deviceId, isHost });
 
-    const handleConnectionStateChange = (deviceId: string, state: RTCPeerConnectionState) => {
-      console.log(`🔗 Connection state changed for ${deviceId}: ${state}`);
+    try {
+      webrtcManager.current = new WebRTCManager(
+        sessionId,
+        deviceId,
+        isHost,
+        onMessage,
+        connectionStateChangeHandler
+      );
+
+      setStatus(prev => ({ 
+        ...prev, 
+        isInitialized: true, 
+        lastError: undefined 
+      }));
+
+      // Initial status update
       updateStatus();
+
+    } catch (error) {
+      console.error('❌ Failed to initialize WebRTC manager:', error);
+      setStatus(prev => ({ 
+        ...prev, 
+        lastError: `Initialization failed: ${error.message}` 
+      }));
+    }
+
+    // Cleanup function
+    return () => {
+      console.log('🧹 Cleaning up WebRTC manager');
+      if (webrtcManager.current) {
+        webrtcManager.current.cleanup();
+        webrtcManager.current = null;
+      }
+      setStatus({
+        isInitialized: false,
+        connections: {},
+        dataChannels: {},
+        connectedDevices: [],
+        totalConnections: 0,
+        readyConnections: 0
+      });
     };
+  }, [sessionId, deviceId, isHost, enabled]); // Removed onMessage to prevent recreation
 
-    webrtcManager.current = new WebRTCManager(
-      sessionId,
-      deviceId,
-      isHost,
-      onMessage,
-      handleConnectionStateChange
-    );
+  // Set up signaling listener - separate effect to avoid recreation
+  useEffect(() => {
+    if (!webrtcManager.current || !sessionId || !deviceId) {
+      return;
+    }
 
-    setStatus(prev => ({ ...prev, isInitialized: true, lastError: undefined }));
+    console.log(`📡 Setting up WebRTC signaling for device ${deviceId}`);
 
-    // Set up signaling listener with better error handling
     const signalChannel = supabase
-      .channel(`webrtc_signals_${sessionId}_${deviceId}`)
+      .channel(`webrtc_signals_${sessionId}_${deviceId}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: deviceId }
+        }
+      })
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
@@ -87,7 +154,7 @@ export const useWebRTC = ({
               updateStatus();
             }
           } catch (error) {
-            console.error('Error handling WebRTC signal:', error);
+            console.error('❌ Error handling WebRTC signal:', error);
             setStatus(prev => ({ 
               ...prev, 
               lastError: `Signal handling error: ${error.message}` 
@@ -100,35 +167,24 @@ export const useWebRTC = ({
         if (status === 'SUBSCRIBED') {
           console.log('✅ WebRTC signaling channel ready');
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ WebRTC signaling channel error');
+          console.error('❌ WebRTC signaling channel error - check RLS policies');
           setStatus(prev => ({ 
             ...prev, 
-            lastError: 'Signaling channel error' 
+            lastError: 'Signaling channel error - check database permissions' 
           }));
         }
       });
 
-    // Cleanup function
     return () => {
-      console.log('🧹 Cleaning up WebRTC hook');
+      console.log('🧹 Cleaning up WebRTC signaling');
       signalChannel.unsubscribe();
-      if (webrtcManager.current) {
-        webrtcManager.current.cleanup();
-        webrtcManager.current = null;
-      }
-      setStatus({
-        isInitialized: false,
-        connections: {},
-        dataChannels: {},
-        connectedDevices: []
-      });
     };
-  }, [sessionId, deviceId, isHost, enabled]);
+  }, [sessionId, deviceId, updateStatus]);
 
   // Connect to a specific device
-  const connectToDevice = async (targetDeviceId: string) => {
+  const connectToDevice = useCallback(async (targetDeviceId: string): Promise<boolean> => {
     if (!webrtcManager.current) {
-      console.error('WebRTC manager not initialized');
+      console.error('❌ WebRTC manager not initialized');
       return false;
     }
 
@@ -138,19 +194,19 @@ export const useWebRTC = ({
       updateStatus();
       return true;
     } catch (error) {
-      console.error('Error connecting to device:', error);
+      console.error('❌ Error connecting to device:', error);
       setStatus(prev => ({ 
         ...prev, 
         lastError: `Connection error: ${error.message}` 
       }));
       return false;
     }
-  };
+  }, [updateStatus]);
 
   // Send message to specific device
-  const sendMessage = (targetDeviceId: string, message: Omit<WebRTCMessage, 'timestamp' | 'senderId'>) => {
+  const sendMessage = useCallback((targetDeviceId: string, message: Omit<WebRTCMessage, 'timestamp' | 'senderId'>) => {
     if (!webrtcManager.current) {
-      console.error('WebRTC manager not initialized');
+      console.error('❌ WebRTC manager not initialized');
       return false;
     }
 
@@ -159,33 +215,33 @@ export const useWebRTC = ({
       updateStatus();
     }
     return result;
-  };
+  }, [updateStatus]);
 
   // Broadcast message to all connected devices
-  const broadcastMessage = (message: Omit<WebRTCMessage, 'timestamp' | 'senderId'>) => {
+  const broadcastMessage = useCallback((message: Omit<WebRTCMessage, 'timestamp' | 'senderId'>) => {
     if (!webrtcManager.current) {
-      console.error('WebRTC manager not initialized');
+      console.error('❌ WebRTC manager not initialized');
       return { webrtc: 0, fallback: [] };
     }
 
     const result = webrtcManager.current.broadcastMessage(message);
     updateStatus();
     return result;
-  };
+  }, [updateStatus]);
 
-  // Status update interval (less frequent to reduce overhead)
+  // Get detailed status for debugging
+  const getDetailedStatus = useCallback(() => {
+    if (!webrtcManager.current) return {};
+    return webrtcManager.current.getDetailedStatus();
+  }, []);
+
+  // Status update interval (reduced frequency)
   useEffect(() => {
     if (!webrtcManager.current) return;
 
-    const interval = setInterval(updateStatus, 3000); // Every 3 seconds
+    const interval = setInterval(updateStatus, 5000); // Every 5 seconds
     return () => clearInterval(interval);
-  }, [webrtcManager.current]);
-
-  // Get detailed status for debugging
-  const getDetailedStatus = () => {
-    if (!webrtcManager.current) return {};
-    return webrtcManager.current.getDetailedStatus();
-  };
+  }, [updateStatus]);
 
   return {
     status,
