@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity, AlertCircle } from 'lucide-react';
+import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity, AlertCircle, Trash2 } from 'lucide-react';
 import { supabase, sessionHelpers, deviceHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { WebRTCMessage } from '../lib/webrtc';
@@ -31,6 +31,9 @@ const ConsoleDisplay: React.FC = () => {
   const [lastProcessedInput, setLastProcessedInput] = useState<ControllerInput | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+
+  // ✅ NEW: Phone logs state
+  const [phoneLogs, setPhoneLogs] = useState<any[]>([]);
 
   // InputRouter integration
   const inputRouterRef = useRef<InputRouter | null>(null);
@@ -173,6 +176,42 @@ const ConsoleDisplay: React.FC = () => {
       });
     }
   }, [players]);
+
+  // ✅ NEW: Listen for phone logs from all devices
+  useEffect(() => {
+    if (!sessionId) return;
+
+    console.log('📱➡️🖥️ [CONSOLE] Setting up phone log listener for session:', sessionId);
+
+    const phoneLogChannel = supabase
+      .channel(`phone_logs_${sessionId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'phone_logs',
+        filter: `session_id=eq.${sessionId}`
+      }, (payload) => {
+        const newLog = payload.new;
+        console.log('📱➡️🖥️ [CONSOLE] Phone Log Received:', newLog.message);
+        
+        setPhoneLogs(prev => {
+          const updated = [...prev, newLog];
+          // Keep only last 50 logs to prevent memory issues
+          return updated.slice(-50);
+        });
+      })
+      .subscribe((status) => {
+        console.log('📱 [CONSOLE] Phone logs subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ [CONSOLE] Phone log forwarding active - will receive all phone logs');
+        }
+      });
+
+    return () => {
+      console.log('🧹 [CONSOLE] Cleaning up phone log subscription');
+      phoneLogChannel.unsubscribe();
+    };
+  }, [sessionId]);
 
   // ENHANCED: Listen for Supabase fallback inputs with connection error handling
   useEffect(() => {
@@ -548,6 +587,21 @@ const ConsoleDisplay: React.FC = () => {
     console.log('🧪 [CONSOLE] Test result:', result);
   };
 
+  // ✅ NEW: Clear phone logs function
+  const clearPhoneLogs = async () => {
+    try {
+      console.log('🗑️ [CONSOLE] Clearing phone logs...');
+      await supabase
+        .from('phone_logs')
+        .delete()
+        .eq('session_id', sessionId);
+      setPhoneLogs([]);
+      console.log('✅ [CONSOLE] Phone logs cleared');
+    } catch (error) {
+      console.error('❌ [CONSOLE] Failed to clear phone logs:', error);
+    }
+  };
+
   // Create session on component mount
   useEffect(() => {
     createSession();
@@ -838,7 +892,7 @@ const ConsoleDisplay: React.FC = () => {
 
             {/* Debug Panel */}
             {showDebugPanel && (
-              <div className="mt-6">
+              <div className="mt-6 space-y-6">
                 <WebRTCDebugPanel
                   status={webrtc.status}
                   deviceNames={deviceNames}
@@ -846,7 +900,7 @@ const ConsoleDisplay: React.FC = () => {
                   getDetailedStatus={webrtc.getDetailedStatus}
                 />
                 
-                <div className="mt-4 bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
                   <h4 className="text-green-300 font-medium mb-2">✅ InputRouter Integration</h4>
                   <div className="flex gap-2 mb-2">
                     <button
@@ -909,6 +963,65 @@ const ConsoleDisplay: React.FC = () => {
                         {lastProcessedInput.deviceName}: {lastProcessedInput.input.type}.{lastProcessedInput.input.action}
                         {lastProcessedInput.webrtcMessage ? ' (WebRTC)' : ' (Supabase)'}
                       </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ✅ NEW: Phone Logs Panel */}
+                <div className="bg-pink-900/20 border border-pink-500/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-pink-300 font-bold flex items-center gap-2">
+                      📱 Phone Controller Logs ({phoneLogs.length})
+                    </h4>
+                    <button
+                      onClick={clearPhoneLogs}
+                      className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-2 py-1 rounded text-sm border border-red-500/30 transition-colors flex items-center gap-1"
+                    >
+                      <Trash2 size={12} />
+                      Clear
+                    </button>
+                  </div>
+                  
+                  <div className="max-h-80 overflow-y-auto bg-black/30 rounded p-3 space-y-1">
+                    {phoneLogs.length === 0 ? (
+                      <div className="text-gray-500 text-center py-8">
+                        <div className="text-4xl mb-2">📱</div>
+                        <div>No phone logs yet</div>
+                        <div className="text-sm mt-2">All phone console.log() calls will appear here in real-time</div>
+                      </div>
+                    ) : (
+                      phoneLogs.map((log, i) => (
+                        <div key={log.id || i} className="border-l-2 border-pink-500/30 pl-3 py-1">
+                          <div className="flex items-start justify-between text-xs">
+                            <span className="text-pink-400 font-medium">{log.device_name}</span>
+                            <span className="text-gray-400">
+                              {new Date(log.created_at).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div className={`text-sm font-mono ${
+                            log.message.includes('[ERROR]') ? 'text-red-300' :
+                            log.message.includes('[WARN]') ? 'text-yellow-300' :
+                            log.message.includes('[INFO]') ? 'text-blue-300' :
+                            'text-gray-300'
+                          }`}>
+                            {log.message}
+                          </div>
+                          {log.log_data && (
+                            <details className="mt-1">
+                              <summary className="text-xs text-gray-400 cursor-pointer">Data</summary>
+                              <pre className="text-xs text-gray-500 mt-1 bg-gray-800/50 p-2 rounded overflow-x-auto">
+                                {typeof log.log_data === 'string' ? log.log_data : JSON.stringify(log.log_data, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  {phoneLogs.length > 0 && (
+                    <div className="mt-3 text-xs text-gray-400 text-center">
+                      Showing last {phoneLogs.length} logs • Auto-scrolls • Real-time updates from all phone controllers
                     </div>
                   )}
                 </div>
@@ -1071,6 +1184,10 @@ const ConsoleDisplay: React.FC = () => {
                   <span className="text-green-300">{inputRouterRef.current ? 'Active ✅' : 'Inactive'}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-400">Phone Logs:</span>
+                  <span className="text-pink-300">{phoneLogs.length} received ✅</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-400">Last Input:</span>
                   <span className="text-purple-300">
                     {lastProcessedInput ? `${lastProcessedInput.input.type}.${lastProcessedInput.input.action}` : 'None'}
@@ -1109,6 +1226,7 @@ const ConsoleDisplay: React.FC = () => {
                 <ul className="text-xs text-gray-300 space-y-1">
                   <li>• InputRouter: ✅ Integrated</li>
                   <li>• Game Data Format: ✅ Structured</li>
+                  <li>• Phone Log Forwarding: ✅ Active</li>
                   <li>• WebRTC Processing: {connectionError ? '⚠️ Limited' : '✅ Active'}</li>
                   <li>• Fallback Support: {connectionError ? '❌ Unavailable' : '✅ Supabase'}</li>
                   <li>• Real-time Updates: {connectionError ? '❌ Offline' : '✅ Active'}</li>
