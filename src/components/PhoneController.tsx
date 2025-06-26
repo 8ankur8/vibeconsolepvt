@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { supabase, sessionHelpers, deviceHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
 import WebRTCDebugPanel from './WebRTCDebugPanel';
+import ConnectionTester from './ConnectionTester';
+import PhoneControllerDebugPanel from './PhoneControllerDebugPanel';
+
 
 interface PhoneControllerProps {
   lobbyCode: string;
@@ -744,6 +747,25 @@ useEffect(() => {
           />
         </div>
       )}
+
+  {showDebugPanel && (
+  <div className="mb-6 space-y-4">
+    <PhoneControllerDebugPanel
+      sessionId={currentSessionId}
+      myPlayerId={myPlayerId}
+      webrtcStatus={webrtc.status}
+      onTestInput={() => {
+        console.log('🧪 Testing input from debug panel');
+        sendNavigation('right');
+      }}
+    />
+    <ConnectionTester
+      sessionId={currentSessionId}
+      deviceId={myPlayerId}
+      webrtcStatus={webrtc.status}
+    />
+  </div>
+)}
 
       {/* Host Controls - Only show in waiting state */}
       {isHost && gameStatus === 'waiting' && (
