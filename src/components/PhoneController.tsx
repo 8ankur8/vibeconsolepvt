@@ -595,6 +595,81 @@ useEffect(() => {
     }
   };
 
+  const usePhoneLogForwarder = (sessionId: string, deviceName: string) => {
+  const originalConsoleRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!sessionId || !deviceName) return;
+
+    // Store original console methods
+    originalConsoleRef.current = {
+      log: console.log,
+      error: console.error,
+      warn: console.warn,
+      info: console.info
+    };
+
+    // Function to send log to console
+    const sendToConsole = async (level: string, message: string, data?: any) => {
+      try {
+        const { supabase } = await import('../lib/supabase');
+        await supabase.from('phone_logs').insert({
+          session_id: sessionId,
+          device_name: deviceName,
+          message: `[${level.toUpperCase()}] ${message}`,
+          log_data: data ? { data } : null
+        });
+      } catch (error) {
+        // Fail silently to avoid infinite loops
+      }
+    };
+
+    // Override console methods
+    console.log = (...args) => {
+      originalConsoleRef.current.log(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      sendToConsole('LOG', message, args.length > 1 ? args : args[0]);
+    };
+
+    console.error = (...args) => {
+      originalConsoleRef.current.error(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      sendToConsole('ERROR', message, args.length > 1 ? args : args[0]);
+    };
+
+    console.warn = (...args) => {
+      originalConsoleRef.current.warn(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      sendToConsole('WARN', message, args.length > 1 ? args : args[0]);
+    };
+
+    console.info = (...args) => {
+      originalConsoleRef.current.info(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      sendToConsole('INFO', message, args.length > 1 ? args : args[0]);
+    };
+
+    // Cleanup function
+    return () => {
+      if (originalConsoleRef.current) {
+        console.log = originalConsoleRef.current.log;
+        console.error = originalConsoleRef.current.error;
+        console.warn = originalConsoleRef.current.warn;
+        console.info = originalConsoleRef.current.info;
+      }
+    };
+  }, [sessionId, deviceName]);
+};
+
+
   if (!isJoined) {
     return (
       <div className="min-h-screen bg-gray-900 text-white p-6">
