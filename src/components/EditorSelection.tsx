@@ -40,17 +40,17 @@ const editors: Editor[] = [
     id: 'loveable',
     name: 'Loveable',
     description: 'Visual development platform for modern apps',
-    url: 'https://loveable.ai',
+    url: 'https://loveable.dev',
     icon: Code,
     color: 'text-pink-400',
     bgGradient: 'from-pink-500/20 to-purple-500/20',
     features: ['Visual Builder', 'Component Library', 'Responsive Design', 'Team Collaboration']
   },
   {
-    id: 'firebase',
-    name: 'Firebase Studio',
+    id: 'co',
+    name: 'co.dev',
     description: 'Google\'s app development platform',
-    url: 'https://console.firebase.google.com',
+    url: 'https://co.dev',
     icon: Database,
     color: 'text-orange-400',
     bgGradient: 'from-orange-500/20 to-red-500/20',
@@ -85,221 +85,93 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
 
   // ENHANCED: Handle lastControllerInput from InputRouter with detailed logging
   useEffect(() => {
-    if (!lastControllerInput) {
-      console.log('🎮 [EDITOR_SELECTION] No controller input received');
-      return;
-    }
+  if (!lastControllerInput) {
+    console.log('🎮 [EDITOR] No controller input received');
+    return;
+  }
 
-    console.log('🎮 [EDITOR_SELECTION] ===== NEW CONTROLLER INPUT RECEIVED =====');
-    console.log('🎮 [EDITOR_SELECTION] Full input object:', lastControllerInput);
-    console.log('🎮 [EDITOR_SELECTION] Device info:', {
-      deviceId: lastControllerInput.deviceId,
-      deviceName: lastControllerInput.deviceName,
-      deviceType: lastControllerInput.deviceType
-    });
-    console.log('🎮 [EDITOR_SELECTION] Input details:', {
-      type: lastControllerInput.input.type,
-      action: lastControllerInput.input.action,
-      data: lastControllerInput.input.data,
-      timestamp: lastControllerInput.input.timestamp
-    });
-    console.log('🎮 [EDITOR_SELECTION] Source:', lastControllerInput.webrtcMessage ? 'WebRTC' : 'Supabase');
-    console.log('🎮 [EDITOR_SELECTION] Current selected index:', selectedIndex);
+  console.log('🎮 [EDITOR] ===== NEW CONTROLLER INPUT =====');
+  console.log('🎮 [EDITOR] Input:', lastControllerInput);
+  console.log('🎮 [EDITOR] Current selection:', selectedIndex);
 
-    // Prevent processing the same input multiple times
-    if (lastControllerInput.input.timestamp <= lastProcessedInputTimestampRef.current) {
-      console.log('🎮 [EDITOR_SELECTION] ⚠️ Duplicate input detected, skipping processing');
-      console.log('🎮 [EDITOR_SELECTION] Last processed timestamp:', lastProcessedInputTimestampRef.current);
-      console.log('🎮 [EDITOR_SELECTION] Current input timestamp:', lastControllerInput.input.timestamp);
-      return;
-    }
+  // Prevent duplicate processing
+  if (lastControllerInput.input.timestamp <= lastProcessedInputTimestampRef.current) {
+    console.log('🎮 [EDITOR] ⚠️ Duplicate input, skipping');
+    return;
+  }
 
-    console.log('🎮 [EDITOR_SELECTION] ✅ Processing new input (timestamp check passed)');
-    lastProcessedInputTimestampRef.current = lastControllerInput.input.timestamp;
+  lastProcessedInputTimestampRef.current = lastControllerInput.input.timestamp;
 
-    // Add to input history for debugging
-    setInputHistory(prev => [lastControllerInput, ...prev.slice(0, 19)]);
+  // Add to input history
+  setInputHistory(prev => [lastControllerInput, ...prev.slice(0, 19)]);
 
-    // Handle different input types with detailed logging
-    if (lastControllerInput.input.type === 'dpad') {
-      const direction = lastControllerInput.input.action;
-      console.log(`🎮 [EDITOR_SELECTION] Processing dpad input: ${direction}`);
-      console.log(`🎮 [EDITOR_SELECTION] Calling handleNavigation with direction: ${direction}`);
-      handleNavigation(direction);
-    } else if (lastControllerInput.input.type === 'button' && lastControllerInput.input.action === 'a') {
-      console.log('🎮 [EDITOR_SELECTION] Processing button A input');
-      console.log('🎮 [EDITOR_SELECTION] Calling handleSelectEditor');
-      handleSelectEditor();
-    } else {
-      console.log(`🎮 [EDITOR_SELECTION] ⚠️ Unhandled input type: ${lastControllerInput.input.type}.${lastControllerInput.input.action}`);
-    }
+  // Process input with detailed logging
+  if (lastControllerInput.input.type === 'dpad') {
+    const direction = lastControllerInput.input.action;
+    console.log(`🎮 [EDITOR] Processing dpad: ${direction}`);
+    
+    // Visual feedback
+    const currentEditor = editors[selectedIndex];
+    console.log(`🎮 [EDITOR] Current editor: ${currentEditor.name} (index: ${selectedIndex})`);
+    
+    handleNavigation(direction);
+    
+  } else if (lastControllerInput.input.type === 'button' && lastControllerInput.input.action === 'a') {
+    console.log('🎮 [EDITOR] Processing button A (select)');
+    handleSelectEditor();
+  } else {
+    console.log(`🎮 [EDITOR] ⚠️ Unhandled input: ${lastControllerInput.input.type}.${lastControllerInput.input.action}`);
+  }
 
-    console.log('🎮 [EDITOR_SELECTION] ===== INPUT PROCESSING COMPLETE =====');
-  }, [lastControllerInput]);
+  console.log('🎮 [EDITOR] ===== INPUT PROCESSING COMPLETE =====');
+}, [lastControllerInput, selectedIndex]);
 
-  // ENHANCED: Listen for navigation inputs from phones via Supabase with detailed logging
-  useEffect(() => {
-    if (!sessionId) return;
-
-    console.log('📡 [EDITOR_SELECTION] Setting up Supabase navigation listener for session:', sessionId);
-
-    const subscription = supabase
-      .channel(`editor_navigation_${sessionId}`)
-      .on('postgres_changes', 
-        { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'sessions',
-          filter: `id=eq.${sessionId}`
-        }, 
-        (payload) => {
-          console.log('📡 [EDITOR_SELECTION] ===== SUPABASE SESSION UPDATE =====');
-          console.log('📡 [EDITOR_SELECTION] Raw session update received:', payload);
-          
-          const newData = payload.new as any;
-          console.log('📡 [EDITOR_SELECTION] New data:', newData);
-          
-          if (newData.selected_editor) {
-            try {
-              const editorData = JSON.parse(newData.selected_editor);
-              console.log('📡 [EDITOR_SELECTION] Parsed navigation data:', editorData);
-              
-              // Prevent duplicate processing of the same event
-              const currentTime = Date.now();
-              if (editorData.timestamp && Math.abs(currentTime - editorData.timestamp) > 5000) {
-                console.log('📡 [EDITOR_SELECTION] ⚠️ Ignoring old navigation event (>5s old)');
-                console.log('📡 [EDITOR_SELECTION] Event timestamp:', editorData.timestamp);
-                console.log('📡 [EDITOR_SELECTION] Current time:', currentTime);
-                console.log('📡 [EDITOR_SELECTION] Age (ms):', currentTime - editorData.timestamp);
-                return;
-              }
-              
-              if (editorData.action === 'navigate') {
-                console.log('📡 [EDITOR_SELECTION] Processing Supabase navigation:', editorData.direction);
-                console.log('📡 [EDITOR_SELECTION] Player info:', {
-                  playerId: editorData.playerId,
-                  playerName: editorData.playerName,
-                  source: editorData.source
-                });
-                handleNavigation(editorData.direction);
-                lastNavigationTimeRef.current = currentTime;
-              } else if (editorData.action === 'select') {
-                console.log('📡 [EDITOR_SELECTION] Processing Supabase selection');
-                console.log('📡 [EDITOR_SELECTION] Player info:', {
-                  playerId: editorData.playerId,
-                  playerName: editorData.playerName,
-                  source: editorData.source
-                });
-                handleSelectEditor();
-              } else {
-                console.log('📡 [EDITOR_SELECTION] ⚠️ Unknown action:', editorData.action);
-              }
-            } catch (error) {
-              console.error('📡 [EDITOR_SELECTION] ❌ Error parsing editor data:', error);
-              console.error('📡 [EDITOR_SELECTION] Raw selected_editor value:', newData.selected_editor);
-            }
-          } else {
-            console.log('📡 [EDITOR_SELECTION] ⚠️ No selected_editor in update');
-          }
-          
-          console.log('📡 [EDITOR_SELECTION] ===== SUPABASE UPDATE COMPLETE =====');
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 [EDITOR_SELECTION] Supabase navigation subscription status:', status);
+// Enhanced navigation handler with better logging
+const handleNavigation = (direction: string) => {
+  console.log('🧭 [EDITOR] ===== NAVIGATION HANDLER =====');
+  console.log('🧭 [EDITOR] Direction:', direction);
+  console.log('🧭 [EDITOR] Current index (ref):', selectedIndexRef.current);
+  console.log('🧭 [EDITOR] Current index (state):', selectedIndex);
+  
+  switch (direction) {
+    case 'left':
+      setSelectedIndex(prev => {
+        const newIndex = prev > 0 ? prev - 1 : editors.length - 1;
+        console.log('🧭 [EDITOR] Moving left: from', prev, 'to', newIndex);
+        
+        // Visual feedback
+        const newEditor = editors[newIndex];
+        console.log('🧭 [EDITOR] New editor:', newEditor.name);
+        
+        // Update ref immediately
+        selectedIndexRef.current = newIndex;
+        
+        return newIndex;
       });
-
-    return () => {
-      console.log('📡 [EDITOR_SELECTION] Cleaning up Supabase navigation subscription');
-      subscription.unsubscribe();
-    };
-  }, [sessionId]); // Only depend on sessionId to prevent re-subscriptions
-
-  const handleSelectEditor = () => {
-    const editor = editors[selectedIndexRef.current]; // Use ref to get latest value
-    console.log('🎯 [EDITOR_SELECTION] ===== SELECTING EDITOR =====');
-    console.log('🎯 [EDITOR_SELECTION] Selected editor:', editor.name);
-    console.log('🎯 [EDITOR_SELECTION] Selected index:', selectedIndexRef.current);
-    console.log('🎯 [EDITOR_SELECTION] Editor details:', editor);
-    
-    setSelectedEditor(editor);
-    setShowFullscreen(true);
-
-    // Broadcast selection via WebRTC if available
-    if (onWebRTCMessage) {
-      console.log('📡 [EDITOR_SELECTION] Broadcasting selection via WebRTC');
-      const result = onWebRTCMessage({
-        type: 'selection',
-        data: { editor, selectedIndex: selectedIndexRef.current },
+      break;
+      
+    case 'right':
+      setSelectedIndex(prev => {
+        const newIndex = prev < editors.length - 1 ? prev + 1 : 0;
+        console.log('🧭 [EDITOR] Moving right: from', prev, 'to', newIndex);
+        
+        // Visual feedback
+        const newEditor = editors[newIndex];
+        console.log('🧭 [EDITOR] New editor:', newEditor.name);
+        
+        // Update ref immediately
+        selectedIndexRef.current = newIndex;
+        
+        return newIndex;
       });
-      console.log('📡 [EDITOR_SELECTION] WebRTC broadcast result:', result);
-    } else {
-      console.log('📡 [EDITOR_SELECTION] ⚠️ No WebRTC message handler available');
-    }
-    
-    console.log('🎯 [EDITOR_SELECTION] ===== EDITOR SELECTION COMPLETE =====');
-  };
-
-  const handleCloseFullscreen = () => {
-    console.log('🎯 [EDITOR_SELECTION] Closing fullscreen editor');
-    setShowFullscreen(false);
-    setSelectedEditor(null);
-  };
-
-  const handleNavigation = (direction: string) => {
-    console.log('🧭 [EDITOR_SELECTION] ===== HANDLING NAVIGATION =====');
-    console.log('🧭 [EDITOR_SELECTION] Direction:', direction);
-    console.log('🧭 [EDITOR_SELECTION] Current index (ref):', selectedIndexRef.current);
-    console.log('🧭 [EDITOR_SELECTION] Current index (state):', selectedIndex);
-    console.log('🧭 [EDITOR_SELECTION] Total editors:', editors.length);
-    
-    switch (direction) {
-      case 'left':
-        setSelectedIndex(prev => {
-          const newIndex = prev > 0 ? prev - 1 : editors.length - 1;
-          console.log('🧭 [EDITOR_SELECTION] Moving left: from', prev, 'to', newIndex);
-          
-          // Broadcast navigation via WebRTC if available
-          if (onWebRTCMessage) {
-            console.log('📡 [EDITOR_SELECTION] Broadcasting left navigation via WebRTC');
-            onWebRTCMessage({
-              type: 'navigation',
-              data: { direction, newIndex, editor: editors[newIndex] },
-            });
-          }
-          
-          return newIndex;
-        });
-        break;
-      case 'right':
-        setSelectedIndex(prev => {
-          const newIndex = prev < editors.length - 1 ? prev + 1 : 0;
-          console.log('🧭 [EDITOR_SELECTION] Moving right: from', prev, 'to', newIndex);
-          
-          // Broadcast navigation via WebRTC if available
-          if (onWebRTCMessage) {
-            console.log('📡 [EDITOR_SELECTION] Broadcasting right navigation via WebRTC');
-            onWebRTCMessage({
-              type: 'navigation',
-              data: { direction, newIndex, editor: editors[newIndex] },
-            });
-          }
-          
-          return newIndex;
-        });
-        break;
-      case 'up':
-        console.log('🧭 [EDITOR_SELECTION] Up navigation (not implemented)');
-        break;
-      case 'down':
-        console.log('🧭 [EDITOR_SELECTION] Down navigation (not implemented)');
-        break;
-      default:
-        console.log('🧭 [EDITOR_SELECTION] ⚠️ Unknown direction:', direction);
-    }
-    
-    console.log('🧭 [EDITOR_SELECTION] ===== NAVIGATION COMPLETE =====');
-  };
+      break;
+      
+    default:
+      console.log('🧭 [EDITOR] ⚠️ Unknown direction:', direction);
+  }
+  
+  console.log('🧭 [EDITOR] ===== NAVIGATION COMPLETE =====');
+};
 
   // Keyboard navigation for console (backup)
   useEffect(() => {
