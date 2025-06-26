@@ -123,10 +123,71 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
-  useEffect(() => {
+useEffect(() => {
     console.log('🚀 [PHONE] PhoneController mounted with lobby code:', lobbyCode);
     loadSession();
   }, [lobbyCode]);
+
+useEffect(() => {
+  console.log('🔍 [PHONE] WebRTC Status Check:', {
+    isInitialized: webrtc.status.isInitialized,
+    sessionId: currentSessionId,
+    myPlayerId: myPlayerId,
+    connections: webrtc.status.connections,
+    connectedDevices: webrtc.status.connectedDevices
+  });
+}, [webrtc.status])  
+  
+useEffect(() => {
+  if (!currentSessionId || !myPlayerId || !isLobbyLocked) return;
+
+  console.log('🔄 [PHONE] Setting up WebRTC connection attempts');
+  
+  const attemptConsoleConnection = async () => {
+    try {
+      // Find console device
+      const { data: consoleDevice, error } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('session_id', currentSessionId)
+        .eq('name', 'Console')
+        .single();
+
+      if (error || !consoleDevice) {
+        console.error('❌ [PHONE] Console device not found:', error);
+        return;
+      }
+
+      console.log('📡 [PHONE] Found console device:', consoleDevice.id.slice(-8));
+      
+      // Wait a bit for WebRTC to initialize
+      if (webrtc.status.isInitialized) {
+        console.log('🤝 [PHONE] Attempting connection to console');
+        await webrtc.connectToDevice(consoleDevice.id);
+      } else {
+        console.log('⚠️ [PHONE] WebRTC not initialized yet');
+      }
+    } catch (error) {
+      console.error('💥 [PHONE] Error in console connection:', error);
+    }
+  };
+
+  // Initial attempt after 2 seconds
+  const initialTimeout = setTimeout(attemptConsoleConnection, 2000);
+  
+  // Retry every 10 seconds if not connected
+  const retryInterval = setInterval(() => {
+    if (webrtc.status.connectedDevices.length === 0) {
+      console.log('🔄 [PHONE] Retrying console connection...');
+      attemptConsoleConnection();
+    }
+  }, 10000);
+
+  return () => {
+    clearTimeout(initialTimeout);
+    clearInterval(retryInterval);
+  };
+}, [currentSessionId, myPlayerId, isLobbyLocked, webrtc.status.isInitialized]);
 
   useEffect(() => {
     if (currentSessionId) {
