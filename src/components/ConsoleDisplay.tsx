@@ -31,7 +31,8 @@ const ConsoleDisplay: React.FC = () => {
   const [lastProcessedInput, setLastProcessedInput] = useState<ControllerInput | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
-
+  const [navigationEvents, setNavigationEvents] = useState<any[]>([]);
+  const [lastNavigationDirection, setLastNavigationDirection] = useState<string>('');
   // ✅ NEW: Phone logs state
   const [phoneLogs, setPhoneLogs] = useState<any[]>([]);
 
@@ -142,6 +143,121 @@ const ConsoleDisplay: React.FC = () => {
     onMessage: handleWebRTCMessage,
     enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked && !connectionError
   });
+
+  // Enhanced navigation handler function
+const handleNavigation = (direction: string, deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
+  const deviceName = deviceNames[deviceId] || 'Unknown';
+  console.log(`🎮 [CONSOLE] Navigation: ${direction} from ${deviceName} (${deviceId.slice(-8)}) via ${source}`);
+  
+  setLastNavigationDirection(direction);
+  setNavigationEvents(prev => [...prev.slice(-9), {
+    direction,
+    deviceId: deviceId.slice(-8),
+    deviceName,
+    source,
+    timestamp: new Date().toLocaleTimeString()
+  }]);
+
+   // Add your actual navigation logic here
+  switch (direction) {
+    case 'left':
+      console.log('⬅️ [CONSOLE] Navigate left - implement editor selection logic');
+      // Example: move selection left in editor grid
+      break;
+    case 'right':
+      console.log('➡️ [CONSOLE] Navigate right - implement editor selection logic');  
+      // Example: move selection right in editor grid
+      break;
+    case 'up':
+      console.log('⬆️ [CONSOLE] Navigate up - implement editor selection logic');
+      // Example: move selection up in editor grid
+      break;
+    case 'down':
+      console.log('⬇️ [CONSOLE] Navigate down - implement editor selection logic');
+      // Example: move selection down in editor grid
+      break;
+    default:
+      console.log(`❓ [CONSOLE] Unknown navigation: ${direction}`);
+  }
+};
+
+// Enhanced selection handler function
+const handleSelection = (deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
+  const deviceName = deviceNames[deviceId] || 'Unknown';
+  console.log(`🎯 [CONSOLE] Selection from ${deviceName} (${deviceId.slice(-8)}) via ${source}`);
+  
+  setNavigationEvents(prev => [...prev.slice(-9), {
+    direction: 'SELECT',
+    deviceId: deviceId.slice(-8),
+    deviceName,
+    source,
+    timestamp: new Date().toLocaleTimeString()
+  }]);
+
+  // Add your actual selection logic here
+  console.log('✅ [CONSOLE] Selection confirmed - implement editor launch logic');
+};
+
+// 3. ENHANCE YOUR EXISTING handleWebRTCMessage FUNCTION
+// Replace your existing handleWebRTCMessage function with this enhanced version:
+
+const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
+  const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
+  console.log(`📩 [CONSOLE] WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
+  
+  // CRITICAL: Process through InputRouter first
+  if (inputRouterRef.current) {
+    console.log(`🎮 [CONSOLE] Processing message through InputRouter...`);
+    const processedInput = inputRouterRef.current.processWebRTCInput(fromDeviceId, message);
+    if (processedInput) {
+      console.log(`✅ [CONSOLE] InputRouter processed input from ${deviceName}:`, processedInput);
+      setLastProcessedInput(processedInput);
+    } else {
+      console.log(`⚠️ [CONSOLE] InputRouter failed to process input from ${deviceName}`);
+    }
+  } else {
+    console.log(`❌ [CONSOLE] InputRouter not available!`);
+  }
+  
+  // ENHANCED: Handle navigation messages with our new functions
+  if (message.type === 'game_data' && message.data) {
+    const { data } = message;
+    
+    // Handle D-pad navigation
+    if (data.dpad?.directionchange) {
+      const direction = data.dpad.directionchange.key;
+      handleNavigation(direction, fromDeviceId, 'webrtc');
+    }
+    
+    // Handle button presses
+    if (data.button?.a?.pressed) {
+      handleSelection(fromDeviceId, 'webrtc');
+    }
+  }
+  
+  // Handle different message types for debugging
+  switch (message.type) {
+    case 'navigation':
+      console.log(`🎮 [CONSOLE] Navigation input from ${deviceName}:`, message.data);
+      if (message.data.direction) {
+        handleNavigation(message.data.direction, fromDeviceId, 'webrtc');
+      }
+      break;
+    case 'selection':
+      console.log(`👆 [CONSOLE] Selection input from ${deviceName}:`, message.data);
+      handleSelection(fromDeviceId, 'webrtc');
+      break;
+    case 'game_data':
+      console.log(`🎯 [CONSOLE] Game data from ${deviceName}:`, message.data);
+      break;
+    case 'heartbeat':
+      console.log(`💓 [CONSOLE] Heartbeat from ${deviceName}`);
+      deviceHelpers.updateDeviceActivity(fromDeviceId);
+      break;
+    default:
+      console.log(`❓ [CONSOLE] Unknown message type from ${deviceName}:`, message);
+  }
+}, [deviceNames, handleNavigation, handleSelection]);
 
   // Initialize InputRouter with enhanced logging
   useEffect(() => {
