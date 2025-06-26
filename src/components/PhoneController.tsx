@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, sessionHelpers, deviceHelpers } from '../lib/supabase';
@@ -6,7 +6,6 @@ import { useWebRTC } from '../hooks/useWebRTC';
 import WebRTCDebugPanel from './WebRTCDebugPanel';
 import ConnectionTester from './ConnectionTester';
 import PhoneControllerDebugPanel from './PhoneControllerDebugPanel';
-
 
 interface PhoneControllerProps {
   lobbyCode: string;
@@ -17,6 +16,85 @@ interface Player {
   name: string;
   isHost: boolean;
 }
+
+// FIXED: Move usePhoneLogForwarder outside as a proper hook
+const usePhoneLogForwarder = (sessionId: string, deviceName: string) => {
+  const originalConsoleRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!sessionId || !deviceName) return;
+
+    console.log('📱 [LOG_FORWARDER] Initializing log forwarding for:', deviceName);
+
+    // Store original console methods
+    originalConsoleRef.current = {
+      log: console.log,
+      error: console.error,
+      warn: console.warn,
+      info: console.info
+    };
+
+    // Function to send log to console
+    const sendToConsole = async (level: string, message: string, data?: any) => {
+      try {
+        await supabase.from('phone_logs').insert({
+          session_id: sessionId,
+          device_name: deviceName,
+          message: `[${level.toUpperCase()}] ${message}`,
+          log_data: data ? { data } : null
+        });
+      } catch (error) {
+        // Fail silently to avoid infinite loops
+      }
+    };
+
+    // Override console methods
+    console.log = (...args) => {
+      originalConsoleRef.current.log(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      sendToConsole('LOG', message, args.length > 1 ? args : args[0]);
+    };
+
+    console.error = (...args) => {
+      originalConsoleRef.current.error(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      sendToConsole('ERROR', message, args.length > 1 ? args : args[0]);
+    };
+
+    console.warn = (...args) => {
+      originalConsoleRef.current.warn(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      sendToConsole('WARN', message, args.length > 1 ? args : args[0]);
+    };
+
+    console.info = (...args) => {
+      originalConsoleRef.current.info(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      sendToConsole('INFO', message, args.length > 1 ? args : args[0]);
+    };
+
+    console.log('✅ [LOG_FORWARDER] Phone log forwarding activated for:', deviceName);
+
+    // Cleanup function
+    return () => {
+      if (originalConsoleRef.current) {
+        console.log('🧹 [LOG_FORWARDER] Restoring original console methods for:', deviceName);
+        console.log = originalConsoleRef.current.log;
+        console.error = originalConsoleRef.current.error;
+        console.warn = originalConsoleRef.current.warn;
+        console.info = originalConsoleRef.current.info;
+      }
+    };
+  }, [sessionId, deviceName]);
+};
 
 const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [playerName, setPlayerName] = useState('');
@@ -32,6 +110,9 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   const navigate = useNavigate();
+
+  // ✅ FIXED: Properly call the log forwarding hook
+  usePhoneLogForwarder(currentSessionId, playerName || 'Phone');
 
   // WebRTC integration for phone controller with enhanced logging
   const webrtc = useWebRTC({
@@ -126,71 +207,71 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
-useEffect(() => {
+  useEffect(() => {
     console.log('🚀 [PHONE] PhoneController mounted with lobby code:', lobbyCode);
     loadSession();
   }, [lobbyCode]);
 
-useEffect(() => {
-  console.log('🔍 [PHONE] WebRTC Status Check:', {
-    isInitialized: webrtc.status.isInitialized,
-    sessionId: currentSessionId,
-    myPlayerId: myPlayerId,
-    connections: webrtc.status.connections,
-    connectedDevices: webrtc.status.connectedDevices
-  });
-}, [webrtc.status])  
+  useEffect(() => {
+    console.log('🔍 [PHONE] WebRTC Status Check:', {
+      isInitialized: webrtc.status.isInitialized,
+      sessionId: currentSessionId,
+      myPlayerId: myPlayerId,
+      connections: webrtc.status.connections,
+      connectedDevices: webrtc.status.connectedDevices
+    });
+  }, [webrtc.status]);
   
-useEffect(() => {
-  if (!currentSessionId || !myPlayerId || !isLobbyLocked) return;
+  useEffect(() => {
+    if (!currentSessionId || !myPlayerId || !isLobbyLocked) return;
 
-  console.log('🔄 [PHONE] Setting up WebRTC connection attempts');
-  
-  const attemptConsoleConnection = async () => {
-    try {
-      // Find console device
-      const { data: consoleDevice, error } = await supabase
-        .from('devices')
-        .select('id')
-        .eq('session_id', currentSessionId)
-        .eq('name', 'Console')
-        .single();
+    console.log('🔄 [PHONE] Setting up WebRTC connection attempts');
+    
+    const attemptConsoleConnection = async () => {
+      try {
+        // Find console device
+        const { data: consoleDevice, error } = await supabase
+          .from('devices')
+          .select('id')
+          .eq('session_id', currentSessionId)
+          .eq('name', 'Console')
+          .single();
 
-      if (error || !consoleDevice) {
-        console.error('❌ [PHONE] Console device not found:', error);
-        return;
+        if (error || !consoleDevice) {
+          console.error('❌ [PHONE] Console device not found:', error);
+          return;
+        }
+
+        console.log('📡 [PHONE] Found console device:', consoleDevice.id.slice(-8));
+        
+        // Wait a bit for WebRTC to initialize
+        if (webrtc.status.isInitialized) {
+          console.log('🤝 [PHONE] Attempting connection to console');
+          await webrtc.connectToDevice(consoleDevice.id);
+        } else {
+          console.log('⚠️ [PHONE] WebRTC not initialized yet');
+        }
+      } catch (error) {
+        console.error('💥 [PHONE] Error in console connection:', error);
       }
+    };
 
-      console.log('📡 [PHONE] Found console device:', consoleDevice.id.slice(-8));
-      
-      // Wait a bit for WebRTC to initialize
-      if (webrtc.status.isInitialized) {
-        console.log('🤝 [PHONE] Attempting connection to console');
-        await webrtc.connectToDevice(consoleDevice.id);
-      } else {
-        console.log('⚠️ [PHONE] WebRTC not initialized yet');
+    // Initial attempt after 2 seconds
+    const initialTimeout = setTimeout(attemptConsoleConnection, 2000);
+    
+    // Retry every 10 seconds if not connected
+    const retryInterval = setInterval(() => {
+      if (webrtc.status.connectedDevices.length === 0) {
+        console.log('🔄 [PHONE] Retrying console connection...');
+        attemptConsoleConnection();
       }
-    } catch (error) {
-      console.error('💥 [PHONE] Error in console connection:', error);
-    }
-  };
+    }, 10000);
 
-  // Initial attempt after 2 seconds
-  const initialTimeout = setTimeout(attemptConsoleConnection, 2000);
-  
-  // Retry every 10 seconds if not connected
-  const retryInterval = setInterval(() => {
-    if (webrtc.status.connectedDevices.length === 0) {
-      console.log('🔄 [PHONE] Retrying console connection...');
-      attemptConsoleConnection();
-    }
-  }, 10000);
-
-  return () => {
-    clearTimeout(initialTimeout);
-    clearInterval(retryInterval);
-  };
-}, [currentSessionId, myPlayerId, isLobbyLocked, webrtc.status.isInitialized]);
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(retryInterval);
+    };
+  }, [currentSessionId, myPlayerId, isLobbyLocked, webrtc.status.isInitialized]);
 
   useEffect(() => {
     if (currentSessionId) {
@@ -595,80 +676,19 @@ useEffect(() => {
     }
   };
 
-  const usePhoneLogForwarder = (sessionId: string, deviceName: string) => {
-  const originalConsoleRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (!sessionId || !deviceName) return;
-
-    // Store original console methods
-    originalConsoleRef.current = {
-      log: console.log,
-      error: console.error,
-      warn: console.warn,
-      info: console.info
-    };
-
-    // Function to send log to console
-    const sendToConsole = async (level: string, message: string, data?: any) => {
-      try {
-        const { supabase } = await import('../lib/supabase');
-        await supabase.from('phone_logs').insert({
-          session_id: sessionId,
-          device_name: deviceName,
-          message: `[${level.toUpperCase()}] ${message}`,
-          log_data: data ? { data } : null
-        });
-      } catch (error) {
-        // Fail silently to avoid infinite loops
-      }
-    };
-
-    // Override console methods
-    console.log = (...args) => {
-      originalConsoleRef.current.log(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      sendToConsole('LOG', message, args.length > 1 ? args : args[0]);
-    };
-
-    console.error = (...args) => {
-      originalConsoleRef.current.error(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      sendToConsole('ERROR', message, args.length > 1 ? args : args[0]);
-    };
-
-    console.warn = (...args) => {
-      originalConsoleRef.current.warn(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      sendToConsole('WARN', message, args.length > 1 ? args : args[0]);
-    };
-
-    console.info = (...args) => {
-      originalConsoleRef.current.info(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      sendToConsole('INFO', message, args.length > 1 ? args : args[0]);
-    };
-
-    // Cleanup function
-    return () => {
-      if (originalConsoleRef.current) {
-        console.log = originalConsoleRef.current.log;
-        console.error = originalConsoleRef.current.error;
-        console.warn = originalConsoleRef.current.warn;
-        console.info = originalConsoleRef.current.info;
-      }
-    };
-  }, [sessionId, deviceName]);
-};
-
+  // ✅ NEW: Test function to verify log forwarding works
+  const testLogForwarding = () => {
+    console.log('🧪 [TEST] Manual test from phone controller - this should appear on console screen!');
+    console.log('🧪 [TEST] WebRTC Status:', webrtc.status);
+    console.error('🧪 [TEST] Test error message - should appear in red on console');
+    console.warn('🧪 [TEST] Test warning message - should appear in yellow on console');
+    console.info('🧪 [TEST] Session info:', { 
+      sessionId: currentSessionId.slice(-8), 
+      playerId: myPlayerId.slice(-8),
+      playerName,
+      isLocked: isLobbyLocked
+    });
+  };
 
   if (!isJoined) {
     return (
@@ -741,7 +761,7 @@ useEffect(() => {
               <p>First player to join becomes the host</p>
               <p>Maximum 4 players per lobby</p>
               <div className="mt-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded text-blue-300 text-xs">
-                ✅ Enhanced input logging active - check browser console for details
+                ✅ Phone log forwarding active - logs will appear on console screen
               </div>
             </div>
           </div>
@@ -823,24 +843,40 @@ useEffect(() => {
         </div>
       )}
 
-  {showDebugPanel && (
-  <div className="mb-6 space-y-4">
-    <PhoneControllerDebugPanel
-      sessionId={currentSessionId}
-      myPlayerId={myPlayerId}
-      webrtcStatus={webrtc.status}
-      onTestInput={() => {
-        console.log('🧪 Testing input from debug panel');
-        sendNavigation('right');
-      }}
-    />
-    <ConnectionTester
-      sessionId={currentSessionId}
-      deviceId={myPlayerId}
-      webrtcStatus={webrtc.status}
-    />
-  </div>
-)}
+      {showDebugPanel && (
+        <div className="mb-6 space-y-4">
+          <PhoneControllerDebugPanel
+            sessionId={currentSessionId}
+            myPlayerId={myPlayerId}
+            webrtcStatus={webrtc.status}
+            onTestInput={() => {
+              console.log('🧪 Testing input from debug panel');
+              sendNavigation('right');
+            }}
+          />
+          <ConnectionTester
+            sessionId={currentSessionId}
+            deviceId={myPlayerId}
+            webrtcStatus={webrtc.status}
+          />
+          
+          {/* ✅ NEW: Log Forwarding Test Panel */}
+          <div className="bg-green-900/20 border border-green-500/20 rounded-lg p-4">
+            <h4 className="text-green-300 font-medium mb-3">📱➡️🖥️ Log Forwarding Test</h4>
+            <div className="space-y-2">
+              <button
+                onClick={testLogForwarding}
+                className="w-full py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-sm transition-colors"
+              >
+                🧪 Send Test Logs to Console Screen
+              </button>
+              <div className="text-xs text-gray-400 text-center">
+                Press this button and check the console screen for your logs!
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Host Controls - Only show in waiting state */}
       {isHost && gameStatus === 'waiting' && (
@@ -992,7 +1028,7 @@ useEffect(() => {
               </div>
             </div>
             <div className="mt-2 text-center text-green-400 text-xs">
-              ✅ Enhanced input format: game_data with dpad/button structure + Supabase fallback
+              ✅ Phone logs forwarding to console screen • Enhanced input format active
             </div>
           </div>
         </div>
