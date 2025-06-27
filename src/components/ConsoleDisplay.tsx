@@ -160,6 +160,7 @@ const handleNavigation = (direction: string, deviceId: string, source: 'webrtc' 
     timestamp: new Date().toLocaleTimeString()
   }]);
 
+
    // Add your actual navigation logic here
   switch (direction) {
     case 'left':
@@ -261,6 +262,17 @@ const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: s
   }
 }, [deviceNames, handleNavigation, handleSelection]);
 
+  const navigationData = {
+    direction,
+    deviceId,
+    deviceName,
+    source,
+    timestamp: Date.now()
+  };
+  
+  setEditorNavigationData(navigationData);
+
+  
   // Initialize InputRouter with enhanced logging
   useEffect(() => {
     if (sessionId && consoleDeviceId) {
@@ -809,6 +821,13 @@ const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: s
       console.error('❌ Failed to copy URL:', err);
     }
   };
+
+  if (isLobbyLocked) {
+    handleEditorGridNavigation(direction);
+  }
+
+  console.log(`📤 [CONSOLE] Navigation forwarded to EditorSelection:`, navigationData);
+};
 
   // Show connection error screen
   if (connectionError && !sessionId) {
