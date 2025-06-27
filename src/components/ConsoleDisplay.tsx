@@ -1265,8 +1265,9 @@ const ConsoleDisplay: React.FC = () => {
                     </div>
                   )}
                 </div>
-
-                {/* Phone Logs Panel */}
+            </div>
+      
+             
                
 
           {/* Sidebar */}
