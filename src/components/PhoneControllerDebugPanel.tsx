@@ -245,6 +245,34 @@ const PhoneControllerDebugPanel: React.FC<{
           </div>
         </div>
       </div>
+      <button
+  onClick={async () => {
+    console.log('🚨 [PHONE] EMERGENCY LOG TEST');
+    
+    try {
+      const { data, error } = await supabase
+        .from('phone_logs')
+        .insert({
+          session_id: currentSessionId,
+          device_name: playerName,
+          message: `[EMERGENCY TEST] ${Date.now()} - This should appear on console!`,
+          log_data: { test: true, timestamp: Date.now() }
+        })
+        .select();
+        
+      if (error) {
+        console.error('❌ [PHONE] Emergency log failed:', error);
+      } else {
+        console.log('✅ [PHONE] Emergency log sent:', data);
+      }
+    } catch (error) {
+      console.error('💥 [PHONE] Emergency log exception:', error);
+    }
+  }}
+  className="w-full py-2 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-sm"
+>
+  🚨 EMERGENCY: Test Phone Log
+</button>
 
       {/* Test Buttons */}
       <div className="grid grid-cols-2 gap-2">
