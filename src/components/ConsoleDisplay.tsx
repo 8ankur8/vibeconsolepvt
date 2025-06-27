@@ -1198,6 +1198,42 @@ const ConsoleDisplay: React.FC = () => {
                     >
                       Test Input
                     </button>
+
+                    <button
+  onClick={async () => {
+    console.log('🚨 [CONSOLE] TESTING DATABASE ACCESS');
+    
+    try {
+      // Test 1: Read sessions table
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+        
+      console.log('📊 [CONSOLE] Current session data:', sessions);
+      if (sessionsError) console.error('❌ [CONSOLE] Sessions error:', sessionsError);
+      
+      // Test 2: Read phone logs
+      const { data: logs, error: logsError } = await supabase
+        .from('phone_logs')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+        
+      console.log('📱 [CONSOLE] Recent phone logs:', logs);
+      if (logsError) console.error('❌ [CONSOLE] Logs error:', logsError);
+      
+    } catch (error) {
+      console.error('💥 [CONSOLE] Database test exception:', error);
+    }
+  }}
+  className="px-3 py-1 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-sm"
+>
+  🚨 Test DB Access
+</button>
+                    
                     {connectionError && (
                       <button
                         onClick={handleRetryConnection}
