@@ -173,6 +173,81 @@ const handleNavigation = (direction: string) => {
   console.log('🧭 [EDITOR] ===== NAVIGATION COMPLETE =====');
 };
 
+  // ENHANCED: Handle editor selection with last direction fetching
+  const handleSelectEditor = async () => {
+    console.log('🎯 [EDITOR] ===== EDITOR SELECTION TRIGGERED =====');
+    
+    // Find the last key direction from input history
+    const lastDirectionInput = inputHistory.find(input => 
+      input.input.type === 'dpad' && 
+      ['left', 'right', 'up', 'down'].includes(input.input.action)
+    );
+    
+    const lastDirection = lastDirectionInput?.input.action || 'none';
+    const lastDirectionDevice = lastDirectionInput?.deviceName || 'unknown';
+    const lastDirectionTimestamp = lastDirectionInput?.input.timestamp || 0;
+    
+    console.log('🔍 [EDITOR] Last direction analysis:');
+    console.log('🔍 [EDITOR] - Direction:', lastDirection);
+    console.log('🔍 [EDITOR] - Device:', lastDirectionDevice);
+    console.log('🔍 [EDITOR] - Timestamp:', new Date(lastDirectionTimestamp).toLocaleTimeString());
+    console.log('🔍 [EDITOR] - Input history length:', inputHistory.length);
+    
+    // Get selected editor info
+    const selectedEditorInfo = editors[selectedIndex];
+    console.log('🎯 [EDITOR] Selected editor:', selectedEditorInfo.name);
+    console.log('🎯 [EDITOR] Selected index:', selectedIndex);
+    
+    // Create selection data with last direction
+    const selectionData = {
+      selectedEditor: selectedEditorInfo.id,
+      selectedEditorName: selectedEditorInfo.name,
+      selectedIndex: selectedIndex,
+      lastKeyDirection: lastDirection,
+      lastDirectionDevice: lastDirectionDevice,
+      lastDirectionTimestamp: lastDirectionTimestamp,
+      selectionTimestamp: Date.now(),
+      sessionId: sessionId,
+      lobbyCode: lobbyCode,
+      totalInputHistory: inputHistory.length
+    };
+    
+    console.log('📊 [EDITOR] Complete selection data:', selectionData);
+    
+    try {
+      // Update session with selection data
+      console.log('💾 [EDITOR] Saving selection to database...');
+      const { error } = await supabase
+        .from('sessions')
+        .update({ 
+          selected_editor: JSON.stringify(selectionData)
+        })
+        .eq('id', sessionId);
+
+      if (error) {
+        console.error('❌ [EDITOR] Error saving selection:', error);
+        return;
+      }
+
+      console.log('✅ [EDITOR] Selection saved successfully');
+      
+      // Set selected editor and show fullscreen
+      setSelectedEditor(selectedEditorInfo);
+      setShowFullscreen(true);
+      
+      console.log('🎯 [EDITOR] ===== EDITOR SELECTION COMPLETE =====');
+      
+    } catch (error) {
+      console.error('💥 [EDITOR] Exception during selection:', error);
+    }
+  };
+
+  const handleCloseFullscreen = () => {
+    console.log('🔙 [EDITOR] Closing fullscreen editor');
+    setShowFullscreen(false);
+    setSelectedEditor(null);
+  };
+
   // Keyboard navigation for console (backup)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
