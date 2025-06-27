@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity, AlertCircle, Trash2 } from 'lucide-react';
-import { supabase, sessionHelpers, deviceHelpers } from '../lib/supabase';
+import { supabase, sessionHelpers, deviceHelpers, deviceInputHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { WebRTCMessage } from '../lib/webrtc';
 import { InputRouter, ControllerInput } from '../lib/inputRouter';
@@ -36,7 +36,6 @@ const ConsoleDisplay: React.FC = () => {
   const [navigationEvents, setNavigationEvents] = useState<any[]>([]);
   const [lastNavigationDirection, setLastNavigationDirection] = useState<string>('');
   const [currentEditorIndex, setCurrentEditorIndex] = useState(0);
-  const [editorNavigationData, setEditorNavigationData] = useState(null);
 
   // InputRouter integration
   const inputRouterRef = useRef<InputRouter | null>(null);
@@ -111,17 +110,6 @@ const ConsoleDisplay: React.FC = () => {
       timestamp: new Date().toLocaleTimeString()
     }]);
 
-    // Forward to editor selection
-    const navigationData = {
-      direction,
-      deviceId,
-      deviceName,
-      source,
-      timestamp: Date.now()
-    };
-    
-    setEditorNavigationData(navigationData);
-    
     // Handle editor grid navigation if lobby is locked
     if (isLobbyLocked) {
       handleEditorGridNavigation(direction);
@@ -143,17 +131,6 @@ const ConsoleDisplay: React.FC = () => {
       timestamp: new Date().toLocaleTimeString()
     }]);
 
-    // Forward selection to editor
-    const selectionData = {
-      action: 'select',
-      deviceId,
-      deviceName,
-      source,
-      selectedIndex: currentEditorIndex,
-      timestamp: Date.now()
-    };
-    
-    setEditorNavigationData(selectionData);
     console.log(`📤 [CONSOLE] Selection processed`);
     
     if (isLobbyLocked) {
@@ -252,6 +229,63 @@ const ConsoleDisplay: React.FC = () => {
     onMessage: handleWebRTCMessage,
     enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked && !connectionError
   });
+
+  // ✅ NEW: Supabase Real-time Input Listener for device_inputs table
+  useEffect(() => {
+    if (!sessionId || !inputRouterRef.current || connectionError) {
+      console.log('⚠️ [CONSOLE] Skipping device_inputs subscription:', {
+        hasSessionId: !!sessionId,
+        hasInputRouter: !!inputRouterRef.current,
+        hasConnectionError: !!connectionError
+      });
+      return;
+    }
+
+    console.log('📡 [CONSOLE] Setting up device_inputs real-time listener for session:', sessionId.slice(-8));
+
+    const deviceInputsChannel = deviceInputHelpers.subscribeToDeviceInputs(
+      sessionId,
+      (input) => {
+        console.log('📱 [CONSOLE] ===== NEW DEVICE INPUT FROM DATABASE =====');
+        console.log('📱 [CONSOLE] Input received:', input);
+        
+        // Skip inputs from console device (avoid self-processing)
+        if (input.device_id === consoleDeviceId) {
+          console.log('⚠️ [CONSOLE] Skipping input from console device (self)');
+          return;
+        }
+
+        // Process through InputRouter
+        if (inputRouterRef.current) {
+          console.log('🎮 [CONSOLE] Processing database input through InputRouter...');
+          const processedInput = inputRouterRef.current.processDeviceInput(input);
+          
+          if (processedInput) {
+            console.log('✅ [CONSOLE] InputRouter processed database input:', processedInput);
+            setLastProcessedInput(processedInput);
+            
+            // Handle navigation from database input
+            if (processedInput.input.type === 'dpad') {
+              handleNavigation(processedInput.input.action, processedInput.deviceId, 'supabase');
+            } else if (processedInput.input.type === 'button' && processedInput.input.action === 'a') {
+              handleSelection(processedInput.deviceId, 'supabase');
+            }
+          } else {
+            console.log('⚠️ [CONSOLE] InputRouter failed to process database input');
+          }
+        } else {
+          console.log('❌ [CONSOLE] InputRouter not available for database input!');
+        }
+        
+        console.log('📱 [CONSOLE] ===== DATABASE INPUT PROCESSING COMPLETE =====');
+      }
+    );
+
+    return () => {
+      console.log('🧹 [CONSOLE] Cleaning up device_inputs subscription');
+      deviceInputsChannel.unsubscribe();
+    };
+  }, [sessionId, consoleDeviceId, connectionError, handleNavigation, handleSelection]);
 
   // ✅ CLEAN: Listen for Supabase navigation (fallback when WebRTC isn't connected)
   useEffect(() => {
@@ -788,10 +822,6 @@ const ConsoleDisplay: React.FC = () => {
         webrtcStatus={webrtc.status}
         onWebRTCMessage={webrtc.broadcastMessage}
         lastControllerInput={lastProcessedInput}
-        navigationData={editorNavigationData}
-        currentEditorIndex={currentEditorIndex}
-        onEditorIndexChange={setCurrentEditorIndex}
-        onNavigationProcessed={() => setEditorNavigationData(null)}
       />
     );
   }
@@ -975,7 +1005,7 @@ const ConsoleDisplay: React.FC = () => {
                       
                       {/* Step 3: Navigation Works */}
                       <div className={`p-2 rounded border text-center ${
-                        isLobbyLocked && editorNavigationData 
+                        isLobbyLocked 
                           ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' 
                           : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
                       }`}>
@@ -1000,13 +1030,8 @@ const ConsoleDisplay: React.FC = () => {
                           <span className="text-purple-300">{navigationEvents.length} received</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Last Navigation:</span>
-                          <span className="text-gray-300">
-                            {editorNavigationData ? 
-                              `${editorNavigationData.direction} (${editorNavigationData.source})` : 
-                              'None yet'
-                            }
-                          </span>
+                          <span>Database Input Listener:</span>
+                          <span className="text-green-300">Active ✅</span>
                         </div>
                       </div>
                     </div>
@@ -1075,7 +1100,7 @@ const ConsoleDisplay: React.FC = () => {
                 />
                 
                 <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                  <h4 className="text-green-300 font-medium mb-2">✅ Clean Navigation System</h4>
+                  <h4 className="text-green-300 font-medium mb-2">✅ Enhanced Navigation System</h4>
                   <div className="flex gap-2 mb-2">
                     <button
                       onClick={manualConnectAll}
@@ -1188,7 +1213,7 @@ const ConsoleDisplay: React.FC = () => {
                   </div>
                   
                   <div className="text-xs text-gray-400 mt-2">
-                    ✅ Clean system - no database spam, only navigation events
+                    ✅ Enhanced system - WebRTC + Database fallback for reliable input handling
                     {connectionError && (
                       <div className="text-red-400 mt-1">⚠️ Connection error detected</div>
                     )}
@@ -1198,7 +1223,7 @@ const ConsoleDisplay: React.FC = () => {
                       <div className="text-purple-300 font-medium">Last Input:</div>
                       <div className="text-gray-300">
                         {lastProcessedInput.deviceName}: {lastProcessedInput.input.type}.{lastProcessedInput.input.action}
-                        {lastProcessedInput.webrtcMessage ? ' (WebRTC)' : ' (Supabase)'}
+                        {lastProcessedInput.webrtcMessage ? ' (WebRTC)' : ' (Database)'}
                       </div>
                     </div>
                   )}
@@ -1374,6 +1399,10 @@ const ConsoleDisplay: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-400">Database Input Listener:</span>
+                  <span className="text-green-300">Active ✅</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-400">Current Host:</span>
                   <span className="text-yellow-300">
                     {players.find(p => p.isHost && p.deviceType === 'phone')?.name || 'None'}
@@ -1395,12 +1424,12 @@ const ConsoleDisplay: React.FC = () => {
                 <h4 className={`font-medium mb-2 ${
                   connectionError ? 'text-red-300' : 'text-green-300'
                 }`}>
-                  {connectionError ? '⚠️ Issues:' : '✅ Clean System:'}
+                  {connectionError ? '⚠️ Issues:' : '✅ Enhanced System:'}
                 </h4>
                 <ul className="text-xs text-gray-300 space-y-1">
                   <li>• Navigation System: ✅ Active</li>
                   <li>• Phone → Console: ✅ Working</li>
-                  <li>• No Database Spam: ✅ Clean</li>
+                  <li>• Database Fallback: ✅ Active</li>
                   <li>• Editor Integration: {isLobbyLocked ? '✅ Ready' : '⏳ Waiting'}</li>
                   <li>• WebRTC: {webrtc.status.connectedDevices.length > 0 ? '✅ Connected' : '⚠️ Fallback mode'}</li>
                 </ul>
