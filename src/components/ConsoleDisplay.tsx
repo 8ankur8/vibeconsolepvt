@@ -160,32 +160,41 @@ const handleNavigation = (direction: string, deviceId: string, source: 'webrtc' 
     timestamp: new Date().toLocaleTimeString()
   }]);
 
-
-   // Add your actual navigation logic here
-  switch (direction) {
-    case 'left':
-      console.log('⬅️ [CONSOLE] Navigate left - implement editor selection logic');
-      // Example: move selection left in editor grid
-      break;
-    case 'right':
-      console.log('➡️ [CONSOLE] Navigate right - implement editor selection logic');  
-      // Example: move selection right in editor grid
-      break;
-    case 'up':
-      console.log('⬆️ [CONSOLE] Navigate up - implement editor selection logic');
-      // Example: move selection up in editor grid
-      break;
-    case 'down':
-      console.log('⬇️ [CONSOLE] Navigate down - implement editor selection logic');
-      // Example: move selection down in editor grid
-      break;
-    default:
-      console.log(`❓ [CONSOLE] Unknown navigation: ${direction}`);
+if (isLobbyLocked) {
+    handleEditorGridNavigation(direction);
   }
+
+  console.log(`📤 [CONSOLE] Navigation forwarded to EditorSelection:`, navigationData);
 };
 
-// Enhanced selection handler function
-const handleSelection = (deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
+// 3. ADD EDITOR GRID NAVIGATION HANDLER
+const handleEditorGridNavigation = (direction: string) => {
+  const editors = ['Bolt.new', 'Loveable', 'Firebase', 'Supabase']; // Example editors
+  
+  switch (direction) {
+    case 'left':
+      setCurrentEditorIndex(prev => Math.max(0, prev - 1));
+      console.log('⬅️ [CONSOLE] Editor selection: moved left');
+      break;
+    case 'right':
+      setCurrentEditorIndex(prev => Math.min(editors.length - 1, prev + 1));
+      console.log('➡️ [CONSOLE] Editor selection: moved right');
+      break;
+    case 'up':
+      // Handle up navigation if you have a grid layout
+      console.log('⬆️ [CONSOLE] Editor selection: moved up');
+      break;
+    case 'down':
+      // Handle down navigation if you have a grid layout
+      console.log('⬇️ [CONSOLE] Editor selection: moved down');
+      break;
+  }
+  
+  console.log(`🎯 [CONSOLE] Current editor index: ${currentEditorIndex} (${editors[currentEditorIndex]})`);
+};
+
+
+ const handleSelection = (deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
   const deviceName = deviceNames[deviceId] || 'Unknown';
   console.log(`🎯 [CONSOLE] Selection from ${deviceName} (${deviceId.slice(-8)}) via ${source}`);
   
@@ -197,8 +206,24 @@ const handleSelection = (deviceId: string, source: 'webrtc' | 'supabase' = 'webr
     timestamp: new Date().toLocaleTimeString()
   }]);
 
-  // Add your actual selection logic here
-  console.log('✅ [CONSOLE] Selection confirmed - implement editor launch logic');
+  // 🎯 FORWARD SELECTION TO EDITOR
+  const selectionData = {
+    action: 'select',
+    deviceId,
+    deviceName,
+    source,
+    selectedIndex: currentEditorIndex,
+    timestamp: Date.now()
+  };
+  
+  setEditorNavigationData(selectionData);
+  console.log(`📤 [CONSOLE] Selection forwarded to EditorSelection:`, selectionData);
+  
+  // Handle editor launch logic
+  if (isLobbyLocked) {
+    console.log('🚀 [CONSOLE] Launching selected editor...');
+    // Add your editor launch logic here
+  }
 };
 
 // 3. ENHANCE YOUR EXISTING handleWebRTCMessage FUNCTION
@@ -822,12 +847,6 @@ const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: s
     }
   };
 
-  if (isLobbyLocked) {
-    handleEditorGridNavigation(direction);
-  }
-
-  console.log(`📤 [CONSOLE] Navigation forwarded to EditorSelection:`, navigationData);
-};
 
   // Show connection error screen
   if (connectionError && !sessionId) {
@@ -882,20 +901,26 @@ const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: s
     );
   }
 
-  // Show editor selection when lobby is locked
-  if (isLobbyLocked) {
-    return (
-      <EditorSelection
-        sessionId={sessionId}
-        lobbyCode={lobbyCode}
-        players={players}
-        onBack={() => setIsLobbyLocked(false)}
-        webrtcStatus={webrtc.status}
-        onWebRTCMessage={webrtc.broadcastMessage}
-        lastControllerInput={lastProcessedInput}
-      />
-    );
-  }
+  
+if (isLobbyLocked) {
+  return (
+    <EditorSelection
+      sessionId={sessionId}
+      lobbyCode={lobbyCode}
+      players={players}
+      onBack={() => setIsLobbyLocked(false)}
+      webrtcStatus={webrtc.status}
+      onWebRTCMessage={webrtc.broadcastMessage}
+      lastControllerInput={lastProcessedInput}
+      // 🎯 NEW: Pass navigation and selection data
+      navigationData={editorNavigationData}
+      currentEditorIndex={currentEditorIndex}
+      onEditorIndexChange={setCurrentEditorIndex}
+      // Clear navigation data after processing
+      onNavigationProcessed={() => setEditorNavigationData(null)}
+    />
+  );
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white">
