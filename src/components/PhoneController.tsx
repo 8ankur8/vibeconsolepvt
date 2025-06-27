@@ -111,8 +111,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   
   const navigate = useNavigate();
 
-  // ✅ FIXED: Properly call the log forwarding hook
-  usePhoneLogForwarder(currentSessionId, playerName || 'Phone');
 
   // WebRTC integration for phone controller with enhanced logging
   const webrtc = useWebRTC({
