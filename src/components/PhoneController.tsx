@@ -285,103 +285,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   console.log('🚨 [PHONE] === END NAVIGATION DEBUG ===');
 };
 
-// STEP 2: REPLACE YOUR D-PAD BUTTONS WITH DEBUG VERSIONS
-// Replace your navigation button onClick handlers with these:
-
-// Left button
-onClick={() => sendNavigationEnhanced('left')}
-
-// Right button  
-onClick={() => sendNavigationEnhanced('right')}
-
-// Up button
-onClick={() => sendNavigationEnhanced('up')}
-
-// Down button
-onClick={() => sendNavigationEnhanced('down')}
-
-// STEP 3: ADD ENHANCED LOGGING TO ConsoleDisplay.tsx
-// Add this to your ConsoleDisplay.tsx Supabase fallback listener:
-
-// Find your existing Supabase listener useEffect and REPLACE it with this enhanced version:
-useEffect(() => {
-  if (!sessionId || !isLobbyLocked || connectionError) {
-    console.log('🚨 [CONSOLE] Supabase listener NOT starting:', {
-      hasSessionId: !!sessionId,
-      isLobbyLocked,
-      hasConnectionError: !!connectionError
-    });
-    return;
-  }
-
-  console.log('🚨 [CONSOLE] === STARTING ENHANCED SUPABASE LISTENER ===');
-  console.log('🚨 [CONSOLE] Session ID:', sessionId);
-  console.log('🚨 [CONSOLE] Lobby locked:', isLobbyLocked);
-
-  const inputChannel = supabase
-    .channel(`console_debug_${sessionId}_${Date.now()}`) // Unique channel name
-    .on('postgres_changes', 
-      { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'sessions',
-        filter: `id=eq.${sessionId}`
-      }, 
-      (payload) => {
-        console.log('🚨 [CONSOLE] === SUPABASE UPDATE RECEIVED ===');
-        console.log('🚨 [CONSOLE] Full payload:', payload);
-        console.log('🚨 [CONSOLE] Payload.new:', payload.new);
-        
-        const newData = payload.new as any;
-        
-        if (newData.selected_editor) {
-          console.log('🚨 [CONSOLE] Raw selected_editor:', newData.selected_editor);
-          
-          try {
-            const inputData = JSON.parse(newData.selected_editor);
-            console.log('🚨 [CONSOLE] Parsed input data:', inputData);
-            
-            if (inputData.action === 'navigate') {
-              console.log('🎮 [CONSOLE] NAVIGATION DETECTED!');
-              console.log('🎮 [CONSOLE] Direction:', inputData.direction);
-              console.log('🎮 [CONSOLE] From player:', inputData.playerName);
-              
-              // Force call our navigation handler
-              handleNavigation(inputData.direction, inputData.playerId, 'supabase');
-              
-              console.log('✅ [CONSOLE] Navigation handler called successfully');
-            } else {
-              console.log('⚠️ [CONSOLE] Not a navigate action:', inputData.action);
-            }
-          } catch (error) {
-            console.error('❌ [CONSOLE] JSON parse error:', error);
-            console.log('❌ [CONSOLE] Raw data that failed to parse:', newData.selected_editor);
-          }
-        } else {
-          console.log('⚠️ [CONSOLE] No selected_editor in payload');
-        }
-        
-        console.log('🚨 [CONSOLE] === END SUPABASE UPDATE ===');
-      }
-    )
-    .subscribe((status) => {
-      console.log('🚨 [CONSOLE] Supabase subscription status:', status);
-      if (status === 'SUBSCRIBED') {
-        console.log('✅ [CONSOLE] Successfully subscribed to session updates!');
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error('❌ [CONSOLE] Channel subscription error!');
-      }
-    });
-
-  console.log('🚨 [CONSOLE] Supabase listener setup complete');
-
-  return () => {
-    console.log('🧹 [CONSOLE] Cleaning up enhanced Supabase listener');
-    inputChannel.unsubscribe();
-  };
-}, [sessionId, isLobbyLocked, connectionError]);
-
-
   useEffect(() => {
     console.log('🚀 [PHONE] PhoneController mounted with lobby code:', lobbyCode);
     loadSession();
@@ -1131,28 +1034,28 @@ useEffect(() => {
                 
                 {/* Direction buttons with enhanced feedback */}
                 <button 
-                  onClick={() => sendNavigation('up')}
+                  onClick={() => sendNavigationEnhanced(('up')}
                   className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-t-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronUp size={20} className="text-white" />
                 </button>
                 
                 <button 
-                  onClick={() => sendNavigation('down')}
+                  onClick={() => sendNavigationEnhanced(('down')}
                   className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-b-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronDown size={20} className="text-white" />
                 </button>
                 
                 <button 
-                  onClick={() => sendNavigation('right')}
+                  onClick={() => sendNavigationEnhanced(('right')}
                   className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-r-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronRight size={20} className="text-white" />
                 </button>
                 
                 <button 
-                  onClick={() => sendNavigation('left')}
+                  onClick={() => sendNavigationEnhanced(('left')}
                   className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-l-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronLeft size={20} className="text-white" />
