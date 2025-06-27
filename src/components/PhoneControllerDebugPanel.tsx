@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 interface DebugInfo {
@@ -245,34 +244,24 @@ const PhoneControllerDebugPanel: React.FC<{
           </div>
         </div>
       </div>
+
+      {/* ENHANCED: Updated emergency test button */}
       <button
-  onClick={async () => {
-    console.log('🚨 [PHONE] EMERGENCY LOG TEST');
-    
-    try {
-      const { data, error } = await supabase
-        .from('phone_logs')
-        .insert({
-          session_id: currentSessionId,
-          device_name: playerName,
-          message: `[EMERGENCY TEST] ${Date.now()} - This should appear on console!`,
-          log_data: { test: true, timestamp: Date.now() }
-        })
-        .select();
-        
-      if (error) {
-        console.error('❌ [PHONE] Emergency log failed:', error);
-      } else {
-        console.log('✅ [PHONE] Emergency log sent:', data);
-      }
-    } catch (error) {
-      console.error('💥 [PHONE] Emergency log exception:', error);
-    }
-  }}
-  className="w-full py-2 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-sm"
->
-  🚨 EMERGENCY: Test Phone Log
-</button>
+        onClick={() => {
+          console.log('🚨 [PHONE] EMERGENCY LOG TEST');
+          console.log('🧪 [TEST] Manual test from phone controller - this should appear in THIS console!');
+          console.error('🧪 [TEST] Test error message - should appear in THIS console');
+          console.warn('🧪 [TEST] Test warning message - should appear in THIS console');
+          console.info('🧪 [TEST] Session info:', {
+            sessionId: sessionId.slice(-8),
+            playerId: myPlayerId.slice(-8),
+            isLocked: debugInfo.session.consoleDeviceId // Using consoleDeviceId as a proxy for isLocked for this test
+          });
+        }}
+        className="w-full py-2 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-sm mb-4"
+      >
+        🚨 EMERGENCY: Test Phone Log (Local)
+      </button>
 
       {/* Test Buttons */}
       <div className="grid grid-cols-2 gap-2">
@@ -304,6 +293,9 @@ const PhoneControllerDebugPanel: React.FC<{
         <div>3. Test direct WebRTC communication</div>
         <div>4. Test Supabase fallback</div>
         <div>5. Monitor console logs for detailed info</div>
+        <div className="mt-2 text-blue-300 text-xs">
+          ✅ Emergency test button now logs locally to phone console only
+        </div>
       </div>
     </div>
   );

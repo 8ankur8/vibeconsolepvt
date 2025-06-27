@@ -323,6 +323,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   useEffect(() => {
     console.log('🔍 [PHONE] WebRTC Status Check:', {
       isInitialized: webrtc.status.isInitialized,
+      isSignalingChannelReady: webrtc.status.isSignalingChannelReady, // ENHANCED: Log signaling channel status
       sessionId: currentSessionId,
       myPlayerId: myPlayerId,
       connections: webrtc.status.connections,
@@ -330,6 +331,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     });
   }, [webrtc.status]);
   
+  // ENHANCED: Updated useEffect with signaling channel ready dependency
   useEffect(() => {
     if (!currentSessionId || !myPlayerId || !isLobbyLocked) return;
 
@@ -352,12 +354,15 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
         console.log('📡 [PHONE] Found console device:', consoleDevice.id.slice(-8));
         
-        // Wait a bit for WebRTC to initialize
-        if (webrtc.status.isInitialized) {
+        // ENHANCED: Wait for both WebRTC initialization AND signaling channel readiness
+        if (webrtc.status.isInitialized && webrtc.status.isSignalingChannelReady) {
           console.log('🤝 [PHONE] Attempting connection to console');
           await webrtc.connectToDevice(consoleDevice.id);
         } else {
-          console.log('⚠️ [PHONE] WebRTC not initialized yet');
+          console.log('⚠️ [PHONE] WebRTC not fully ready:', {
+            initialized: webrtc.status.isInitialized,
+            signalingReady: webrtc.status.isSignalingChannelReady
+          });
         }
       } catch (error) {
         console.error('💥 [PHONE] Error in console connection:', error);
@@ -379,7 +384,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       clearTimeout(initialTimeout);
       clearInterval(retryInterval);
     };
-  }, [currentSessionId, myPlayerId, isLobbyLocked, webrtc.status.isInitialized]);
+  }, [currentSessionId, myPlayerId, isLobbyLocked, webrtc.status.isInitialized, webrtc.status.isSignalingChannelReady]); // ENHANCED: Added signaling channel dependency
 
   const joinLobby = async () => {
     if (!playerName.trim() || !lobbyCode) {
@@ -767,6 +772,12 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                   WebRTC: {webrtc.status.connectedDevices.length > 0 ? 'Connected' : 'Connecting...'}
                 </p>
               )}
+              {/* ENHANCED: Show signaling channel status */}
+              {webrtc.status.isSignalingChannelReady && (
+                <p className="text-xs text-blue-400 mt-1">
+                  Signaling: Ready
+                </p>
+              )}
             </div>
 
             {isHost && (
@@ -868,6 +879,13 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               <div className="flex justify-between">
                 <span>Connected:</span>
                 <span className="text-blue-300">{webrtc.status.connectedDevices.length}</span>
+              </div>
+              {/* ENHANCED: Show signaling channel status in debug info */}
+              <div className="flex justify-between">
+                <span>Signaling:</span>
+                <span className={webrtc.status.isSignalingChannelReady ? 'text-green-300' : 'text-red-300'}>
+                  {webrtc.status.isSignalingChannelReady ? 'Ready' : 'Not Ready'}
+                </span>
               </div>
               <button
                 onClick={async () => {

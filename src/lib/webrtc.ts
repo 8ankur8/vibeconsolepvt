@@ -23,8 +23,8 @@ export class WebRTCManager {
   private onConnectionStateChange?: (deviceId: string, state: RTCPeerConnectionState) => void;
   private pendingCandidates = new Map<string, RTCIceCandidateInit[]>();
   private connectionAttempts = new Map<string, number>();
-  private maxConnectionAttempts = 3;
-  private connectionCooldown = 5000; // 5 seconds between attempts
+  private maxConnectionAttempts = 10; // ENHANCED: Increased from 3 to 10
+  private connectionCooldown = 2000; // ENHANCED: Reduced from 5000ms to 2000ms
 
   constructor(
     sessionId: string, 
@@ -599,7 +599,9 @@ export class WebRTCManager {
       connectedDevices: this.getConnectedDevices().length,
       connectionStates: {} as Record<string, number>,
       dataChannelStates: {} as Record<string, number>,
-      attemptCounts: {} as Record<string, number>
+      attemptCounts: {} as Record<string, number>,
+      maxAttempts: this.maxConnectionAttempts,
+      cooldownMs: this.connectionCooldown
     };
 
     for (const [deviceId, connection] of this.connections) {
