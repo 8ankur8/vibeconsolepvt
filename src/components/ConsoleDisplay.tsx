@@ -1477,6 +1477,24 @@ if (isLobbyLocked) {
             </div>
 
             {/* System Status */}
+            <div className="flex justify-between">
+              <span className="text-gray-400">Data Flow:</span>
+              <span className="text-green-300">
+                Phone → Console → {isLobbyLocked ? 'EditorSelection' : 'Waiting'} ✅
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Current Editor:</span>
+              <span className="text-cyan-300">
+                {isLobbyLocked ? `Index ${currentEditorIndex}` : 'N/A'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Navigation Events:</span>
+              <span className="text-purple-300">
+                {navigationEvents.length} processed ✅
+              </span>
+            </div>
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Wifi className="text-indigo-300" />
@@ -1522,6 +1540,7 @@ if (isLobbyLocked) {
                   </span>
                 </div>
               </div>
+              
               
               <div className={`mt-6 p-4 border rounded-lg ${
                 connectionError 
