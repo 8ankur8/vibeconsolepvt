@@ -18,84 +18,6 @@ interface Player {
 }
 
 // Phone log forwarder hook for debugging
-const usePhoneLogForwarder = (sessionId: string, deviceName: string) => {
-  const originalConsoleRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (!sessionId || !deviceName) return;
-
-    console.log('📱 [LOG_FORWARDER] Initializing log forwarding for:', deviceName);
-
-    // Store original console methods
-    originalConsoleRef.current = {
-      log: console.log,
-      error: console.error,
-      warn: console.warn,
-      info: console.info
-    };
-
-    // Function to send log to console (if phone_logs table exists)
-    const sendToConsole = async (level: string, message: string, data?: any) => {
-      try {
-        // Only attempt if phone_logs table exists
-        await supabase.from('phone_logs').insert({
-          session_id: sessionId,
-          device_name: deviceName,
-          message: `[${level.toUpperCase()}] ${message}`,
-          log_data: data ? { data } : null
-        });
-      } catch (error) {
-        // Fail silently to avoid infinite loops
-      }
-    };
-
-    // Override console methods
-    console.log = (...args) => {
-      originalConsoleRef.current.log(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      sendToConsole('LOG', message, args.length > 1 ? args : args[0]);
-    };
-
-    console.error = (...args) => {
-      originalConsoleRef.current.error(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      sendToConsole('ERROR', message, args.length > 1 ? args : args[0]);
-    };
-
-    console.warn = (...args) => {
-      originalConsoleRef.current.warn(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      sendToConsole('WARN', message, args.length > 1 ? args : args[0]);
-    };
-
-    console.info = (...args) => {
-      originalConsoleRef.current.info(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      sendToConsole('INFO', message, args.length > 1 ? args : args[0]);
-    };
-
-    console.log('✅ [LOG_FORWARDER] Phone log forwarding activated for:', deviceName);
-
-    // Cleanup function
-    return () => {
-      if (originalConsoleRef.current) {
-        console.log('🧹 [LOG_FORWARDER] Restoring original console methods for:', deviceName);
-        console.log = originalConsoleRef.current.log;
-        console.error = originalConsoleRef.current.error;
-        console.warn = originalConsoleRef.current.warn;
-        console.info = originalConsoleRef.current.info;
-      }
-    };
-  }, [sessionId, deviceName]);
-};
 
 const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [playerName, setPlayerName] = useState('');
@@ -111,9 +33,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   const navigate = useNavigate();
-
-  // Enable phone log forwarding for debugging
-  usePhoneLogForwarder(currentSessionId, playerName);
 
   // WebRTC integration for phone controller with enhanced logging
   const webrtc = useWebRTC({
