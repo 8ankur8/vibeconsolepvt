@@ -1115,8 +1115,94 @@ if (isLobbyLocked) {
             </div>
 
             {/* Debug Panel */}
+
             {showDebugPanel && (
+              
               <div className="mt-6 space-y-6">
+                <div className="bg-cyan-900/20 border border-cyan-500/20 rounded-lg p-4">
+    <h4 className="text-cyan-300 font-bold mb-3">🔗 Complete Data Flow Status</h4>
+    
+    <div className="space-y-3 text-sm">
+      <div className="grid grid-cols-4 gap-2">
+        {/* Step 1: Phone Input */}
+        <div className={`p-2 rounded border text-center ${
+          phoneLogs.length > 0 
+            ? 'bg-green-500/20 border-green-500/30 text-green-300' 
+            : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+        }`}>
+          <div className="text-xs font-bold">1. Phone Input</div>
+          <div className="text-xs">{phoneLogs.length} logs</div>
+        </div>
+        
+        {/* Step 2: Console Receives */}
+        <div className={`p-2 rounded border text-center ${
+          lastProcessedInput 
+            ? 'bg-blue-500/20 border-blue-500/30 text-blue-300' 
+            : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+        }`}>
+          <div className="text-xs font-bold">2. Console Receives</div>
+          <div className="text-xs">
+            {lastProcessedInput ? `${lastProcessedInput.input.type}.${lastProcessedInput.input.action}` : 'None'}
+          </div>
+        </div>
+        
+        {/* Step 3: Navigation Processing */}
+        <div className={`p-2 rounded border text-center ${
+          navigationEvents.length > 0 
+            ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' 
+            : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+        }`}>
+          <div className="text-xs font-bold">3. Navigation</div>
+          <div className="text-xs">{navigationEvents.length} events</div>
+        </div>
+        
+        {/* Step 4: Editor Selection */}
+        <div className={`p-2 rounded border text-center ${
+          isLobbyLocked && editorNavigationData 
+            ? 'bg-orange-500/20 border-orange-500/30 text-orange-300' 
+            : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+        }`}>
+          <div className="text-xs font-bold">4. Editor Selection</div>
+          <div className="text-xs">
+            {isLobbyLocked ? `Index: ${currentEditorIndex}` : 'Locked required'}
+          </div>
+        </div>
+      </div>
+      
+      <div className="border-t border-cyan-500/30 pt-3">
+        <div className="text-cyan-300 font-medium mb-2">Current Flow Status:</div>
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between">
+            <span>Phone → Console Transport:</span>
+            <span className={webrtc.status.connectedDevices.length > 0 ? 'text-green-300' : 'text-orange-300'}>
+              {webrtc.status.connectedDevices.length > 0 ? 'WebRTC P2P' : 'Supabase Fallback'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Console → InputRouter:</span>
+            <span className={inputRouterRef.current ? 'text-green-300' : 'text-red-300'}>
+              {inputRouterRef.current ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Console → EditorSelection:</span>
+            <span className={isLobbyLocked ? 'text-green-300' : 'text-yellow-300'}>
+              {isLobbyLocked ? 'Connected' : 'Waiting for lock'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Last Navigation Data:</span>
+            <span className="text-gray-300">
+              {editorNavigationData ? 
+                `${editorNavigationData.direction} (${editorNavigationData.source})` : 
+                'None'
+              }
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
                 <WebRTCDebugPanel
                   status={webrtc.status}
                   deviceNames={deviceNames}
