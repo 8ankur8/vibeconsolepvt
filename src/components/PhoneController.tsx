@@ -1034,28 +1034,28 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                 
                 {/* Direction buttons with enhanced feedback */}
                 <button 
-                  onClick={() => sendNavigationEnhanced(('up')}
+                  onClick={() => sendNavigationEnhanced('up')}
                   className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-t-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronUp size={20} className="text-white" />
                 </button>
                 
                 <button 
-                  onClick={() => sendNavigationEnhanced(('down')}
+                  onClick={() => sendNavigationEnhanced('down')}
                   className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-b-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronDown size={20} className="text-white" />
                 </button>
                 
                 <button 
-                  onClick={() => sendNavigationEnhanced(('right')}
+                  onClick={() => sendNavigationEnhanced('right')}
                   className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-r-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronRight size={20} className="text-white" />
                 </button>
                 
                 <button 
-                  onClick={() => sendNavigationEnhanced(('left')}
+                  onClick={() => sendNavigationEnhanced('left')}
                   className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-l-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
                 >
                   <ChevronLeft size={20} className="text-white" />
