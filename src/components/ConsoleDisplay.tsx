@@ -37,7 +37,7 @@ const ConsoleDisplay: React.FC = () => {
   const [lastNavigationDirection, setLastNavigationDirection] = useState<string>('');
   const [currentEditorIndex, setCurrentEditorIndex] = useState(0);
   const [editorNavigationData, setEditorNavigationData] = useState(null);
-  const [phoneLogs, setPhoneLogs] = useState<any[]>([]);
+
 
   // InputRouter integration
   const inputRouterRef = useRef<InputRouter | null>(null);
@@ -288,40 +288,6 @@ const ConsoleDisplay: React.FC = () => {
     }
   }, [players]);
 
-  // ✅ Listen for phone logs from all devices
-  useEffect(() => {
-    if (!sessionId) return;
-
-    console.log('📱➡️🖥️ [CONSOLE] Setting up phone log listener for session:', sessionId);
-
-    const phoneLogChannel = supabase
-      .channel(`phone_logs_${sessionId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'phone_logs',
-        filter: `session_id=eq.${sessionId}`
-      }, (payload) => {
-        const newLog = payload.new;
-        console.log('📱➡️🖥️ [CONSOLE] Phone Log Received:', newLog.message);
-        
-        setPhoneLogs(prev => {
-          const updated = [...prev, newLog];
-          return updated.slice(-50);
-        });
-      })
-      .subscribe((status) => {
-        console.log('📱 [CONSOLE] Phone logs subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ [CONSOLE] Phone log forwarding active - will receive all phone logs');
-        }
-      });
-
-    return () => {
-      console.log('🧹 [CONSOLE] Cleaning up phone log subscription');
-      phoneLogChannel.unsubscribe();
-    };
-  }, [sessionId]);
 
   // ✅ Enhanced Supabase fallback listener
   useEffect(() => {
@@ -1301,66 +1267,7 @@ const ConsoleDisplay: React.FC = () => {
                 </div>
 
                 {/* Phone Logs Panel */}
-                <div className="bg-pink-900/20 border border-pink-500/20 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-pink-300 font-bold flex items-center gap-2">
-                      📱 Phone Controller Logs ({phoneLogs.length})
-                    </h4>
-                    <button
-                      onClick={clearPhoneLogs}
-                      className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-2 py-1 rounded text-sm border border-red-500/30 transition-colors flex items-center gap-1"
-                    >
-                      <Trash2 size={12} />
-                      Clear
-                    </button>
-                  </div>
-                  
-                  <div className="max-h-80 overflow-y-auto bg-black/30 rounded p-3 space-y-1">
-                    {phoneLogs.length === 0 ? (
-                      <div className="text-gray-500 text-center py-8">
-                        <div className="text-4xl mb-2">📱</div>
-                        <div>No phone logs yet</div>
-                        <div className="text-sm mt-2">All phone console.log() calls will appear here in real-time</div>
-                      </div>
-                    ) : (
-                      phoneLogs.map((log, i) => (
-                        <div key={log.id || i} className="border-l-2 border-pink-500/30 pl-3 py-1">
-                          <div className="flex items-start justify-between text-xs">
-                            <span className="text-pink-400 font-medium">{log.device_name}</span>
-                            <span className="text-gray-400">
-                              {new Date(log.created_at).toLocaleTimeString()}
-                            </span>
-                          </div>
-                          <div className={`text-sm font-mono ${
-                            log.message.includes('[ERROR]') ? 'text-red-300' :
-                            log.message.includes('[WARN]') ? 'text-yellow-300' :
-                            log.message.includes('[INFO]') ? 'text-blue-300' :
-                            'text-gray-300'
-                          }`}>
-                            {log.message}
-                          </div>
-                          {log.log_data && (
-                            <details className="mt-1">
-                              <summary className="text-xs text-gray-400 cursor-pointer">Data</summary>
-                              <pre className="text-xs text-gray-500 mt-1 bg-gray-800/50 p-2 rounded overflow-x-auto">
-                                {typeof log.log_data === 'string' ? log.log_data : JSON.stringify(log.log_data, null, 2)}
-                              </pre>
-                            </details>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  
-                  {phoneLogs.length > 0 && (
-                    <div className="mt-3 text-xs text-gray-400 text-center">
-                      Showing last {phoneLogs.length} logs • Auto-scrolls • Real-time updates from all phone controllers
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+               
 
           {/* Sidebar */}
           <div className="space-y-6">
