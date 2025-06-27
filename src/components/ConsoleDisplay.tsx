@@ -330,60 +330,67 @@ const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: s
   }, [sessionId]);
 
   // ENHANCED: Listen for Supabase fallback inputs with connection error handling
-  useEffect(() => {
-    if (!sessionId || !isLobbyLocked || connectionError) return;
+ useEffect(() => {
+  if (!sessionId || !isLobbyLocked || connectionError) return;
 
-    console.log('📡 [CONSOLE] Setting up Supabase fallback input listener');
+  console.log('📡 [CONSOLE] Setting up Supabase fallback input listener');
 
-    const inputChannel = supabase
-      .channel(`console_input_fallback_${sessionId}`)
-      .on('postgres_changes', 
-        { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'sessions',
-          filter: `id=eq.${sessionId}`
-        }, 
-        (payload) => {
-          const newData = payload.new as any;
-          console.log('📡 [CONSOLE] Supabase session update received:', newData);
-          
-          if (newData.selected_editor) {
-            try {
-              const inputData = JSON.parse(newData.selected_editor);
-              console.log('📡 [CONSOLE] Parsed input data:', inputData);
-              
-              // Process through InputRouter if it's a navigation/selection input
-              if (inputRouterRef.current && inputData.playerId && (inputData.action === 'navigate' || inputData.action === 'select')) {
-                console.log('🎮 [CONSOLE] Processing Supabase input through InputRouter');
-                
-                const processedInput = inputRouterRef.current.processSupabaseInput(inputData.playerId, {
-                  type: inputData.action === 'navigate' ? 'dpad' : 'button',
-                  action: inputData.action === 'navigate' ? inputData.direction : 'a',
-                  data: inputData,
-                  timestamp: inputData.timestamp || Date.now()
-                });
-                
-                if (processedInput) {
-                  console.log('✅ [CONSOLE] Supabase input processed:', processedInput);
-                  setLastProcessedInput(processedInput);
-                }
-              }
-            } catch (error) {
-              console.error('❌ [CONSOLE] Error parsing Supabase input data:', error);
+  const inputChannel = supabase
+    .channel(`console_input_fallback_${sessionId}`)
+    .on('postgres_changes', 
+      { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'sessions',
+        filter: `id=eq.${sessionId}`
+      }, 
+      (payload) => {
+        const newData = payload.new as any;
+        console.log('📡 [CONSOLE] Supabase session update received:', newData);
+        
+        if (newData.selected_editor) {
+          try {
+            const inputData = JSON.parse(newData.selected_editor);
+            console.log('📡 [CONSOLE] Parsed input data:', inputData);
+            
+            // ENHANCED: Process navigation and selection with our new functions
+            if (inputData.action === 'navigate' && inputData.direction) {
+              handleNavigation(inputData.direction, inputData.playerId, 'supabase');
+            } else if (inputData.action === 'select') {
+              handleSelection(inputData.playerId, 'supabase');
             }
+            
+            // Process through InputRouter if it's a navigation/selection input
+            if (inputRouterRef.current && inputData.playerId && (inputData.action === 'navigate' || inputData.action === 'select')) {
+              console.log('🎮 [CONSOLE] Processing Supabase input through InputRouter');
+              
+              const processedInput = inputRouterRef.current.processSupabaseInput(inputData.playerId, {
+                type: inputData.action === 'navigate' ? 'dpad' : 'button',
+                action: inputData.action === 'navigate' ? inputData.direction : 'a',
+                data: inputData,
+                timestamp: inputData.timestamp || Date.now()
+              });
+              
+              if (processedInput) {
+                console.log('✅ [CONSOLE] Supabase input processed:', processedInput);
+                setLastProcessedInput(processedInput);
+              }
+            }
+          } catch (error) {
+            console.error('❌ [CONSOLE] Error parsing Supabase input data:', error);
           }
         }
-      )
-      .subscribe((status) => {
-        console.log('📡 [CONSOLE] Supabase input fallback subscription status:', status);
-      });
+      }
+    )
+    .subscribe((status) => {
+      console.log('📡 [CONSOLE] Supabase input fallback subscription status:', status);
+    });
 
-    return () => {
-      console.log('🧹 [CONSOLE] Cleaning up Supabase input fallback subscription');
-      inputChannel.unsubscribe();
-    };
-  }, [sessionId, isLobbyLocked, connectionError]);
+  return () => {
+    console.log('🧹 [CONSOLE] Cleaning up Supabase input fallback subscription');
+    inputChannel.unsubscribe();
+  };
+}, [sessionId, isLobbyLocked, connectionError, handleNavigation, handleSelection]);
 
   // Generate a random 6-character lobby code
   const generateLobbyCode = () => {
