@@ -874,6 +874,23 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             deviceId={myPlayerId}
             webrtcStatus={webrtc.status}
           />
+          
+          {/* ✅ NEW: Log Forwarding Test Panel */}
+          <div className="bg-green-900/20 border border-green-500/20 rounded-lg p-4">
+            <h4 className="text-green-300 font-medium mb-3">📱➡️🖥️ Log Forwarding Test</h4>
+            <div className="space-y-2">
+              <button
+                onClick={testLogForwarding}
+                className="w-full py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-sm transition-colors"
+              >
+                🧪 Send Test Logs to Console Screen
+              </button>
+              <div className="text-xs text-gray-400 text-center">
+                Press this button and check the console screen for your logs!
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Host Controls - Only show in waiting state */}
@@ -945,14 +962,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             <div className="relative w-48 h-48">
               <div className="absolute inset-0 rounded-full bg-gray-800 border-2 border-gray-700 shadow-2xl">
                 {/* Center button (Select) */}
-                <button
-                  onClick={sendSelection}
-                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 border-indigo-400 transition-all duration-150 shadow-lg active:scale-95"
-                >
-                  <span className="text-xs font-bold">SEL</span>
-                </button>
-                
-                {/* Direction buttons with enhanced feedback */}
                <button 
   onClick={() => sendNavigationMinimal('left')}
   className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
@@ -1024,6 +1033,16 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                 <span>Connected:</span>
                 <span className="text-blue-300">{webrtc.status.connectedDevices.length}</span>
               </div>
+              <button
+  onClick={async () => {
+    console.log('🧪 [PHONE] Simple navigation test');
+    await sendNavigationMinimal('TEST_RIGHT');
+    console.log('🧪 [PHONE] Check console screen for navigation event');
+  }}
+  className="w-full py-2 bg-blue-500/20 border border-blue-500/30 rounded text-blue-300 text-sm"
+>
+  🧪 Test Phone → Console Navigation
+</button>
             </div>
             <div className="mt-2 text-center text-green-400 text-xs">
               ✅ Phone logs forwarding to console screen • Enhanced input format active
