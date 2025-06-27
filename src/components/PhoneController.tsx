@@ -205,83 +205,41 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
-  const sendNavigationEnhanced = async (direction: string) => {
-  console.log('🚨 [PHONE] === ENHANCED NAVIGATION DEBUG ===');
-  console.log('🚨 [PHONE] Direction:', direction);
-  console.log('🚨 [PHONE] Current session ID:', currentSessionId);
-  console.log('🚨 [PHONE] Player ID:', myPlayerId);
-  console.log('🚨 [PHONE] Player name:', playerName);
-  console.log('🚨 [PHONE] Lobby locked:', isLobbyLocked);
-  console.log('🚨 [PHONE] WebRTC status:', webrtc.status);
-
-  if (!currentSessionId) {
-    console.error('❌ [PHONE] Cannot send - no session ID');
+ const sendNavigationMinimal = async (direction: string) => {
+  if (!currentSessionId || !myPlayerId) {
+    console.log('❌ [PHONE] Missing session or player ID');
     return;
   }
 
-  if (!myPlayerId) {
-    console.error('❌ [PHONE] Cannot send - no player ID');
-    return;
-  }
-
-  // FORCE SUPABASE MODE FOR TESTING
-  console.log('📡 [PHONE] FORCING Supabase mode for debugging...');
-  
-  const navigationData = {
-    action: 'navigate',
-    direction: direction,
-    timestamp: Date.now(),
-    playerId: myPlayerId,
-    playerName: playerName,
-    source: 'phone_debug_test'
-  };
-
-  console.log('📤 [PHONE] Sending data:', navigationData);
+  console.log(`🎮 [PHONE] Sending ${direction} navigation`);
 
   try {
-    // Method 1: Update sessions table
-    const { data: updateResult, error: updateError } = await supabase
+    // ONLY update the session table, no phone_logs spam
+    const { error } = await supabase
       .from('sessions')
-      .update({ 
-        selected_editor: JSON.stringify(navigationData),
+      .update({
+        selected_editor: JSON.stringify({
+          action: 'navigate',
+          direction: direction,
+          playerId: myPlayerId,
+          playerName: playerName,
+          timestamp: Date.now(),
+          source: 'phone_controller'
+        }),
         updated_at: new Date().toISOString()
       })
-      .eq('id', currentSessionId)
-      .select();
+      .eq('id', currentSessionId);
 
-    console.log('📡 [PHONE] Supabase update result:', updateResult);
-    
-    if (updateError) {
-      console.error('❌ [PHONE] Supabase update error:', updateError);
+    if (error) {
+      console.error('❌ [PHONE] Navigation failed:', error);
     } else {
-      console.log('✅ [PHONE] Supabase update successful!');
+      console.log('✅ [PHONE] Navigation sent successfully');
     }
-
-    // Method 2: Also insert direct navigation record for testing
-    const { data: insertResult, error: insertError } = await supabase
-      .from('phone_logs')
-      .insert({
-        session_id: currentSessionId,
-        device_name: playerName,
-        message: `[NAVIGATION] ${direction} - ${Date.now()}`,
-        log_data: navigationData
-      })
-      .select();
-
-    console.log('📱 [PHONE] Phone log insert result:', insertResult);
-    
-    if (insertError) {
-      console.error('❌ [PHONE] Phone log insert error:', insertError);
-    } else {
-      console.log('✅ [PHONE] Phone log insert successful!');
-    }
-
   } catch (error) {
-    console.error('💥 [PHONE] Exception during navigation send:', error);
+    console.error('❌ [PHONE] Navigation error:', error);
   }
-
-  console.log('🚨 [PHONE] === END NAVIGATION DEBUG ===');
 };
+
 
   useEffect(() => {
     console.log('🚀 [PHONE] PhoneController mounted with lobby code:', lobbyCode);
@@ -350,66 +308,47 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   }, [currentSessionId, myPlayerId, isLobbyLocked, webrtc.status.isInitialized]);
 
   useEffect(() => {
-    if (currentSessionId) {
-      console.log('🔄 [PHONE] Setting up subscriptions for session:', currentSessionId);
-      loadPlayers();
+  if (!sessionId) return;
+
+  console.log('📡 [CONSOLE] Starting session listener for:', sessionId.slice(-8));
+
+  const sessionChannel = supabase
+    .channel(`session_navigation_${sessionId}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'sessions',
+      filter: `id=eq.${sessionId}`
+    }, (payload) => {
+      const newData = payload.new as any;
       
-      // Set up real-time subscriptions with unique channel names
-      const devicesSubscription = supabase
-        .channel(`devices_changes_${currentSessionId}`)
-        .on('postgres_changes', 
-          { 
-            event: '*', 
-            schema: 'public', 
-            table: 'devices',
-            filter: `session_id=eq.${currentSessionId}`
-          }, 
-          (payload) => {
-            console.log('📱 [PHONE] Device change detected:', payload);
-            loadPlayers();
-          }
-        )
-        .subscribe((status) => {
-          console.log('📱 [PHONE] Devices subscription status:', status);
-        });
-
-      const sessionSubscription = supabase
-        .channel(`session_changes_${currentSessionId}`)
-        .on('postgres_changes', 
-          { 
-            event: 'UPDATE', 
-            schema: 'public', 
-            table: 'sessions',
-            filter: `id=eq.${currentSessionId}`
-          }, 
-          (payload) => {
-            console.log('🏠 [PHONE] Session change detected:', payload);
-            const newData = payload.new as any;
-            const wasLocked = isLobbyLocked;
-            const nowLocked = newData.is_locked || false;
+      if (newData.selected_editor) {
+        try {
+          const inputData = JSON.parse(newData.selected_editor);
+          
+          if (inputData.action === 'navigate' && inputData.source === 'phone_controller') {
+            console.log('🎮 [CONSOLE] Phone navigation received:', inputData.direction, 'from', inputData.playerName);
             
-            setIsLobbyLocked(nowLocked);
-            
-            if (!wasLocked && nowLocked) {
-              console.log('🔒 [PHONE] Lobby locked - instantly switching to editor selection mode');
-              setGameStatus('editor_selection');
-            } else if (wasLocked && !nowLocked) {
-              console.log('🔓 [PHONE] Lobby unlocked - switching back to waiting mode');
-              setGameStatus('waiting');
-            }
+            // Process navigation
+            handleNavigation(inputData.direction, inputData.playerId, 'supabase');
           }
-        )
-        .subscribe((status) => {
-          console.log('🏠 [PHONE] Session subscription status:', status);
-        });
+        } catch (error) {
+          // Silently ignore parsing errors
+        }
+      }
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('✅ [CONSOLE] Navigation listener ready');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('❌ [CONSOLE] Navigation listener failed');
+      }
+    });
 
-      return () => {
-        console.log('🧹 [PHONE] Cleaning up subscriptions');
-        devicesSubscription.unsubscribe();
-        sessionSubscription.unsubscribe();
-      };
-    }
-  }, [currentSessionId, myPlayerId, isLobbyLocked]);
+  return () => {
+    sessionChannel.unsubscribe();
+  };
+}, [sessionId]); // Listen regardless of lobby lock
 
   const joinLobby = async () => {
     if (!playerName.trim() || !lobbyCode) {
@@ -935,23 +874,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             deviceId={myPlayerId}
             webrtcStatus={webrtc.status}
           />
-          
-          {/* ✅ NEW: Log Forwarding Test Panel */}
-          <div className="bg-green-900/20 border border-green-500/20 rounded-lg p-4">
-            <h4 className="text-green-300 font-medium mb-3">📱➡️🖥️ Log Forwarding Test</h4>
-            <div className="space-y-2">
-              <button
-                onClick={testLogForwarding}
-                className="w-full py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-sm transition-colors"
-              >
-                🧪 Send Test Logs to Console Screen
-              </button>
-              <div className="text-xs text-gray-400 text-center">
-                Press this button and check the console screen for your logs!
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Host Controls - Only show in waiting state */}
@@ -1031,33 +953,33 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                 </button>
                 
                 {/* Direction buttons with enhanced feedback */}
-                <button 
-                  onClick={() => sendNavigationEnhanced('up')}
-                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-t-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
-                >
-                  <ChevronUp size={20} className="text-white" />
-                </button>
-                
-                <button 
-                  onClick={() => sendNavigationEnhanced('down')}
-                  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-b-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
-                >
-                  <ChevronDown size={20} className="text-white" />
-                </button>
-                
-                <button 
-                  onClick={() => sendNavigationEnhanced('right')}
-                  className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-r-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
-                >
-                  <ChevronRight size={20} className="text-white" />
-                </button>
-                
-                <button 
-                  onClick={() => sendNavigationEnhanced('left')}
-                  className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-l-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
-                >
-                  <ChevronLeft size={20} className="text-white" />
-                </button>
+               <button 
+  onClick={() => sendNavigationMinimal('left')}
+  className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
+>
+  <ChevronLeft size={20} className="text-white" />
+</button>
+
+<button 
+  onClick={() => sendNavigationMinimal('right')}
+  className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
+>
+  <ChevronRight size={20} className="text-white" />
+</button>
+
+<button 
+  onClick={() => sendNavigationMinimal('up')}
+  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
+>
+  <ChevronUp size={20} className="text-white" />
+</button>
+
+<button 
+  onClick={() => sendNavigationMinimal('down')}
+  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
+>
+  <ChevronDown size={20} className="text-white" />
+</button>
               </div>
             </div>
           </div>
