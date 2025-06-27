@@ -835,291 +835,71 @@ const ConsoleDisplay: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white">
-      {/* Header */}
-      <header className="p-4 border-b border-indigo-500/20 backdrop-blur-md bg-black/20">
+      <header className="p-4 border-b border-indigo-500/20 backdrop-blur-md bg-black/20 sticky top-0 z-50">
         <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Code size={28} className="text-indigo-300" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
-              VibeConsole
-            </h1>
-            {/* Last navigation display */}
-            {lastNavigationDirection && (
-              <div className="ml-4 flex items-center gap-2 bg-purple-900/30 px-3 py-1 rounded-full border border-purple-500/30">
-                <span className="text-purple-300 text-sm">Last Input:</span>
-                <span className="text-white font-mono bg-purple-500/20 px-2 py-1 rounded text-sm">
-                  {lastNavigationDirection}
-                </span>
-              </div>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">VibeConsole</h1>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full">
-              <Users size={16} />
-              <span>{players.filter(p => p.deviceType === 'phone').length}/4 players</span>
-            </div>
-            {lobbyCode && (
-              <div className="bg-purple-500/20 px-3 py-1 rounded-full">
-                <span className="font-mono text-lg">{lobbyCode}</span>
-              </div>
-            )}
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
-              connectionError 
-                ? 'bg-red-500/20 text-red-300' 
-                : 'bg-green-500/20 text-green-300'
-            }`}>
-              <Wifi size={16} />
-              <span>{connectionError ? 'Offline' : 'Live'}</span>
-            </div>
-            <button
-              onClick={() => setShowDebugPanel(!showDebugPanel)}
-              className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
-                webrtc.status.isInitialized 
-                  ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
-                  : 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30'
-              }`}
-            >
-              <Activity size={16} />
-              <span>WebRTC</span>
-              <div className={`w-2 h-2 rounded-full ${
-                webrtc.status.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-gray-400'
-              }`}></div>
-              <span className="text-xs">
-                {webrtc.status.connectedDevices.length}/{Object.keys(webrtc.status.connections).length}
-              </span>
-            </button>
+            <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full"><Users size={16} /><span>{players.filter(p => p.deviceType === 'phone').length}/4</span></div>
+            {lobbyCode && <div className="bg-purple-500/20 px-3 py-1 rounded-full font-mono text-lg">{lobbyCode}</div>}
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${connectionError ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}`}><Wifi size={16} /><span>{connectionError ? 'Offline' : 'Live'}</span></div>
+            <button onClick={() => setShowDebugPanel(!showDebugPanel)} className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 px-3 py-1 rounded-full flex items-center gap-2"><Activity size={16} /> Debug</button>
           </div>
         </div>
       </header>
 
-      {/* Connection Error Banner */}
       {connectionError && sessionId && (
-        <div className="bg-red-500/20 border-b border-red-500/30 p-3">
-          <div className="container mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2 text-red-300">
-              <AlertCircle size={16} />
-              <span className="text-sm">{connectionError}</span>
-            </div>
-            <button
-              onClick={handleRetryConnection}
-              disabled={isRetrying}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
-                isRetrying
-                  ? 'bg-gray-600 cursor-not-allowed'
-                  : 'bg-red-600 hover:bg-red-700'
-              }`}
-            >
-              {isRetrying ? 'Retrying...' : 'Retry'}
-            </button>
-          </div>
-        </div>
+        <div className="bg-red-500/20 p-3 text-center text-red-300">{connectionError}</div>
       )}
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Game Area */}
           <div className="lg:col-span-2">
-            <div className="bg-black/20 rounded-lg p-8 border border-indigo-500/20 h-96 flex flex-col items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 animate-pulse"></div>
-              </div>
-              
-              <div className="relative z-10 text-center">
-                <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
-                  Waiting for Players
-                </h2>
-                <p className="text-indigo-200 mb-8 text-center max-w-md">
-                  Share the lobby code or scan the QR code to join the game
-                </p>
-                
-                {players.filter(p => p.deviceType === 'phone').length === 0 ? (
-                  <div className="text-center">
-                    <div className="text-6xl mb-4 animate-bounce">🎮</div>
-                    <p className="text-gray-400 text-lg">No players connected yet</p>
-                    <p className="text-sm text-gray-500 mt-2">First player to join becomes the host</p>
-                    <div className="mt-4 flex items-center justify-center gap-2 text-sm text-indigo-300">
-                      <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
-                      <span>Waiting for connections...</span>
+            <div className="bg-black/20 rounded-lg p-8 border border-indigo-500/20 h-96 flex flex-col items-center justify-center">
+              <h2 className="text-3xl font-bold mb-4">Waiting for Players</h2>
+              <p className="text-indigo-200 mb-8 max-w-md text-center">Share the lobby code or scan the QR code to join.</p>
+              <div className="flex justify-center gap-4">
+                {players.filter(p => p.deviceType === 'phone').map(player => (
+                  <div key={player.id} className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-2xl border-2 border-white/20 relative">
+                      {player.name.charAt(0).toUpperCase()}
+                      {player.isHost && <Crown size={14} className="absolute -top-1 -right-1 text-yellow-400" />}
+                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-900 ${webrtc.status.connectedDevices.includes(player.id) ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`}></div>
                     </div>
+                    <span className="mt-2 block text-sm">{player.name}</span>
                   </div>
-                ) : (
-                  <div className="text-center">
-                    <div className="text-4xl mb-4 animate-pulse">👥</div>
-                    <p className="text-green-400 font-medium text-xl mb-2">
-                      {players.filter(p => p.deviceType === 'phone').length} player{players.filter(p => p.deviceType === 'phone').length > 1 ? 's' : ''} connected!
-                    </p>
-                    {players.find(p => p.isHost && p.deviceType === 'phone') && (
-                      <p className="text-purple-300 text-sm mt-2 flex items-center justify-center gap-1">
-                        <Crown size={16} className="text-yellow-400" />
-                        Host: {players.find(p => p.isHost && p.deviceType === 'phone')?.name}
-                      </p>
-                    )}
-                    <p className="text-gray-400 text-sm mt-2">
-                      Waiting for host to lock the lobby...
-                    </p>
-                    
-                    {/* Player avatars */}
-                    <div className="flex justify-center gap-2 mt-4">
-                      {players.filter(p => p.deviceType === 'phone').map((player) => (
-                        <div key={player.id} className="relative">
-                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
-                            {player.name.charAt(0).toUpperCase()}
-                          </div>
-                          {player.isHost && (
-                            <Crown size={12} className="absolute -top-1 -right-1 text-yellow-400" />
-                          )}
-                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-900 ${
-                            webrtc.status.connectedDevices.includes(player.id) ? 'bg-green-400' : 'bg-yellow-400'
-                          } animate-pulse`}></div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
 
-            {/* Debug Panel */}
+            {/* ✅ FIX 2: Corrected JSX structure for the debug panel */}
             {showDebugPanel && (
               <div className="mt-6 space-y-6">
                 {/* Data Flow Status */}
                 <div className="bg-cyan-900/20 border border-cyan-500/20 rounded-lg p-4">
                   <h4 className="text-cyan-300 font-bold mb-3">🔗 Complete Data Flow Status</h4>
-                  
-                  <div className="space-y-3 text-sm">
-                    <div className="grid grid-cols-4 gap-2">
-                      {/* Step 1: Phone Input */}
-                      <div className={`p-2 rounded border text-center ${
-                        phoneLogs.length > 0 
-                          ? 'bg-green-500/20 border-green-500/30 text-green-300' 
-                          : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
-                      }`}>
-                        <div className="text-xs font-bold">1. Phone Input</div>
-                        <div className="text-xs">{phoneLogs.length} logs</div>
-                      </div>
-                      
-                      {/* Step 2: Console Receives */}
-                      <div className={`p-2 rounded border text-center ${
-                        lastProcessedInput 
-                          ? 'bg-blue-500/20 border-blue-500/30 text-blue-300' 
-                          : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
-                      }`}>
-                        <div className="text-xs font-bold">2. Console Receives</div>
-                        <div className="text-xs">
-                          {lastProcessedInput ? `${lastProcessedInput.input.type}.${lastProcessedInput.input.action}` : 'None'}
-                        </div>
-                      </div>
-                      
-                      {/* Step 3: Navigation Processing */}
-                      <div className={`p-2 rounded border text-center ${
-                        navigationEvents.length > 0 
-                          ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' 
-                          : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
-                      }`}>
-                        <div className="text-xs font-bold">3. Navigation</div>
-                        <div className="text-xs">{navigationEvents.length} events</div>
-                      </div>
-                      
-                      {/* Step 4: Editor Selection */}
-                      <div className={`p-2 rounded border text-center ${
-                        isLobbyLocked && editorNavigationData 
-                          ? 'bg-orange-500/20 border-orange-500/30 text-orange-300' 
-                          : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
-                      }`}>
-                        <div className="text-xs font-bold">4. Editor Selection</div>
-                        <div className="text-xs">
-                          {isLobbyLocked ? `Index: ${currentEditorIndex}` : 'Locked required'}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="border-t border-cyan-500/30 pt-3">
-                      <div className="text-cyan-300 font-medium mb-2">Current Flow Status:</div>
-                      <div className="space-y-1 text-xs">
-                        <div className="flex justify-between">
-                          <span>Phone → Console Transport:</span>
-                          <span className={webrtc.status.connectedDevices.length > 0 ? 'text-green-300' : 'text-orange-300'}>
-                            {webrtc.status.connectedDevices.length > 0 ? 'WebRTC P2P' : 'Supabase Fallback'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Console → InputRouter:</span>
-                          <span className={inputRouterRef.current ? 'text-green-300' : 'text-red-300'}>
-                            {inputRouterRef.current ? 'Active' : 'Inactive'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Console → EditorSelection:</span>
-                          <span className={isLobbyLocked ? 'text-green-300' : 'text-yellow-300'}>
-                            {isLobbyLocked ? 'Connected' : 'Waiting for lock'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Last Navigation Data:</span>
-                          <span className="text-gray-300">
-                            {editorNavigationData ? 
-                              `${editorNavigationData.direction} (${editorNavigationData.source})` : 
-                              'None'
-                            }
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="text-xs text-gray-300">
+                    <p>Phone Input Logs: {phoneLogs.length}</p>
+                    <p>Navigation Events: {navigationEvents.length}</p>
+                    <p>Last Processed Input: {lastProcessedInput ? `${lastProcessedInput.input.type}.${lastProcessedInput.input.action}` : 'None'}</p>
+                    <p>Lobby Locked: {isLobbyLocked ? 'Yes' : 'No'}</p>
+                    <p>Editor Index: {currentEditorIndex}</p>
                   </div>
                 </div>
 
                 {/* Navigation Events Panel */}
                 <div className="bg-purple-900/20 border border-purple-500/20 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-2">
                     <h4 className="text-purple-300 font-bold">🎮 Navigation Events ({navigationEvents.length})</h4>
-                    <button
-                      onClick={() => setNavigationEvents([])}
-                      className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-2 py-1 rounded text-sm border border-red-500/30 transition-colors flex items-center gap-1"
-                    >
-                      <Trash2 size={12} />
-                      Clear
-                    </button>
+                    <button onClick={() => setNavigationEvents([])} className="text-red-300 hover:text-red-400"><Trash2 size={14} /></button>
                   </div>
-                  
-                  <div className="max-h-60 overflow-y-auto bg-black/30 rounded p-3 space-y-2">
-                    {navigationEvents.length === 0 ? (
-                      <div className="text-gray-500 text-center py-8">
-                        <div className="text-4xl mb-2">🎮</div>
-                        <div>No navigation events yet</div>
-                        <div className="text-sm mt-2">Navigation inputs from phone controllers will appear here</div>
+                  <div className="max-h-48 overflow-y-auto space-y-1 text-xs">
+                    {navigationEvents.map((event, i) => (
+                      <div key={i} className="flex justify-between items-center p-1.5 bg-black/20 rounded">
+                        <span>{event.direction} from {event.deviceName}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${event.source === 'webrtc' ? 'bg-blue-500/30' : 'bg-orange-500/30'}`}>{event.source}</span>
                       </div>
-                    ) : (
-                      navigationEvents.map((event, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 bg-purple-900/30 rounded border border-purple-500/20">
-                          <div className="flex items-center gap-3">
-                            <span className={`text-sm font-mono px-2 py-1 rounded border ${
-                              event.direction === 'SELECT' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
-                              'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                            }`}>
-                              {event.direction}
-                            </span>
-                            <span className="text-white text-sm font-medium">{event.deviceName}</span>
-                            <span className="text-gray-400 text-xs">({event.deviceId})</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs px-2 py-1 rounded border ${
-                              event.source === 'webrtc' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 
-                              'bg-orange-500/20 text-orange-300 border-orange-500/30'
-                            }`}>
-                              {event.source}
-                            </span>
-                            <span className="text-gray-400 text-xs">{event.timestamp}</span>
-                          </div>
-                        </div>
-                      ))
-                    )}
+                    ))}
                   </div>
-                  
-                  {navigationEvents.length > 0 && (
-                    <div className="mt-3 text-xs text-gray-400 text-center">
-                      Showing last {navigationEvents.length} navigation events • Auto-scrolls • Real-time controller input tracking
-                    </div>
-                  )}
                 </div>
 
                 <WebRTCDebugPanel
@@ -1129,302 +909,67 @@ const ConsoleDisplay: React.FC = () => {
                   getDetailedStatus={webrtc.getDetailedStatus}
                 />
                 
+                {/* Restored InputRouter and Testing Panel */}
                 <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                  <h4 className="text-green-300 font-medium mb-2">✅ InputRouter Integration</h4>
-                  <div className="flex gap-2 mb-2">
-                    <button
-                      onClick={manualConnectAll}
-                      disabled={!webrtc.status.isInitialized || !!connectionError}
-                      className={`px-3 py-1 border rounded text-sm transition-colors ${
-                        webrtc.status.isInitialized && !connectionError
-                          ? 'bg-green-500/20 hover:bg-green-500/30 border-green-500/30 text-green-300'
-                          : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
-                      }`}
-                    >
-                      Force Connect All
-                    </button>
-                    <button
-                      onClick={() => webrtc.updateStatus()}
-                      disabled={!webrtc.status.isInitialized || !!connectionError}
-                      className={`px-3 py-1 border rounded text-sm transition-colors ${
-                        webrtc.status.isInitialized && !connectionError
-                          ? 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/30 text-blue-300'
-                          : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
-                      }`}
-                    >
-                      Refresh Status
-                    </button>
-                    <button
-                      onClick={testInputProcessing}
-                      disabled={!inputRouterRef.current || !!connectionError}
-                      className={`px-3 py-1 border rounded text-sm transition-colors ${
-                        inputRouterRef.current && !connectionError
-                          ? 'bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/30 text-purple-300'
-                          : 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
-                      }`}
-                    >
-                      Test Input
-                    </button>
+                  <h4 className="text-green-300 font-medium mb-2">✅ InputRouter & Testing</h4>
+                  <div className="flex gap-2 mb-4">
+                    <button onClick={manualConnectAll} className="px-3 py-1 border rounded text-sm bg-green-500/20 border-green-500/30 text-green-300">Force Connect</button>
+                    <button onClick={() => webrtc.updateStatus()} className="px-3 py-1 border rounded text-sm bg-blue-500/20 border-blue-500/30 text-blue-300">Refresh Status</button>
+                  </div>
+                  <div className="mt-4 p-3 bg-green-900/20 rounded border border-green-500/30">
+                    <h5 className="text-green-300 font-bold mb-2">🧪 Test Console Navigation</h5>
+                    <div className="grid grid-cols-4 gap-2">
+                      <button onClick={() => handleNavigation('left', 'test-console')} className="py-1 bg-green-500/20 hover:bg-green-500/30 rounded">Left</button>
+                      <button onClick={() => handleNavigation('right', 'test-console')} className="py-1 bg-green-500/20 hover:bg-green-500/30 rounded">Right</button>
+                      <button onClick={() => handleNavigation('up', 'test-console')} className="py-1 bg-green-500/20 hover:bg-green-500/30 rounded">Up</button>
+                      <button onClick={() => handleSelection('test-console')} className="py-1 bg-blue-500/20 hover:bg-blue-500/30 rounded">Select</button>
+                    </div>
+                  </div>
+                  {lastProcessedInput && (
+                    <div className="mt-2 p-2 bg-purple-500/10 border border-purple-500/20 rounded text-xs">
+                      <p><strong>Last Input:</strong> {lastProcessedInput.deviceName}: {lastProcessedInput.input.type}.{lastProcessedInput.input.action}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
-                    <button
-  onClick={async () => {
-    console.log('🚨 [CONSOLE] TESTING DATABASE ACCESS');
-    
-    try {
-      // Test 1: Read sessions table
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .single();
-        
-      console.log('📊 [CONSOLE] Current session data:', sessions);
-      if (sessionsError) console.error('❌ [CONSOLE] Sessions error:', sessionsError);
-      
-      // Test 2: Read phone logs
-      const { data: logs, error: logsError } = await supabase
-        .from('phone_logs')
-        .select('*')
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: false })
-        .limit(5);
-        
-      console.log('📱 [CONSOLE] Recent phone logs:', logs);
-      if (logsError) console.error('❌ [CONSOLE] Logs error:', logsError);
-      
-    } catch (error) {
-      console.error('💥 [CONSOLE] Database test exception:', error);
-    }
-  }}
-  className="px-3 py-1 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-sm"
->
-  🚨 Test DB Access
-</button>
-</div>
-</div>
-)}
-</div>
-
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Connection Info */}
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <QrCode className="text-indigo-300" />
-                Join Game
-              </h3>
-              
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><QrCode /> Join Game</h3>
               {isCreatingSession ? (
-                <div className="mb-4 flex justify-center">
-                  <div className="w-32 h-32 bg-gray-800/50 rounded-lg flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400"></div>
-                  </div>
-                </div>
+                <div className="flex justify-center items-center h-32"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400"></div></div>
               ) : qrCodeData ? (
-                <div className="mb-4 flex justify-center">
-                  <img 
-                    src={qrCodeData} 
-                    alt="QR Code" 
-                    className="w-32 h-32 rounded-lg border border-indigo-500/30" 
-                  />
-                </div>
-              ) : (
-                <div className="mb-4 flex justify-center">
-                  <div className="w-32 h-32 bg-gray-800/50 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-                    QR Code Error
-                  </div>
-                </div>
-              )}
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm text-indigo-300 block mb-1">Lobby Code</label>
-                  <div className="bg-indigo-900/50 px-3 py-2 rounded border border-indigo-500/30 font-mono text-lg text-center">
-                    {isCreatingSession ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-400"></div>
-                        <span className="text-indigo-400">Generating...</span>
-                      </div>
-                    ) : (
-                      lobbyCode || 'ERROR'
-                    )}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="text-sm text-indigo-300 block mb-1">Connection URL</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={connectionUrl}
-                      readOnly
-                      className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
-                    />
-                    <button
-                      onClick={copyConnectionUrl}
-                      disabled={!connectionUrl}
-                      className={`px-3 py-2 rounded transition-colors ${
-                        connectionUrl 
-                          ? 'bg-indigo-500 hover:bg-indigo-600' 
-                          : 'bg-gray-600 cursor-not-allowed'
-                      }`}
-                    >
-                      {copied ? <Check size={16} /> : <Copy size={16} />}
-                    </button>
-                  </div>
-                </div>
+                <div className="mb-4 flex justify-center"><img src={qrCodeData} alt="QR Code" className="w-32 h-32 rounded-lg" /></div>
+              ) : <p>Error loading QR Code.</p>}
+              <div className="flex gap-2">
+                <input type="text" value={connectionUrl} readOnly className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm w-full" />
+                <button onClick={copyConnectionUrl} className="px-3 py-2 rounded bg-indigo-500 hover:bg-indigo-600">{copied ? <Check size={16} /> : <Copy size={16} />}</button>
               </div>
             </div>
 
-            {/* Connected Players */}
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Users className="text-indigo-300" />
-                Players ({players.filter(p => p.deviceType === 'phone').length}/4)
-              </h3>
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Users /> Players ({players.filter(p => p.deviceType === 'phone').length}/4)</h3>
               <div className="space-y-3">
-                {players.filter(p => p.deviceType === 'phone').length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-3 animate-bounce">📱</div>
-                    <p className="text-indigo-300 font-medium">Waiting for players...</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      First player to join becomes the host
-                    </p>
+                {players.filter(p => p.deviceType === 'phone').map(player => (
+                  <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg">
+                    <div className={`w-3 h-3 rounded-full ${webrtc.status.connectedDevices.includes(player.id) ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
+                    <span className="font-medium">{player.name}</span>
+                    {player.isHost && <Crown size={16} className="text-yellow-400" />}
                   </div>
-                ) : (
-                  players.filter(p => p.deviceType === 'phone').map((player) => {
-                    const timeSinceLastSeen = Date.now() - player.lastSeen;
-                    const isRecentlyActive = timeSinceLastSeen < 30000;
-                    
-                    return (
-                      <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20 transition-all hover:bg-indigo-900/40">
-                        <div className={`w-3 h-3 rounded-full ${
-                          webrtc.status.connectedDevices.includes(player.id) 
-                            ? 'bg-green-400' 
-                            : isRecentlyActive 
-                              ? 'bg-yellow-400' 
-                              : 'bg-gray-400'
-                        } animate-pulse`}></div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-medium">{player.name}</span>
-                            {player.isHost && (
-                              <Crown size={16} className="text-yellow-400" />
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {player.isHost ? 'Host' : 'Player'} • {
-                              webrtc.status.connectedDevices.includes(player.id) 
-                                ? 'WebRTC Connected'
-                                : isRecentlyActive 
-                                  ? 'Recently Active'
-                                  : 'Inactive'
-                            }
-                          </div>
-                        </div>
-                        <div className={`text-xs px-2 py-1 rounded ${
-                          webrtc.status.connectedDevices.includes(player.id)
-                            ? 'text-green-400 bg-green-400/10'
-                            : isRecentlyActive
-                              ? 'text-yellow-400 bg-yellow-400/10'
-                              : 'text-gray-400 bg-gray-400/10'
-                        }`}>
-                          {webrtc.status.connectedDevices.includes(player.id) 
-                            ? 'P2P' 
-                            : isRecentlyActive 
-                              ? 'Online' 
-                              : 'Offline'}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+                ))}
+                {players.filter(p => p.deviceType === 'phone').length === 0 && <p className="text-gray-400 text-center py-4">Waiting for players...</p>}
               </div>
             </div>
-
-            {/* System Status */}
+            
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Wifi className="text-indigo-300" />
-                System Status
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Database:</span>
-                  <span className={connectionError ? 'text-red-300' : 'text-green-300'}>
-                    {connectionError ? 'Disconnected ❌' : 'Connected ✅'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">InputRouter:</span>
-                  <span className="text-green-300">{inputRouterRef.current ? 'Active ✅' : 'Inactive'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Phone Logs:</span>
-                  <span className="text-pink-300">{phoneLogs.length} received ✅</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Navigation Events:</span>
-                  <span className="text-purple-300">{navigationEvents.length} processed ✅</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Last Input:</span>
-                  <span className="text-purple-300">
-                    {lastProcessedInput ? `${lastProcessedInput.input.type}.${lastProcessedInput.input.action}` : 'None'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Current Host:</span>
-                  <span className="text-yellow-300">
-                    {players.find(p => p.isHost && p.deviceType === 'phone')?.name || 'None'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">WebRTC Status:</span>
-                  <span className={`${webrtc.status.isInitialized && !connectionError ? 'text-green-300' : 'text-gray-300'}`}>
-                    {webrtc.status.isInitialized && !connectionError ? 'Ready' : 'Disabled'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">P2P Connections:</span>
-                  <span className="text-blue-300">
-                    {webrtc.status.connectedDevices.length}/{Object.keys(webrtc.status.connections).length}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Data Flow:</span>
-                  <span className="text-green-300">
-                    Phone → Console → {isLobbyLocked ? 'EditorSelection' : 'Waiting'} ✅
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Current Editor:</span>
-                  <span className="text-cyan-300">
-                    {isLobbyLocked ? `Index ${currentEditorIndex}` : 'N/A'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className={`mt-6 p-4 border rounded-lg ${
-                connectionError 
-                  ? 'bg-red-500/10 border-red-500/20' 
-                  : 'bg-green-500/10 border-green-500/20'
-              }`}>
-                <h4 className={`font-medium mb-2 ${
-                  connectionError ? 'text-red-300' : 'text-green-300'
-                }`}>
-                  {connectionError ? '⚠️ System Issues:' : '✅ System Health:'}
-                </h4>
-                <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• InputRouter: ✅ Integrated</li>
-                  <li>• Game Data Format: ✅ Structured</li>
-                  <li>• Phone Log Forwarding: ✅ Active</li>
-                  <li>• Navigation Event Tracking: ✅ Active</li>
-                  <li>• WebRTC Processing: {connectionError ? '⚠️ Limited' : '✅ Active'}</li>
-                  <li>• Fallback Support: {connectionError ? '❌ Unavailable' : '✅ Supabase'}</li>
-                  <li>• Real-time Updates: {connectionError ? '❌ Offline' : '✅ Active'}</li>
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Wifi /> System Status</h3>
+                <ul className="space-y-2 text-sm">
+                    <li className="flex justify-between"><span>Database:</span><span className={connectionError ? 'text-red-300' : 'text-green-300'}>{connectionError ? 'Offline' : 'Connected'}</span></li>
+                    <li className="flex justify-between"><span>InputRouter:</span><span className="text-green-300">{inputRouterRef.current ? 'Active' : 'Inactive'}</span></li>
+                    <li className="flex justify-between"><span>P2P Connections:</span><span className="text-blue-300">{webrtc.status.connectedDevices.length}/{players.filter(p => p.deviceType === 'phone').length}</span></li>
                 </ul>
-              </div>
             </div>
           </div>
         </div>
