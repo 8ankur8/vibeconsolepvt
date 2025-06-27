@@ -308,17 +308,17 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   }, [currentSessionId, myPlayerId, isLobbyLocked, webrtc.status.isInitialized]);
 
   useEffect(() => {
-  if (!sessionId) return;
+  if (!currentSessionId) return;
 
-  console.log('📡 [CONSOLE] Starting session listener for:', sessionId.slice(-8));
+  console.log('📡 [CONSOLE] Starting session listener for:', currentSessionId.slice(-8));
 
   const sessionChannel = supabase
-    .channel(`session_navigation_${sessionId}`)
+    .channel(`session_navigation_${currentSessionId}`)
     .on('postgres_changes', {
       event: 'UPDATE',
       schema: 'public',
       table: 'sessions',
-      filter: `id=eq.${sessionId}`
+      filter: `id=eq.${currentSessionId}`
     }, (payload) => {
       const newData = payload.new as any;
       
@@ -348,7 +348,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   return () => {
     sessionChannel.unsubscribe();
   };
-}, [sessionId]); // Listen regardless of lobby lock
+}, [currentSessionId]); // Listen regardless of lobby lock
 
   const joinLobby = async () => {
     if (!playerName.trim() || !lobbyCode) {
