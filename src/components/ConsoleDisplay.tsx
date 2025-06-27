@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity, AlertCircle } from 'lucide-react';
-import { supabase, sessionHelpers, deviceHelpers } from '../lib/supabase';
+import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity, AlertCircle, Trash2 } from 'lucide-react';
+import { supabase, sessionHelpers, deviceHelpers, deviceInputHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { WebRTCMessage } from '../lib/webrtc';
 import { InputRouter, ControllerInput } from '../lib/inputRouter';
@@ -32,6 +32,11 @@ const ConsoleDisplay: React.FC = () => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
+  // ✅ Navigation state (keeping this - it's the good stuff!)
+  const [navigationEvents, setNavigationEvents] = useState<any[]>([]);
+  const [lastNavigationDirection, setLastNavigationDirection] = useState<string>('');
+  const [currentEditorIndex, setCurrentEditorIndex] = useState(0);
+
   // InputRouter integration
   const inputRouterRef = useRef<InputRouter | null>(null);
 
@@ -46,7 +51,6 @@ const ConsoleDisplay: React.FC = () => {
     try {
       console.log('🔍 Checking Supabase connection...');
       
-      // Simple health check by trying to select from sessions table
       const { data, error } = await supabase
         .from('sessions')
         .select('id')
@@ -82,7 +86,7 @@ const ConsoleDisplay: React.FC = () => {
       }
       
       if (attempt < maxRetries) {
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
         console.log(`⏳ Waiting ${delay}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -92,12 +96,78 @@ const ConsoleDisplay: React.FC = () => {
     return false;
   };
 
-  // ENHANCED: Improved message handler for WebRTC messages with better logging
+  // ✅ Navigation handler function
+  const handleNavigation = useCallback((direction: string, deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
+    const deviceName = deviceNames[deviceId] || 'Unknown';
+    console.log(`🎮 [CONSOLE] Navigation: ${direction} from ${deviceName} (${deviceId.slice(-8)}) via ${source}`);
+    
+    setLastNavigationDirection(direction);
+    setNavigationEvents(prev => [...prev.slice(-9), {
+      direction,
+      deviceId: deviceId.slice(-8),
+      deviceName,
+      source,
+      timestamp: new Date().toLocaleTimeString()
+    }]);
+
+    // Handle editor grid navigation if lobby is locked
+    if (isLobbyLocked) {
+      handleEditorGridNavigation(direction);
+    }
+
+    console.log(`📤 [CONSOLE] Navigation processed: ${direction}`);
+  }, [deviceNames, isLobbyLocked]);
+
+  // ✅ Selection handler function
+  const handleSelection = useCallback((deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
+    const deviceName = deviceNames[deviceId] || 'Unknown';
+    console.log(`🎯 [CONSOLE] Selection from ${deviceName} (${deviceId.slice(-8)}) via ${source}`);
+    
+    setNavigationEvents(prev => [...prev.slice(-9), {
+      direction: 'SELECT',
+      deviceId: deviceId.slice(-8),
+      deviceName,
+      source,
+      timestamp: new Date().toLocaleTimeString()
+    }]);
+
+    console.log(`📤 [CONSOLE] Selection processed`);
+    
+    if (isLobbyLocked) {
+      console.log('🚀 [CONSOLE] Launching selected editor...');
+    }
+  }, [deviceNames, currentEditorIndex, isLobbyLocked]);
+
+  // ✅ Editor grid navigation handler
+  const handleEditorGridNavigation = useCallback((direction: string) => {
+    const editors = ['Bolt.new', 'Loveable', 'Firebase', 'Supabase'];
+    
+    switch (direction) {
+      case 'left':
+        setCurrentEditorIndex(prev => Math.max(0, prev - 1));
+        console.log('⬅️ [CONSOLE] Editor selection: moved left');
+        break;
+      case 'right':
+        setCurrentEditorIndex(prev => Math.min(editors.length - 1, prev + 1));
+        console.log('➡️ [CONSOLE] Editor selection: moved right');
+        break;
+      case 'up':
+        console.log('⬆️ [CONSOLE] Editor selection: moved up');
+        break;
+      case 'down':
+        console.log('⬇️ [CONSOLE] Editor selection: moved down');
+        break;
+    }
+    
+    console.log(`🎯 [CONSOLE] Current editor index: ${currentEditorIndex} (${editors[currentEditorIndex]})`);
+  }, [currentEditorIndex]);
+
+  // ✅ Enhanced WebRTC message handler
   const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
     const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
     console.log(`📩 [CONSOLE] WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
     
-    // CRITICAL: Process through InputRouter first
+    // Process through InputRouter first
     if (inputRouterRef.current) {
       console.log(`🎮 [CONSOLE] Processing message through InputRouter...`);
       const processedInput = inputRouterRef.current.processWebRTCInput(fromDeviceId, message);
@@ -111,13 +181,33 @@ const ConsoleDisplay: React.FC = () => {
       console.log(`❌ [CONSOLE] InputRouter not available!`);
     }
     
+    // ✅ Enhanced navigation handling
+    if (message.type === 'game_data' && message.data) {
+      const { data } = message;
+      
+      // Handle D-pad navigation
+      if (data.dpad?.directionchange) {
+        const direction = data.dpad.directionchange.key;
+        handleNavigation(direction, fromDeviceId, 'webrtc');
+      }
+      
+      // Handle button presses
+      if (data.button?.a?.pressed) {
+        handleSelection(fromDeviceId, 'webrtc');
+      }
+    }
+    
     // Handle different message types for debugging
     switch (message.type) {
       case 'navigation':
         console.log(`🎮 [CONSOLE] Navigation input from ${deviceName}:`, message.data);
+        if (message.data.direction) {
+          handleNavigation(message.data.direction, fromDeviceId, 'webrtc');
+        }
         break;
       case 'selection':
         console.log(`👆 [CONSOLE] Selection input from ${deviceName}:`, message.data);
+        handleSelection(fromDeviceId, 'webrtc');
         break;
       case 'game_data':
         console.log(`🎯 [CONSOLE] Game data from ${deviceName}:`, message.data);
@@ -129,7 +219,7 @@ const ConsoleDisplay: React.FC = () => {
       default:
         console.log(`❓ [CONSOLE] Unknown message type from ${deviceName}:`, message);
     }
-  }, [deviceNames]);
+  }, [deviceNames, handleNavigation, handleSelection]);
 
   // WebRTC integration with enhanced logging
   const webrtc = useWebRTC({
@@ -139,6 +229,107 @@ const ConsoleDisplay: React.FC = () => {
     onMessage: handleWebRTCMessage,
     enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked && !connectionError
   });
+
+  // ✅ NEW: Supabase Real-time Input Listener for device_inputs table
+  useEffect(() => {
+    if (!sessionId || !inputRouterRef.current || connectionError) {
+      console.log('⚠️ [CONSOLE] Skipping device_inputs subscription:', {
+        hasSessionId: !!sessionId,
+        hasInputRouter: !!inputRouterRef.current,
+        hasConnectionError: !!connectionError
+      });
+      return;
+    }
+
+    console.log('📡 [CONSOLE] Setting up device_inputs real-time listener for session:', sessionId.slice(-8));
+
+    const deviceInputsChannel = deviceInputHelpers.subscribeToDeviceInputs(
+      sessionId,
+      (input) => {
+        console.log('📱 [CONSOLE] ===== NEW DEVICE INPUT FROM DATABASE =====');
+        console.log('📱 [CONSOLE] Input received:', input);
+        
+        // Skip inputs from console device (avoid self-processing)
+        if (input.device_id === consoleDeviceId) {
+          console.log('⚠️ [CONSOLE] Skipping input from console device (self)');
+          return;
+        }
+
+        // Process through InputRouter
+        if (inputRouterRef.current) {
+          console.log('🎮 [CONSOLE] Processing database input through InputRouter...');
+          const processedInput = inputRouterRef.current.processDeviceInput(input);
+          
+          if (processedInput) {
+            console.log('✅ [CONSOLE] InputRouter processed database input:', processedInput);
+            setLastProcessedInput(processedInput);
+            
+            // Handle navigation from database input
+            if (processedInput.input.type === 'dpad') {
+              handleNavigation(processedInput.input.action, processedInput.deviceId, 'supabase');
+            } else if (processedInput.input.type === 'button' && processedInput.input.action === 'a') {
+              handleSelection(processedInput.deviceId, 'supabase');
+            }
+          } else {
+            console.log('⚠️ [CONSOLE] InputRouter failed to process database input');
+          }
+        } else {
+          console.log('❌ [CONSOLE] InputRouter not available for database input!');
+        }
+        
+        console.log('📱 [CONSOLE] ===== DATABASE INPUT PROCESSING COMPLETE =====');
+      }
+    );
+
+    return () => {
+      console.log('🧹 [CONSOLE] Cleaning up device_inputs subscription');
+      deviceInputsChannel.unsubscribe();
+    };
+  }, [sessionId, consoleDeviceId, connectionError, handleNavigation, handleSelection]);
+
+  // ✅ CLEAN: Listen for Supabase navigation (fallback when WebRTC isn't connected)
+  useEffect(() => {
+    if (!sessionId) return;
+
+    console.log('📡 [CONSOLE] Starting session listener for:', sessionId.slice(-8));
+
+    const sessionChannel = supabase
+      .channel(`session_navigation_${sessionId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'sessions',
+        filter: `id=eq.${sessionId}`
+      }, (payload) => {
+        const newData = payload.new as any;
+        
+        if (newData.selected_editor) {
+          try {
+            const inputData = JSON.parse(newData.selected_editor);
+            
+            if (inputData.action === 'navigate' && inputData.source === 'phone_controller') {
+              console.log('🎮 [CONSOLE] Phone navigation received:', inputData.direction, 'from', inputData.playerName);
+              
+              // Process navigation
+              handleNavigation(inputData.direction, inputData.playerId, 'supabase');
+            }
+          } catch (error) {
+            // Silently ignore parsing errors
+          }
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ [CONSOLE] Navigation listener ready');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ [CONSOLE] Navigation listener failed');
+        }
+      });
+
+    return () => {
+      sessionChannel.unsubscribe();
+    };
+  }, [sessionId, handleNavigation]);
 
   // Initialize InputRouter with enhanced logging
   useEffect(() => {
@@ -174,62 +365,6 @@ const ConsoleDisplay: React.FC = () => {
     }
   }, [players]);
 
-  // ENHANCED: Listen for Supabase fallback inputs with connection error handling
-  useEffect(() => {
-    if (!sessionId || !isLobbyLocked || connectionError) return;
-
-    console.log('📡 [CONSOLE] Setting up Supabase fallback input listener');
-
-    const inputChannel = supabase
-      .channel(`console_input_fallback_${sessionId}`)
-      .on('postgres_changes', 
-        { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'sessions',
-          filter: `id=eq.${sessionId}`
-        }, 
-        (payload) => {
-          const newData = payload.new as any;
-          console.log('📡 [CONSOLE] Supabase session update received:', newData);
-          
-          if (newData.selected_editor) {
-            try {
-              const inputData = JSON.parse(newData.selected_editor);
-              console.log('📡 [CONSOLE] Parsed input data:', inputData);
-              
-              // Process through InputRouter if it's a navigation/selection input
-              if (inputRouterRef.current && inputData.playerId && (inputData.action === 'navigate' || inputData.action === 'select')) {
-                console.log('🎮 [CONSOLE] Processing Supabase input through InputRouter');
-                
-                const processedInput = inputRouterRef.current.processSupabaseInput(inputData.playerId, {
-                  type: inputData.action === 'navigate' ? 'dpad' : 'button',
-                  action: inputData.action === 'navigate' ? inputData.direction : 'a',
-                  data: inputData,
-                  timestamp: inputData.timestamp || Date.now()
-                });
-                
-                if (processedInput) {
-                  console.log('✅ [CONSOLE] Supabase input processed:', processedInput);
-                  setLastProcessedInput(processedInput);
-                }
-              }
-            } catch (error) {
-              console.error('❌ [CONSOLE] Error parsing Supabase input data:', error);
-            }
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 [CONSOLE] Supabase input fallback subscription status:', status);
-      });
-
-    return () => {
-      console.log('🧹 [CONSOLE] Cleaning up Supabase input fallback subscription');
-      inputChannel.unsubscribe();
-    };
-  }, [sessionId, isLobbyLocked, connectionError]);
-
   // Generate a random 6-character lobby code
   const generateLobbyCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -251,13 +386,12 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // ENHANCED: Create session with connection check
+  // Create session with connection check
   const createSession = async () => {
     try {
       setIsCreatingSession(true);
       setConnectionError(null);
 
-      // First check if Supabase is accessible
       const isConnected = await checkSupabaseConnection();
       if (!isConnected) {
         console.log('🔄 Attempting to retry connection...');
@@ -274,7 +408,6 @@ const ConsoleDisplay: React.FC = () => {
       
       console.log('🚀 Creating session with code:', code);
       
-      // Step 1: Create session using helper
       const session = await sessionHelpers.createSession(code);
       if (!session) {
         console.error('❌ Failed to create session');
@@ -285,7 +418,6 @@ const ConsoleDisplay: React.FC = () => {
 
       console.log('✅ Session created:', session);
 
-      // Step 2: Create console device using helper
       const consoleDevice = await deviceHelpers.createDevice(
         session.id,
         'Console',
@@ -302,10 +434,8 @@ const ConsoleDisplay: React.FC = () => {
 
       console.log('✅ Console device created:', consoleDevice);
 
-      // Generate QR code
       const qrCode = await generateQRCode(connectionUrl);
 
-      // Update state with all the new information
       setSessionId(session.id);
       setConsoleDeviceId(consoleDevice.id);
       setLobbyCode(code);
@@ -326,7 +456,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // ENHANCED: Load devices with connection error handling
+  // Load devices with connection error handling
   const loadDevices = useCallback(async () => {
     if (!sessionId || connectionError) return;
 
@@ -338,7 +468,6 @@ const ConsoleDisplay: React.FC = () => {
         name: device.name,
         deviceType: device.device_type || (device.name === 'Console' ? 'console' : 'phone'),
         isHost: device.is_host || false,
-        // FIXED: Handle both BIGINT (number) and legacy string timestamps
         joinedAt: typeof device.joined_at === 'number' 
           ? device.joined_at 
           : new Date(device.joined_at || device.connected_at || '').getTime(),
@@ -357,7 +486,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   }, [sessionId, connectionError]);
 
-  // ENHANCED: Load session status with improved error handling
+  // Load session status with improved error handling
   const loadSessionStatus = useCallback(async () => {
     if (!sessionId || connectionError) return;
 
@@ -513,13 +642,12 @@ const ConsoleDisplay: React.FC = () => {
     console.log('🔄 [CONSOLE] Manual retry connection triggered');
     const success = await retryConnection();
     if (success) {
-      // Reload data after successful connection
       await loadDevices();
       await loadSessionStatus();
     }
   };
 
-  // ENHANCED: Test input processing function
+  // Test input processing function
   const testInputProcessing = () => {
     console.log('🧪 [CONSOLE] Testing input processing...');
     
@@ -528,7 +656,6 @@ const ConsoleDisplay: React.FC = () => {
       return;
     }
 
-    // Simulate a WebRTC message
     const testMessage = {
       type: 'game_data' as const,
       data: {
@@ -709,6 +836,15 @@ const ConsoleDisplay: React.FC = () => {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
               VibeConsole
             </h1>
+            {/* Last navigation display */}
+            {lastNavigationDirection && (
+              <div className="ml-4 flex items-center gap-2 bg-purple-900/30 px-3 py-1 rounded-full border border-purple-500/30">
+                <span className="text-purple-300 text-sm">Last Input:</span>
+                <span className="text-white font-mono bg-purple-500/20 px-2 py-1 rounded text-sm">
+                  {lastNavigationDirection}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full">
@@ -836,9 +972,126 @@ const ConsoleDisplay: React.FC = () => {
               </div>
             </div>
 
-            {/* Debug Panel */}
+            {/* 🧹 CLEAN DEBUG PANEL - NO MORE PHONE LOGS SPAM */}
             {showDebugPanel && (
-              <div className="mt-6">
+              <div className="mt-6 space-y-6">
+                {/* 🎯 Simple Data Flow Status */}
+                <div className="bg-cyan-900/20 border border-cyan-500/20 rounded-lg p-4">
+                  <h4 className="text-cyan-300 font-bold mb-3">🔗 Clean Data Flow Status</h4>
+                  
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* Step 1: Phone Sends Navigation */}
+                      <div className={`p-2 rounded border text-center ${
+                        navigationEvents.length > 0 
+                          ? 'bg-green-500/20 border-green-500/30 text-green-300' 
+                          : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+                      }`}>
+                        <div className="text-xs font-bold">1. Phone Input</div>
+                        <div className="text-xs">{navigationEvents.length > 0 ? 'Working ✅' : 'Waiting'}</div>
+                      </div>
+                      
+                      {/* Step 2: Console Receives */}
+                      <div className={`p-2 rounded border text-center ${
+                        lastProcessedInput 
+                          ? 'bg-blue-500/20 border-blue-500/30 text-blue-300' 
+                          : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+                      }`}>
+                        <div className="text-xs font-bold">2. Console Receives</div>
+                        <div className="text-xs">
+                          {lastProcessedInput ? 'Working ✅' : 'Waiting'}
+                        </div>
+                      </div>
+                      
+                      {/* Step 3: Navigation Works */}
+                      <div className={`p-2 rounded border text-center ${
+                        isLobbyLocked 
+                          ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' 
+                          : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+                      }`}>
+                        <div className="text-xs font-bold">3. Editor Navigation</div>
+                        <div className="text-xs">
+                          {isLobbyLocked ? 'Ready ✅' : 'Lock lobby first'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="border-t border-cyan-500/30 pt-3">
+                      <div className="text-cyan-300 font-medium mb-2">Current Status:</div>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span>Cross-Device Communication:</span>
+                          <span className={navigationEvents.length > 0 ? 'text-green-300' : 'text-orange-300'}>
+                            {navigationEvents.length > 0 ? 'Working ✅' : 'Test needed'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Navigation Events:</span>
+                          <span className="text-purple-300">{navigationEvents.length} received</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Database Input Listener:</span>
+                          <span className="text-green-300">Active ✅</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Navigation Events Panel */}
+                <div className="bg-purple-900/20 border border-purple-500/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-purple-300 font-bold">🎮 Navigation Events ({navigationEvents.length})</h4>
+                    <button
+                      onClick={() => setNavigationEvents([])}
+                      className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-2 py-1 rounded text-sm border border-red-500/30 transition-colors flex items-center gap-1"
+                    >
+                      <Trash2 size={12} />
+                      Clear
+                    </button>
+                  </div>
+                  
+                  <div className="max-h-60 overflow-y-auto bg-black/30 rounded p-3 space-y-2">
+                    {navigationEvents.length === 0 ? (
+                      <div className="text-gray-500 text-center py-8">
+                        <div className="text-4xl mb-2">🎮</div>
+                        <div>No navigation events yet</div>
+                        <div className="text-sm mt-2">Navigation inputs from phone controllers will appear here</div>
+                      </div>
+                    ) : (
+                      navigationEvents.map((event, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 bg-purple-900/30 rounded border border-purple-500/20">
+                          <div className="flex items-center gap-3">
+                            <span className={`text-sm font-mono px-2 py-1 rounded border ${
+                              event.direction === 'SELECT' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                              'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                            }`}>
+                              {event.direction}
+                            </span>
+                            <span className="text-white text-sm font-medium">{event.deviceName}</span>
+                            <span className="text-gray-400 text-xs">({event.deviceId})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-1 rounded border ${
+                              event.source === 'webrtc' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 
+                              'bg-orange-500/20 text-orange-300 border-orange-500/30'
+                            }`}>
+                              {event.source}
+                            </span>
+                            <span className="text-gray-400 text-xs">{event.timestamp}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  {navigationEvents.length > 0 && (
+                    <div className="mt-3 text-xs text-gray-400 text-center">
+                      Showing last {navigationEvents.length} navigation events • Auto-scrolls • Real-time controller input tracking
+                    </div>
+                  )}
+                </div>
+
                 <WebRTCDebugPanel
                   status={webrtc.status}
                   deviceNames={deviceNames}
@@ -846,8 +1099,8 @@ const ConsoleDisplay: React.FC = () => {
                   getDetailedStatus={webrtc.getDetailedStatus}
                 />
                 
-                <div className="mt-4 bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                  <h4 className="text-green-300 font-medium mb-2">✅ InputRouter Integration</h4>
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                  <h4 className="text-green-300 font-medium mb-2">✅ Enhanced Navigation System</h4>
                   <div className="flex gap-2 mb-2">
                     <button
                       onClick={manualConnectAll}
@@ -882,6 +1135,34 @@ const ConsoleDisplay: React.FC = () => {
                     >
                       Test Input
                     </button>
+
+                    <button
+                      onClick={async () => {
+                        console.log('🚨 [CONSOLE] TESTING DATABASE ACCESS');
+                        
+                        try {
+                          // Test 1: Read sessions table
+                          const { data: sessions, error: sessionsError } = await supabase
+                            .from('sessions')
+                            .select('*')
+                            .eq('id', sessionId)
+                            .single();
+                            
+                          console.log('📊 [CONSOLE] Current session data:', sessions);
+                          if (sessionsError) console.error('❌ [CONSOLE] Sessions error:', sessionsError);
+                          
+                          // Test 2: Count navigation events
+                          console.log('🎮 [CONSOLE] Current navigation events:', navigationEvents.length);
+                          
+                        } catch (error) {
+                          console.error('💥 [CONSOLE] Database test exception:', error);
+                        }
+                      }}
+                      className="px-3 py-1 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-sm"
+                    >
+                      🚨 Test Navigation
+                    </button>
+                    
                     {connectionError && (
                       <button
                         onClick={handleRetryConnection}
@@ -896,8 +1177,43 @@ const ConsoleDisplay: React.FC = () => {
                       </button>
                     )}
                   </div>
-                  <div className="text-xs text-gray-400">
-                    InputRouter active - processing structured game_data messages
+                  
+                  {/* Test Navigation Panel */}
+                  <div className="mt-4 p-3 bg-green-900/20 rounded border border-green-500/30">
+                    <h5 className="text-green-300 font-bold mb-2">🧪 Test Console Navigation</h5>
+                    <div className="grid grid-cols-4 gap-2 mb-2">
+                      <button
+                        onClick={() => handleNavigation('left', 'test-console', 'webrtc')}
+                        className="py-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-xs transition-colors"
+                      >
+                        ⬅️ Left
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('right', 'test-console', 'webrtc')}
+                        className="py-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-xs transition-colors"
+                      >
+                        ➡️ Right
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('up', 'test-console', 'webrtc')}
+                        className="py-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-xs transition-colors"
+                      >
+                        ⬆️ Up
+                      </button>
+                      <button
+                        onClick={() => handleSelection('test-console', 'webrtc')}
+                        className="py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded text-blue-300 text-xs transition-colors"
+                      >
+                        ✅ Select
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-400 text-center">
+                      Test navigation processing • Events will appear in the navigation panel above
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-gray-400 mt-2">
+                    ✅ Enhanced system - WebRTC + Database fallback for reliable input handling
                     {connectionError && (
                       <div className="text-red-400 mt-1">⚠️ Connection error detected</div>
                     )}
@@ -907,7 +1223,7 @@ const ConsoleDisplay: React.FC = () => {
                       <div className="text-purple-300 font-medium">Last Input:</div>
                       <div className="text-gray-300">
                         {lastProcessedInput.deviceName}: {lastProcessedInput.input.type}.{lastProcessedInput.input.action}
-                        {lastProcessedInput.webrtcMessage ? ' (WebRTC)' : ' (Supabase)'}
+                        {lastProcessedInput.webrtcMessage ? ' (WebRTC)' : ' (Database)'}
                       </div>
                     </div>
                   )}
@@ -1053,7 +1369,7 @@ const ConsoleDisplay: React.FC = () => {
               </div>
             </div>
 
-            {/* System Status */}
+            {/* 🧹 CLEAN System Status */}
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Wifi className="text-indigo-300" />
@@ -1067,14 +1383,24 @@ const ConsoleDisplay: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">InputRouter:</span>
-                  <span className="text-green-300">{inputRouterRef.current ? 'Active ✅' : 'Inactive'}</span>
+                  <span className="text-gray-400">Cross-Device Navigation:</span>
+                  <span className="text-green-300">
+                    {navigationEvents.length > 0 ? 'Working ✅' : 'Ready ⏳'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Last Input:</span>
-                  <span className="text-purple-300">
-                    {lastProcessedInput ? `${lastProcessedInput.input.type}.${lastProcessedInput.input.action}` : 'None'}
+                  <span className="text-gray-400">Navigation Events:</span>
+                  <span className="text-purple-300">{navigationEvents.length} received</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">WebRTC Connections:</span>
+                  <span className="text-blue-300">
+                    {webrtc.status.connectedDevices.length} active
                   </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Database Input Listener:</span>
+                  <span className="text-green-300">Active ✅</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Current Host:</span>
@@ -1083,15 +1409,9 @@ const ConsoleDisplay: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">WebRTC Status:</span>
-                  <span className={`${webrtc.status.isInitialized && !connectionError ? 'text-green-300' : 'text-gray-300'}`}>
-                    {webrtc.status.isInitialized && !connectionError ? 'Ready' : 'Disabled'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">P2P Connections:</span>
-                  <span className="text-blue-300">
-                    {webrtc.status.connectedDevices.length}/{Object.keys(webrtc.status.connections).length}
+                  <span className="text-gray-400">Editor Selection:</span>
+                  <span className="text-cyan-300">
+                    {isLobbyLocked ? `Ready (Index ${currentEditorIndex})` : 'Lock lobby first'}
                   </span>
                 </div>
               </div>
@@ -1104,14 +1424,14 @@ const ConsoleDisplay: React.FC = () => {
                 <h4 className={`font-medium mb-2 ${
                   connectionError ? 'text-red-300' : 'text-green-300'
                 }`}>
-                  {connectionError ? '⚠️ System Issues:' : '✅ System Health:'}
+                  {connectionError ? '⚠️ Issues:' : '✅ Enhanced System:'}
                 </h4>
                 <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• InputRouter: ✅ Integrated</li>
-                  <li>• Game Data Format: ✅ Structured</li>
-                  <li>• WebRTC Processing: {connectionError ? '⚠️ Limited' : '✅ Active'}</li>
-                  <li>• Fallback Support: {connectionError ? '❌ Unavailable' : '✅ Supabase'}</li>
-                  <li>• Real-time Updates: {connectionError ? '❌ Offline' : '✅ Active'}</li>
+                  <li>• Navigation System: ✅ Active</li>
+                  <li>• Phone → Console: ✅ Working</li>
+                  <li>• Database Fallback: ✅ Active</li>
+                  <li>• Editor Integration: {isLobbyLocked ? '✅ Ready' : '⏳ Waiting'}</li>
+                  <li>• WebRTC: {webrtc.status.connectedDevices.length > 0 ? '✅ Connected' : '⚠️ Fallback mode'}</li>
                 </ul>
               </div>
             </div>

@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, sessionHelpers, deviceHelpers } from '../lib/supabase';
+import { supabase, sessionHelpers, deviceHelpers, deviceInputHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
 import WebRTCDebugPanel from './WebRTCDebugPanel';
+import ConnectionTester from './ConnectionTester';
+import PhoneControllerDebugPanel from './PhoneControllerDebugPanel';
 
 interface PhoneControllerProps {
   lobbyCode: string;
@@ -14,6 +16,8 @@ interface Player {
   name: string;
   isHost: boolean;
 }
+
+// Phone log forwarder hook for debugging
 
 const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [playerName, setPlayerName] = useState('');
@@ -123,72 +127,259 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
+  // ENHANCED: Send navigation input using device_inputs table
+  const sendNavigation = async (direction: string) => {
+    if (!currentSessionId || !myPlayerId) {
+      console.log('❌ [PHONE] Missing session or player ID');
+      return;
+    }
+
+    // Throttle navigation to prevent spam
+    const currentTime = Date.now();
+    if (currentTime - lastNavigationTime < 150) {
+      console.log('⏱️ [PHONE] Throttling navigation input - too soon since last input');
+      return;
+    }
+
+    console.log(`🎮 [PHONE] Sending ${direction} navigation`);
+
+    try {
+      // ENHANCED: Send structured game_data message for InputRouter compatibility
+      const webrtcMessage = {
+        type: 'game_data' as const,
+        data: {
+          dpad: {
+            directionchange: {
+              key: direction,
+              pressed: true
+            }
+          }
+        }
+      };
+
+      console.log('📡 [PHONE] Prepared WebRTC message:', webrtcMessage);
+
+      // Find console device to send WebRTC message to
+      const { data: consoleDevice, error: consoleError } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('session_id', currentSessionId)
+        .eq('name', 'Console')
+        .single();
+
+      if (consoleError) {
+        console.error('❌ [PHONE] Error finding console device:', consoleError);
+      }
+
+      let webrtcSent = false;
+      if (consoleDevice && webrtc.status.isInitialized) {
+        console.log('📡 [PHONE] Attempting to send WebRTC message to console:', consoleDevice.id.slice(-8));
+        webrtcSent = webrtc.sendMessage(consoleDevice.id, webrtcMessage);
+        console.log('📡 [PHONE] WebRTC navigation sent:', webrtcSent, 'Message:', webrtcMessage);
+        
+        if (webrtcSent) {
+          console.log('✅ [PHONE] WebRTC message sent successfully');
+        } else {
+          console.log('⚠️ [PHONE] WebRTC message failed to send');
+        }
+      } else {
+        console.log('⚠️ [PHONE] WebRTC not available:', {
+          hasConsoleDevice: !!consoleDevice,
+          webrtcInitialized: webrtc.status.isInitialized,
+          webrtcConnections: Object.keys(webrtc.status.connections).length,
+          webrtcConnected: webrtc.status.connectedDevices.length
+        });
+      }
+
+      // ENHANCED: Store input in device_inputs table
+      const inputCreated = await deviceInputHelpers.createDeviceInput(
+        currentSessionId,
+        myPlayerId,
+        'dpad',
+        direction,
+        {
+          pressed: true,
+          direction: direction,
+          playerName: playerName
+        },
+        webrtcSent ? 'webrtc' : 'supabase',
+        new Date(currentTime).toISOString()
+      );
+
+      if (inputCreated) {
+        console.log('✅ [PHONE] Input stored in device_inputs table');
+      } else {
+        console.error('❌ [PHONE] Failed to store input in device_inputs table');
+      }
+
+      setLastNavigationTime(currentTime);
+      
+      console.log('📊 [PHONE] Navigation send summary:', {
+        direction,
+        webrtcSent,
+        inputStored: !!inputCreated,
+        timestamp: currentTime
+      });
+      
+    } catch (error) {
+      console.error('💥 [PHONE] Error sending navigation:', error);
+    }
+  };
+
+  // ENHANCED: Send selection input using device_inputs table
+  const sendSelection = async () => {
+    console.log('🎯 [PHONE] sendSelection called');
+    console.log('📊 [PHONE] Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
+    
+    if (!currentSessionId || !myPlayerId) {
+      console.log('❌ [PHONE] Cannot send selection - no session ID');
+      return;
+    }
+
+    try {
+      console.log('📤 [PHONE] Sending selection');
+      
+      // ENHANCED: Send structured game_data message for InputRouter compatibility
+      const webrtcMessage = {
+        type: 'game_data' as const,
+        data: {
+          button: {
+            a: {
+              pressed: true
+            }
+          }
+        }
+      };
+
+      console.log('📡 [PHONE] Prepared WebRTC selection message:', webrtcMessage);
+
+      // Find console device to send WebRTC message to
+      const { data: consoleDevice, error: consoleError } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('session_id', currentSessionId)
+        .eq('name', 'Console')
+        .single();
+
+      if (consoleError) {
+        console.error('❌ [PHONE] Error finding console device:', consoleError);
+      }
+
+      let webrtcSent = false;
+      if (consoleDevice && webrtc.status.isInitialized) {
+        console.log('📡 [PHONE] Attempting to send WebRTC selection to console:', consoleDevice.id.slice(-8));
+        webrtcSent = webrtc.sendMessage(consoleDevice.id, webrtcMessage);
+        console.log('📡 [PHONE] WebRTC selection sent:', webrtcSent, 'Message:', webrtcMessage);
+        
+        if (webrtcSent) {
+          console.log('✅ [PHONE] WebRTC selection sent successfully');
+        } else {
+          console.log('⚠️ [PHONE] WebRTC selection failed to send');
+        }
+      } else {
+        console.log('⚠️ [PHONE] WebRTC not available for selection:', {
+          hasConsoleDevice: !!consoleDevice,
+          webrtcInitialized: webrtc.status.isInitialized,
+          webrtcConnections: Object.keys(webrtc.status.connections).length,
+          webrtcConnected: webrtc.status.connectedDevices.length
+        });
+      }
+
+      // ENHANCED: Store input in device_inputs table
+      const inputCreated = await deviceInputHelpers.createDeviceInput(
+        currentSessionId,
+        myPlayerId,
+        'button',
+        'a',
+        {
+          pressed: true,
+          playerName: playerName
+        },
+        webrtcSent ? 'webrtc' : 'supabase'
+      );
+
+      if (inputCreated) {
+        console.log('✅ [PHONE] Selection input stored in device_inputs table');
+      } else {
+        console.error('❌ [PHONE] Failed to store selection input in device_inputs table');
+      }
+
+      console.log('📊 [PHONE] Selection send summary:', {
+        webrtcSent,
+        inputStored: !!inputCreated,
+        timestamp: Date.now()
+      });
+      
+    } catch (error) {
+      console.error('💥 [PHONE] Error sending selection:', error);
+    }
+  };
+
   useEffect(() => {
     console.log('🚀 [PHONE] PhoneController mounted with lobby code:', lobbyCode);
     loadSession();
   }, [lobbyCode]);
 
   useEffect(() => {
-    if (currentSessionId) {
-      console.log('🔄 [PHONE] Setting up subscriptions for session:', currentSessionId);
-      loadPlayers();
-      
-      // Set up real-time subscriptions with unique channel names
-      const devicesSubscription = supabase
-        .channel(`devices_changes_${currentSessionId}`)
-        .on('postgres_changes', 
-          { 
-            event: '*', 
-            schema: 'public', 
-            table: 'devices',
-            filter: `session_id=eq.${currentSessionId}`
-          }, 
-          (payload) => {
-            console.log('📱 [PHONE] Device change detected:', payload);
-            loadPlayers();
-          }
-        )
-        .subscribe((status) => {
-          console.log('📱 [PHONE] Devices subscription status:', status);
-        });
+    console.log('🔍 [PHONE] WebRTC Status Check:', {
+      isInitialized: webrtc.status.isInitialized,
+      sessionId: currentSessionId,
+      myPlayerId: myPlayerId,
+      connections: webrtc.status.connections,
+      connectedDevices: webrtc.status.connectedDevices
+    });
+  }, [webrtc.status]);
+  
+  useEffect(() => {
+    if (!currentSessionId || !myPlayerId || !isLobbyLocked) return;
 
-      const sessionSubscription = supabase
-        .channel(`session_changes_${currentSessionId}`)
-        .on('postgres_changes', 
-          { 
-            event: 'UPDATE', 
-            schema: 'public', 
-            table: 'sessions',
-            filter: `id=eq.${currentSessionId}`
-          }, 
-          (payload) => {
-            console.log('🏠 [PHONE] Session change detected:', payload);
-            const newData = payload.new as any;
-            const wasLocked = isLobbyLocked;
-            const nowLocked = newData.is_locked || false;
-            
-            setIsLobbyLocked(nowLocked);
-            
-            if (!wasLocked && nowLocked) {
-              console.log('🔒 [PHONE] Lobby locked - instantly switching to editor selection mode');
-              setGameStatus('editor_selection');
-            } else if (wasLocked && !nowLocked) {
-              console.log('🔓 [PHONE] Lobby unlocked - switching back to waiting mode');
-              setGameStatus('waiting');
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log('🏠 [PHONE] Session subscription status:', status);
-        });
+    console.log('🔄 [PHONE] Setting up WebRTC connection attempts');
+    
+    const attemptConsoleConnection = async () => {
+      try {
+        // Find console device
+        const { data: consoleDevice, error } = await supabase
+          .from('devices')
+          .select('id')
+          .eq('session_id', currentSessionId)
+          .eq('name', 'Console')
+          .single();
 
-      return () => {
-        console.log('🧹 [PHONE] Cleaning up subscriptions');
-        devicesSubscription.unsubscribe();
-        sessionSubscription.unsubscribe();
-      };
-    }
-  }, [currentSessionId, myPlayerId, isLobbyLocked]);
+        if (error || !consoleDevice) {
+          console.error('❌ [PHONE] Console device not found:', error);
+          return;
+        }
+
+        console.log('📡 [PHONE] Found console device:', consoleDevice.id.slice(-8));
+        
+        // Wait a bit for WebRTC to initialize
+        if (webrtc.status.isInitialized) {
+          console.log('🤝 [PHONE] Attempting connection to console');
+          await webrtc.connectToDevice(consoleDevice.id);
+        } else {
+          console.log('⚠️ [PHONE] WebRTC not initialized yet');
+        }
+      } catch (error) {
+        console.error('💥 [PHONE] Error in console connection:', error);
+      }
+    };
+
+    // Initial attempt after 2 seconds
+    const initialTimeout = setTimeout(attemptConsoleConnection, 2000);
+    
+    // Retry every 10 seconds if not connected
+    const retryInterval = setInterval(() => {
+      if (webrtc.status.connectedDevices.length === 0) {
+        console.log('🔄 [PHONE] Retrying console connection...');
+        attemptConsoleConnection();
+      }
+    }, 10000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(retryInterval);
+    };
+  }, [currentSessionId, myPlayerId, isLobbyLocked, webrtc.status.isInitialized]);
 
   const joinLobby = async () => {
     if (!playerName.trim() || !lobbyCode) {
@@ -229,7 +420,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       const isFirstPlayer = phoneControllers.length === 0;
       console.log('👑 [PHONE] Is first phone controller (will be host)?', isFirstPlayer);
 
-      // ENHANCED: Create device with detailed error logging
+      // Create device with detailed error logging
       console.log('📝 [PHONE] Creating device with parameters:', {
         sessionId: session.id,
         name: playerName.trim(),
@@ -245,7 +436,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       );
 
       if (!device) {
-        // ENHANCED: Get the last error from Supabase for detailed logging
         console.error('❌ [PHONE] Device creation failed - checking Supabase for detailed error...');
         
         // Try to get more specific error information
@@ -337,198 +527,18 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
-  // ENHANCED: Send navigation input via WebRTC with improved logging and fallback
-  const sendNavigation = async (direction: string) => {
-    console.log('🎮 [PHONE] sendNavigation called with direction:', direction);
-    console.log('📊 [PHONE] Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
-    
-    if (!currentSessionId) {
-      console.log('❌ [PHONE] Cannot send navigation - no session ID');
-      return;
-    }
-
-    // Throttle navigation to prevent spam
-    const currentTime = Date.now();
-    if (currentTime - lastNavigationTime < 150) {
-      console.log('⏱️ [PHONE] Throttling navigation input - too soon since last input');
-      return;
-    }
-
-    try {
-      console.log('📤 [PHONE] Sending navigation:', direction, 'at timestamp:', currentTime);
-      
-      // ENHANCED: Send structured game_data message for InputRouter compatibility
-      const webrtcMessage = {
-        type: 'game_data' as const,
-        data: {
-          dpad: {
-            directionchange: {
-              key: direction,
-              pressed: true
-            }
-          }
-        }
-      };
-
-      console.log('📡 [PHONE] Prepared WebRTC message:', webrtcMessage);
-
-      // Find console device to send WebRTC message to
-      const { data: consoleDevice, error: consoleError } = await supabase
-        .from('devices')
-        .select('id')
-        .eq('session_id', currentSessionId)
-        .eq('name', 'Console')
-        .single();
-
-      if (consoleError) {
-        console.error('❌ [PHONE] Error finding console device:', consoleError);
-      }
-
-      let webrtcSent = false;
-      if (consoleDevice && webrtc.status.isInitialized) {
-        console.log('📡 [PHONE] Attempting to send WebRTC message to console:', consoleDevice.id.slice(-8));
-        webrtcSent = webrtc.sendMessage(consoleDevice.id, webrtcMessage);
-        console.log('📡 [PHONE] WebRTC navigation sent:', webrtcSent, 'Message:', webrtcMessage);
-        
-        if (webrtcSent) {
-          console.log('✅ [PHONE] WebRTC message sent successfully');
-        } else {
-          console.log('⚠️ [PHONE] WebRTC message failed to send');
-        }
-      } else {
-        console.log('⚠️ [PHONE] WebRTC not available:', {
-          hasConsoleDevice: !!consoleDevice,
-          webrtcInitialized: webrtc.status.isInitialized,
-          webrtcConnections: Object.keys(webrtc.status.connections).length,
-          webrtcConnected: webrtc.status.connectedDevices.length
-        });
-      }
-
-      // ENHANCED: Always try Supabase fallback for reliability
-      console.log('📤 [PHONE] Sending via Supabase fallback');
-      const { error } = await supabase
-        .from('sessions')
-        .update({ 
-          selected_editor: JSON.stringify({ 
-            action: 'navigate', 
-            direction, 
-            timestamp: currentTime,
-            playerId: myPlayerId,
-            playerName: playerName,
-            source: webrtcSent ? 'webrtc_backup' : 'supabase_primary'
-          })
-        })
-        .eq('id', currentSessionId);
-
-      if (error) {
-        console.error('❌ [PHONE] Error sending navigation via Supabase:', error);
-      } else {
-        console.log('✅ [PHONE] Navigation sent via Supabase');
-      }
-
-      setLastNavigationTime(currentTime);
-      
-      console.log('📊 [PHONE] Navigation send summary:', {
-        direction,
-        webrtcSent,
-        supabaseSent: !error,
-        timestamp: currentTime
-      });
-      
-    } catch (error) {
-      console.error('💥 [PHONE] Error sending navigation:', error);
-    }
-  };
-
-  // ENHANCED: Send selection input via WebRTC with improved logging and fallback
-  const sendSelection = async () => {
-    console.log('🎯 [PHONE] sendSelection called');
-    console.log('📊 [PHONE] Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
-    
-    if (!currentSessionId) {
-      console.log('❌ [PHONE] Cannot send selection - no session ID');
-      return;
-    }
-
-    try {
-      console.log('📤 [PHONE] Sending selection');
-      
-      // ENHANCED: Send structured game_data message for InputRouter compatibility
-      const webrtcMessage = {
-        type: 'game_data' as const,
-        data: {
-          button: {
-            a: {
-              pressed: true
-            }
-          }
-        }
-      };
-
-      console.log('📡 [PHONE] Prepared WebRTC selection message:', webrtcMessage);
-
-      // Find console device to send WebRTC message to
-      const { data: consoleDevice, error: consoleError } = await supabase
-        .from('devices')
-        .select('id')
-        .eq('session_id', currentSessionId)
-        .eq('name', 'Console')
-        .single();
-
-      if (consoleError) {
-        console.error('❌ [PHONE] Error finding console device:', consoleError);
-      }
-
-      let webrtcSent = false;
-      if (consoleDevice && webrtc.status.isInitialized) {
-        console.log('📡 [PHONE] Attempting to send WebRTC selection to console:', consoleDevice.id.slice(-8));
-        webrtcSent = webrtc.sendMessage(consoleDevice.id, webrtcMessage);
-        console.log('📡 [PHONE] WebRTC selection sent:', webrtcSent, 'Message:', webrtcMessage);
-        
-        if (webrtcSent) {
-          console.log('✅ [PHONE] WebRTC selection sent successfully');
-        } else {
-          console.log('⚠️ [PHONE] WebRTC selection failed to send');
-        }
-      } else {
-        console.log('⚠️ [PHONE] WebRTC not available for selection:', {
-          hasConsoleDevice: !!consoleDevice,
-          webrtcInitialized: webrtc.status.isInitialized,
-          webrtcConnections: Object.keys(webrtc.status.connections).length,
-          webrtcConnected: webrtc.status.connectedDevices.length
-        });
-      }
-
-      // ENHANCED: Always try Supabase fallback for reliability
-      console.log('📤 [PHONE] Sending selection via Supabase fallback');
-      const { error } = await supabase
-        .from('sessions')
-        .update({ 
-          selected_editor: JSON.stringify({ 
-            action: 'select', 
-            timestamp: Date.now(),
-            playerId: myPlayerId,
-            playerName: playerName,
-            source: webrtcSent ? 'webrtc_backup' : 'supabase_primary'
-          })
-        })
-        .eq('id', currentSessionId);
-
-      if (error) {
-        console.error('❌ [PHONE] Error sending selection via Supabase:', error);
-      } else {
-        console.log('✅ [PHONE] Selection sent via Supabase');
-      }
-
-      console.log('📊 [PHONE] Selection send summary:', {
-        webrtcSent,
-        supabaseSent: !error,
-        timestamp: Date.now()
-      });
-      
-    } catch (error) {
-      console.error('💥 [PHONE] Error sending selection:', error);
-    }
+  // Test function to verify log forwarding works
+  const testLogForwarding = () => {
+    console.log('🧪 [TEST] Manual test from phone controller - this should appear on console screen!');
+    console.log('🧪 [TEST] WebRTC Status:', webrtc.status);
+    console.error('🧪 [TEST] Test error message - should appear in red on console');
+    console.warn('🧪 [TEST] Test warning message - should appear in yellow on console');
+    console.info('🧪 [TEST] Session info:', { 
+      sessionId: currentSessionId.slice(-8), 
+      playerId: myPlayerId.slice(-8),
+      playerName,
+      isLocked: isLobbyLocked
+    });
   };
 
   if (!isJoined) {
@@ -602,7 +612,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               <p>First player to join becomes the host</p>
               <p>Maximum 4 players per lobby</p>
               <div className="mt-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded text-blue-300 text-xs">
-                ✅ Enhanced input logging active - check browser console for details
+                ✅ Phone log forwarding active - logs will appear on console screen
               </div>
             </div>
           </div>
@@ -684,6 +694,41 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         </div>
       )}
 
+      {showDebugPanel && (
+        <div className="mb-6 space-y-4">
+          <PhoneControllerDebugPanel
+            sessionId={currentSessionId}
+            myPlayerId={myPlayerId}
+            webrtcStatus={webrtc.status}
+            onTestInput={() => {
+              console.log('🧪 Testing input from debug panel');
+              sendNavigation('right');
+            }}
+          />
+          <ConnectionTester
+            sessionId={currentSessionId}
+            deviceId={myPlayerId}
+            webrtcStatus={webrtc.status}
+          />
+          
+          {/* Log Forwarding Test Panel */}
+          <div className="bg-green-900/20 border border-green-500/20 rounded-lg p-4">
+            <h4 className="text-green-300 font-medium mb-3">📱➡️🖥️ Log Forwarding Test</h4>
+            <div className="space-y-2">
+              <button
+                onClick={testLogForwarding}
+                className="w-full py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-sm transition-colors"
+              >
+                🧪 Send Test Logs to Console Screen
+              </button>
+              <div className="text-xs text-gray-400 text-center">
+                Press this button and check the console screen for your logs!
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Host Controls - Only show in waiting state */}
       {isHost && gameStatus === 'waiting' && (
         <div className="mb-6 bg-purple-900/30 rounded-lg p-4 border border-purple-500/20">
@@ -752,41 +797,33 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           <div className="flex justify-center mb-6">
             <div className="relative w-48 h-48">
               <div className="absolute inset-0 rounded-full bg-gray-800 border-2 border-gray-700 shadow-2xl">
-                {/* Center button (Select) */}
-                <button
-                  onClick={sendSelection}
-                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 border-indigo-400 transition-all duration-150 shadow-lg active:scale-95"
-                >
-                  <span className="text-xs font-bold">SEL</span>
-                </button>
-                
-                {/* Direction buttons with enhanced feedback */}
+                {/* Navigation buttons */}
                 <button 
-                  onClick={() => sendNavigation('up')}
-                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-t-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
+                  onClick={() => sendNavigation('left')}
+                  className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
                 >
-                  <ChevronUp size={20} className="text-white" />
+                  <ChevronLeft size={20} className="text-white" />
                 </button>
-                
-                <button 
-                  onClick={() => sendNavigation('down')}
-                  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-b-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
-                >
-                  <ChevronDown size={20} className="text-white" />
-                </button>
-                
+
                 <button 
                   onClick={() => sendNavigation('right')}
-                  className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-r-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
+                  className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
                 >
                   <ChevronRight size={20} className="text-white" />
                 </button>
-                
+
                 <button 
-                  onClick={() => sendNavigation('left')}
-                  className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-l-full border-2 bg-gray-700 hover:bg-purple-600 active:bg-purple-700 border-gray-600 hover:border-purple-500 transition-all duration-150 flex items-center justify-center shadow-lg active:scale-95"
+                  onClick={() => sendNavigation('up')}
+                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
                 >
-                  <ChevronLeft size={20} className="text-white" />
+                  <ChevronUp size={20} className="text-white" />
+                </button>
+
+                <button 
+                  onClick={() => sendNavigation('down')}
+                  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
+                >
+                  <ChevronDown size={20} className="text-white" />
                 </button>
               </div>
             </div>
@@ -832,9 +869,26 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                 <span>Connected:</span>
                 <span className="text-blue-300">{webrtc.status.connectedDevices.length}</span>
               </div>
+              <button
+                onClick={async () => {
+                  console.log('🧪 [PHONE] Testing device input creation');
+                  const testInput = await deviceInputHelpers.createDeviceInput(
+                    currentSessionId,
+                    myPlayerId,
+                    'dpad',
+                    'test_right',
+                    { test: true, timestamp: Date.now() },
+                    'supabase'
+                  );
+                  console.log('🧪 [PHONE] Test input result:', testInput);
+                }}
+                className="col-span-2 w-full py-2 bg-blue-500/20 border border-blue-500/30 rounded text-blue-300 text-sm"
+              >
+                🧪 Test Device Input Creation
+              </button>
             </div>
             <div className="mt-2 text-center text-green-400 text-xs">
-              ✅ Enhanced input format: game_data with dpad/button structure + Supabase fallback
+              ✅ Enhanced input system with device_inputs table • Phone logs forwarding to console
             </div>
           </div>
         </div>

@@ -26,7 +26,6 @@ export interface Session {
   is_locked: boolean;
   selected_editor: string | null;
   created_at: string;
-  updated_at?: string;
 }
 
 export interface Device {
@@ -35,9 +34,21 @@ export interface Device {
   name: string;
   device_type: 'phone' | 'console';
   is_host: boolean;
-  joined_at: number; // FIXED: Changed to number for BIGINT compatibility
-  last_seen: string; // Keep as string for TIMESTAMPTZ
+  joined_at: number; // BIGINT timestamp
+  last_seen: string; // TIMESTAMPTZ
   connected_at?: string; // Legacy column for backward compatibility
+}
+
+export interface DeviceInput {
+  id: string;
+  session_id: string;
+  device_id: string;
+  input_type: 'dpad' | 'button' | 'swipe' | 'touch' | 'accelerometer';
+  input_action: string;
+  input_data: any; // JSONB
+  timestamp: string; // TIMESTAMPTZ
+  source: 'webrtc' | 'supabase';
+  created_at: string;
 }
 
 export interface WebRTCSignal {
@@ -132,7 +143,7 @@ export const sessionHelpers = {
 };
 
 export const deviceHelpers = {
-  // ENHANCED: Create device with proper BIGINT timestamp and explicit connected_at
+  // Create device with proper BIGINT timestamp and explicit connected_at
   async createDevice(
     sessionId: string, 
     name: string, 
@@ -150,7 +161,7 @@ export const deviceHelpers = {
         is_host: isHost,
         joined_at: joinedAtTimestamp,
         last_seen: now,
-        connected_at: now // ENHANCED: Explicitly set connected_at
+        connected_at: now
       });
       
       const { data, error } = await supabase
@@ -162,13 +173,12 @@ export const deviceHelpers = {
           is_host: isHost,
           joined_at: joinedAtTimestamp, // BIGINT timestamp
           last_seen: now, // TIMESTAMPTZ
-          connected_at: now // ENHANCED: Explicitly set connected_at for compatibility
+          connected_at: now // Explicitly set connected_at for compatibility
         })
         .select()
         .single();
 
       if (error) {
-        // ENHANCED: Detailed error logging with full error object
         console.error('❌ DETAILED ERROR creating device:', {
           error: error,
           code: error.code,
@@ -191,7 +201,6 @@ export const deviceHelpers = {
       console.log(`✅ Device created successfully: ${name} (${deviceType})`, data);
       return data;
     } catch (error) {
-      // ENHANCED: Catch and log any exceptions with full details
       console.error('❌ EXCEPTION creating device:', {
         error: error,
         message: error.message,
@@ -268,6 +277,215 @@ export const deviceHelpers = {
   }
 };
 
+// NEW: Device Input Helpers
+export const deviceInputHelpers = {
+  // Create a new device input record
+  async createDeviceInput(
+    sessionId: string,
+    deviceId: string,
+    inputType: 'dpad' | 'button' | 'swipe' | 'touch' | 'accelerometer',
+    inputAction: string,
+    inputData: any = {},
+    source: 'webrtc' | 'supabase' = 'supabase',
+    timestamp?: string
+  ): Promise<DeviceInput | null> {
+    try {
+      const inputTimestamp = timestamp || new Date().toISOString();
+      
+      console.log('📝 Creating device input:', {
+        session_id: sessionId,
+        device_id: deviceId,
+        input_type: inputType,
+        input_action: inputAction,
+        input_data: inputData,
+        source,
+        timestamp: inputTimestamp
+      });
+
+      const { data, error } = await supabase
+        .from('device_inputs')
+        .insert({
+          session_id: sessionId,
+          device_id: deviceId,
+          input_type: inputType,
+          input_action: inputAction,
+          input_data: inputData,
+          source,
+          timestamp: inputTimestamp
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error creating device input:', error);
+        return null;
+      }
+
+      console.log('✅ Device input created successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Exception creating device input:', error);
+      return null;
+    }
+  },
+
+  // Get device inputs for a session (all devices)
+  async getDeviceInputsForSession(
+    sessionId: string, 
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<DeviceInput[]> {
+    try {
+      const { data, error } = await supabase
+        .from('device_inputs')
+        .select(`
+          *,
+          devices!inner(name, device_type)
+        `)
+        .eq('session_id', sessionId)
+        .order('timestamp', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('❌ Error fetching session inputs:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Exception fetching session inputs:', error);
+      return [];
+    }
+  },
+
+  // Get device inputs for a specific device
+  async getDeviceInputsForDevice(
+    deviceId: string, 
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<DeviceInput[]> {
+    try {
+      const { data, error } = await supabase
+        .from('device_inputs')
+        .select('*')
+        .eq('device_id', deviceId)
+        .order('timestamp', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('❌ Error fetching device inputs:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Exception fetching device inputs:', error);
+      return [];
+    }
+  },
+
+  // Get last input for each device in a session
+  async getSessionLastInputs(sessionId: string): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_session_last_inputs', { session_uuid: sessionId });
+
+      if (error) {
+        console.error('❌ Error fetching session last inputs:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Exception fetching session last inputs:', error);
+      return [];
+    }
+  },
+
+  // Subscribe to device inputs for real-time updates
+  subscribeToDeviceInputs(
+    sessionId: string,
+    onNewInput: (input: DeviceInput) => void,
+    deviceId?: string
+  ) {
+    console.log(`📡 Setting up device inputs subscription for session ${sessionId.slice(-8)}`);
+    
+    let filter = `session_id=eq.${sessionId}`;
+    if (deviceId) {
+      filter += `,device_id=eq.${deviceId}`;
+    }
+    
+    const channelName = `device_inputs_${sessionId}${deviceId ? `_${deviceId}` : ''}`;
+    
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'device_inputs',
+          filter
+        }, 
+        (payload) => {
+          console.log('📱 New device input received:', payload);
+          const input = payload.new as DeviceInput;
+          onNewInput(input);
+        }
+      )
+      .subscribe((status) => {
+        console.log(`📱 Device inputs subscription status: ${status}`);
+      });
+
+    return channel;
+  },
+
+  // Get input statistics for a session
+  async getInputStats(sessionId: string, timeRange: number = 60000): Promise<any> {
+    try {
+      const cutoffTime = new Date(Date.now() - timeRange).toISOString();
+      
+      const { data, error } = await supabase
+        .from('device_inputs')
+        .select(`
+          input_type,
+          input_action,
+          source,
+          device_id,
+          devices!inner(name, device_type)
+        `)
+        .eq('session_id', sessionId)
+        .gte('timestamp', cutoffTime);
+
+      if (error) {
+        console.error('❌ Error fetching input stats:', error);
+        return null;
+      }
+
+      // Process statistics
+      const stats = {
+        totalInputs: data.length,
+        webrtcInputs: data.filter(i => i.source === 'webrtc').length,
+        supabaseInputs: data.filter(i => i.source === 'supabase').length,
+        inputTypes: {} as Record<string, number>,
+        deviceBreakdown: {} as Record<string, number>,
+        actionBreakdown: {} as Record<string, number>
+      };
+
+      data.forEach(input => {
+        const inputKey = `${input.input_type}.${input.input_action}`;
+        stats.inputTypes[inputKey] = (stats.inputTypes[inputKey] || 0) + 1;
+        stats.deviceBreakdown[input.devices.name] = (stats.deviceBreakdown[input.devices.name] || 0) + 1;
+        stats.actionBreakdown[input.input_action] = (stats.actionBreakdown[input.input_action] || 0) + 1;
+      });
+
+      return stats;
+    } catch (error) {
+      console.error('❌ Exception fetching input stats:', error);
+      return null;
+    }
+  }
+};
+
 export const webrtcHelpers = {
   // Send WebRTC signal
   async sendSignal(
@@ -332,7 +550,7 @@ export const webrtcHelpers = {
     }
   },
 
-  // ENHANCED: Subscribe to WebRTC signals with refined filter
+  // Subscribe to WebRTC signals with refined filter
   subscribeToWebRTCSignals(
     sessionId: string,
     deviceId: string,
@@ -355,7 +573,6 @@ export const webrtcHelpers = {
           event: 'INSERT', 
           schema: 'public', 
           table: 'webrtc_signals',
-          // ENHANCED: Refined filter - removed processed filter to ensure all signals are received
           filter: `receiver_device_id=eq.${deviceId}`
         }, 
         async (payload) => {
@@ -463,6 +680,7 @@ export const realtimeHelpers = {
 export default {
   sessionHelpers,
   deviceHelpers,
+  deviceInputHelpers,
   webrtcHelpers,
   realtimeHelpers
 };

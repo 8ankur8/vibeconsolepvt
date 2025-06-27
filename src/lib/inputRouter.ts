@@ -229,6 +229,40 @@ export class InputRouter {
     return null;
   }
 
+  // ENHANCED: Process device input from database
+  processDeviceInput(deviceInput: any): ControllerInput | null {
+    const deviceName = this.deviceNames.get(deviceInput.device_id) || 'Unknown Device';
+    
+    console.log(`📡 [InputRouter] Processing device input from ${deviceName}:`, deviceInput);
+
+    try {
+      const inputEvent: InputEvent = {
+        type: deviceInput.input_type,
+        action: deviceInput.input_action,
+        data: deviceInput.input_data || {},
+        timestamp: new Date(deviceInput.timestamp).getTime()
+      };
+
+      const controllerInput: ControllerInput = {
+        deviceId: deviceInput.device_id,
+        deviceName,
+        deviceType: 'phone',
+        input: inputEvent,
+        webrtcMessage: deviceInput.source === 'webrtc'
+      };
+
+      this.addToHistory(controllerInput);
+      this.onInputCallback?.(controllerInput);
+
+      console.log(`✅ [InputRouter] Processed device input from ${deviceName}: ${inputEvent.type}.${inputEvent.action}`);
+      return controllerInput;
+
+    } catch (error) {
+      console.error(`❌ [InputRouter] Error processing device input from ${deviceName}:`, error);
+      return null;
+    }
+  }
+
   // ENHANCED: Process Supabase fallback input (when WebRTC fails)
   processSupabaseInput(deviceId: string, inputData: any): ControllerInput | null {
     const deviceName = this.deviceNames.get(deviceId) || 'Unknown Device';
