@@ -100,22 +100,22 @@ const ConsoleDisplay: React.FC = () => {
 
   // ENHANCED: Improved message handler for WebRTC messages with better logging
   const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
-    const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
-    console.log(`📩 [CONSOLE] WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
-    
-    // CRITICAL: Process through InputRouter first
-    if (inputRouterRef.current) {
-      console.log(`🎮 [CONSOLE] Processing message through InputRouter...`);
-      const processedInput = inputRouterRef.current.processWebRTCInput(fromDeviceId, message);
-      if (processedInput) {
-        console.log(`✅ [CONSOLE] InputRouter processed input from ${deviceName}:`, processedInput);
-        setLastProcessedInput(processedInput);
-      } else {
-        console.log(`⚠️ [CONSOLE] InputRouter failed to process input from ${deviceName}`);
-      }
+  const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
+  console.log(`📩 [CONSOLE] WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
+  
+  // CRITICAL: Process through InputRouter first (keep existing logic)
+  if (inputRouterRef.current) {
+    console.log(`🎮 [CONSOLE] Processing message through InputRouter...`);
+    const processedInput = inputRouterRef.current.processWebRTCInput(fromDeviceId, message);
+    if (processedInput) {
+      console.log(`✅ [CONSOLE] InputRouter processed input from ${deviceName}:`, processedInput);
+      setLastProcessedInput(processedInput);
     } else {
-      console.log(`❌ [CONSOLE] InputRouter not available!`);
+      console.log(`⚠️ [CONSOLE] InputRouter failed to process input from ${deviceName}`);
     }
+  } else {
+    console.log(`❌ [CONSOLE] InputRouter not available!`);
+  }
     
     // Handle different message types for debugging
     switch (message.type) {
@@ -228,24 +228,6 @@ const handleEditorGridNavigation = (direction: string) => {
 
 // 3. ENHANCE YOUR EXISTING handleWebRTCMessage FUNCTION
 // Replace your existing handleWebRTCMessage function with this enhanced version:
-
-const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
-  const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
-  console.log(`📩 [CONSOLE] WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
-  
-  // CRITICAL: Process through InputRouter first
-  if (inputRouterRef.current) {
-    console.log(`🎮 [CONSOLE] Processing message through InputRouter...`);
-    const processedInput = inputRouterRef.current.processWebRTCInput(fromDeviceId, message);
-    if (processedInput) {
-      console.log(`✅ [CONSOLE] InputRouter processed input from ${deviceName}:`, processedInput);
-      setLastProcessedInput(processedInput);
-    } else {
-      console.log(`⚠️ [CONSOLE] InputRouter failed to process input from ${deviceName}`);
-    }
-  } else {
-    console.log(`❌ [CONSOLE] InputRouter not available!`);
-  }
   
   // ENHANCED: Handle navigation messages with our new functions
   if (message.type === 'game_data' && message.data) {
