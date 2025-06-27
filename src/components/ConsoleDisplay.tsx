@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Code, Users, Lock, Unlock, QrCode, Monitor, Activity, Gamepad2, Crown, Wifi, WifiOff, AlertCircle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
+import { Code, Users, Lock, Unlock, Monitor, Activity, Gamepad2, Crown, Wifi, WifiOff, AlertCircle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import { useSession } from '../hooks/useSession';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { supabase, deviceInputHelpers, realtimeHelpers } from '../lib/supabase';
@@ -18,7 +18,6 @@ const ConsoleDisplay: React.FC = () => {
     sessionId,
     consoleDeviceId,
     lobbyCode,
-    qrCodeData,
     connectionUrl,
     players,
     isLobbyLocked,
@@ -389,38 +388,22 @@ const ConsoleDisplay: React.FC = () => {
       <div className="container mx-auto px-6 py-8">
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - QR Code & Connection */}
+          {/* Left Column - Connection Info */}
           <div className="lg:col-span-1">
             <div className="bg-black/20 rounded-xl p-6 border border-indigo-500/20 backdrop-blur-md">
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <QrCode className="text-indigo-300" />
+                <Monitor className="text-indigo-300" />
                 Join Game
               </h2>
               
-              {qrCodeData ? (
-                <div className="text-center mb-6">
-                  <div className="bg-white p-4 rounded-lg inline-block mb-4">
-                    <img src={qrCodeData} alt="QR Code" className="w-48 h-48" />
-                  </div>
-                  <p className="text-sm text-gray-400 mb-2">Scan with your phone camera</p>
-                  <div className="bg-gray-800/50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 mb-1">Or visit:</p>
+              <div className="text-center">
+                <div className="bg-purple-500/20 rounded-lg p-6 border border-purple-500/30">
+                  <p className="text-lg font-bold text-purple-300 mb-2">Lobby Code</p>
+                  <p className="text-4xl font-mono font-bold text-white tracking-wider mb-4">{lobbyCode}</p>
+                  <div className="bg-gray-800/50 rounded-lg p-4">
+                    <p className="text-xs text-gray-400 mb-2">Visit on your phone:</p>
                     <p className="font-mono text-sm text-indigo-300 break-all">{connectionUrl}</p>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center mb-6">
-                  <div className="w-48 h-48 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400"></div>
-                  </div>
-                  <p className="text-gray-400">Generating QR code...</p>
-                </div>
-              )}
-
-              <div className="text-center">
-                <div className="bg-purple-500/20 rounded-lg p-4 border border-purple-500/30">
-                  <p className="text-lg font-bold text-purple-300 mb-1">Lobby Code</p>
-                  <p className="text-3xl font-mono font-bold text-white tracking-wider">{lobbyCode}</p>
                 </div>
               </div>
             </div>
@@ -450,7 +433,7 @@ const ConsoleDisplay: React.FC = () => {
                 <div className="text-center py-8">
                   <Gamepad2 size={48} className="text-gray-500 mx-auto mb-4" />
                   <p className="text-gray-400 text-lg">Waiting for players to join...</p>
-                  <p className="text-gray-500 text-sm mt-2">Share the QR code or lobby code</p>
+                  <p className="text-gray-500 text-sm mt-2">Share the lobby code</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
