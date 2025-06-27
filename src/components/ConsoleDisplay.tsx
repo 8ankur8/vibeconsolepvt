@@ -230,22 +230,24 @@ const handleEditorGridNavigation = (direction: string) => {
 // Replace your existing handleWebRTCMessage function with this enhanced version:
   
   // ENHANCED: Handle navigation messages with our new functions
-  if (message.type === 'game_data' && message.data) {
+ if (message.type === 'game_data' && message.data) {
     const { data } = message;
     
     // Handle D-pad navigation
     if (data.dpad?.directionchange) {
       const direction = data.dpad.directionchange.key;
+      console.log(`🎮 [CONSOLE] WebRTC Navigation: ${direction} from ${deviceName}`);
       handleNavigation(direction, fromDeviceId, 'webrtc');
     }
     
     // Handle button presses
     if (data.button?.a?.pressed) {
+      console.log(`🎯 [CONSOLE] WebRTC Selection from ${deviceName}`);
       handleSelection(fromDeviceId, 'webrtc');
     }
   }
   
-  // Handle different message types for debugging
+  // Handle different message types for debugging (keep existing logic)
   switch (message.type) {
     case 'navigation':
       console.log(`🎮 [CONSOLE] Navigation input from ${deviceName}:`, message.data);
@@ -267,7 +269,7 @@ const handleEditorGridNavigation = (direction: string) => {
     default:
       console.log(`❓ [CONSOLE] Unknown message type from ${deviceName}:`, message);
   }
-}, [deviceNames, handleNavigation, handleSelection]);
+}, [deviceNames]);
 
   const navigationData = {
     direction,
