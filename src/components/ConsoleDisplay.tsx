@@ -288,6 +288,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   }, [players]);
 
+ 
 
   // ✅ Enhanced Supabase fallback listener
   useEffect(() => {
@@ -1199,76 +1200,10 @@ const ConsoleDisplay: React.FC = () => {
 >
   🚨 Test DB Access
 </button>
-                    
-                    {connectionError && (
-                      <button
-                        onClick={handleRetryConnection}
-                        disabled={isRetrying}
-                        className={`px-3 py-1 border rounded text-sm transition-colors ${
-                          isRetrying
-                            ? 'bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed'
-                            : 'bg-red-500/20 hover:bg-red-500/30 border-red-500/30 text-red-300'
-                        }`}
-                      >
-                        {isRetrying ? 'Retrying...' : 'Retry Connection'}
-                      </button>
-                    )}
-                  </div>
-                  
-                  {/* Test Navigation Panel */}
-                  <div className="mt-4 p-3 bg-green-900/20 rounded border border-green-500/30">
-                    <h5 className="text-green-300 font-bold mb-2">🧪 Test Console Navigation</h5>
-                    <div className="grid grid-cols-4 gap-2 mb-2">
-                      <button
-                        onClick={() => handleNavigation('left', 'test-console', 'webrtc')}
-                        className="py-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-xs transition-colors"
-                      >
-                        ⬅️ Left
-                      </button>
-                      <button
-                        onClick={() => handleNavigation('right', 'test-console', 'webrtc')}
-                        className="py-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-xs transition-colors"
-                      >
-                        ➡️ Right
-                      </button>
-                      <button
-                        onClick={() => handleNavigation('up', 'test-console', 'webrtc')}
-                        className="py-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-xs transition-colors"
-                      >
-                        ⬆️ Up
-                      </button>
-                      <button
-                        onClick={() => handleSelection('test-console', 'webrtc')}
-                        className="py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded text-blue-300 text-xs transition-colors"
-                      >
-                        ✅ Select
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-400 text-center">
-                      Test navigation processing • Events will appear in the navigation panel above
-                    </div>
-                  </div>
-                  
-                  <div className="text-xs text-gray-400 mt-2">
-                    InputRouter active - processing structured game_data messages
-                    {connectionError && (
-                      <div className="text-red-400 mt-1">⚠️ Connection error detected</div>
-                    )}
-                  </div>
-                  {lastProcessedInput && (
-                    <div className="mt-2 p-2 bg-purple-500/10 border border-purple-500/20 rounded text-xs">
-                      <div className="text-purple-300 font-medium">Last Input:</div>
-                      <div className="text-gray-300">
-                        {lastProcessedInput.deviceName}: {lastProcessedInput.input.type}.{lastProcessedInput.input.action}
-                        {lastProcessedInput.webrtcMessage ? ' (WebRTC)' : ' (Supabase)'}
-                      </div>
-                    </div>
-                  )}
-                </div>
-            </div>
-      
-             
-               
+</div>
+</div>
+)}
+</div>
 
           {/* Sidebar */}
           <div className="space-y-6">
