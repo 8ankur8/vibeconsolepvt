@@ -56,7 +56,7 @@ export const useSession = (): UseSessionReturn => {
         id: device.id,
         name: device.name,
         deviceType: device.name === 'Console' ? 'console' : 'phone',
-        isHost: device.is_host || false,
+        isHost: device.is_leader || false,
         joinedAt: new Date(device.connected_at || '').getTime(),
         status: 'connected'
       }));
@@ -121,7 +121,7 @@ export const useSession = (): UseSessionReturn => {
         .insert({
           session_id: session.id,
           name: 'Console',
-          is_host: true
+          is_leader: true
         })
         .select()
         .single();

@@ -12,7 +12,6 @@ interface UseWebRTCProps {
 
 interface WebRTCStatus {
   isInitialized: boolean;
-  isSignalingChannelReady: boolean; // ENHANCED: New state variable
   connections: Record<string, RTCPeerConnectionState>;
   dataChannels: Record<string, RTCDataChannelState | 'none'>;
   connectedDevices: string[];
@@ -31,7 +30,6 @@ export const useWebRTC = ({
   const webrtcManager = useRef<WebRTCManager | null>(null);
   const [status, setStatus] = useState<WebRTCStatus>({
     isInitialized: false,
-    isSignalingChannelReady: false, // ENHANCED: Initialize to false
     connections: {},
     dataChannels: {},
     connectedDevices: [],
@@ -117,7 +115,6 @@ export const useWebRTC = ({
       }
       setStatus({
         isInitialized: false,
-        isSignalingChannelReady: false, // ENHANCED: Reset signaling channel state
         connections: {},
         dataChannels: {},
         connectedDevices: [],
@@ -169,13 +166,10 @@ export const useWebRTC = ({
         console.log('📡 WebRTC signaling subscription status:', status);
         if (status === 'SUBSCRIBED') {
           console.log('✅ WebRTC signaling channel ready');
-          // ENHANCED: Set signaling channel ready state
-          setStatus(prev => ({ ...prev, isSignalingChannelReady: true }));
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ WebRTC signaling channel error - check RLS policies');
           setStatus(prev => ({ 
             ...prev, 
-            isSignalingChannelReady: false, // ENHANCED: Reset on error
             lastError: 'Signaling channel error - check database permissions' 
           }));
         }
@@ -183,7 +177,6 @@ export const useWebRTC = ({
 
     return () => {
       console.log('🧹 Cleaning up WebRTC signaling');
-      setStatus(prev => ({ ...prev, isSignalingChannelReady: false })); // ENHANCED: Reset on cleanup
       signalChannel.unsubscribe();
     };
   }, [sessionId, deviceId, updateStatus]);
