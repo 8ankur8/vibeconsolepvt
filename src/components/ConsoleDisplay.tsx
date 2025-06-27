@@ -33,6 +33,8 @@ const ConsoleDisplay: React.FC = () => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [navigationEvents, setNavigationEvents] = useState<any[]>([]);
   const [lastNavigationDirection, setLastNavigationDirection] = useState<string>('');
+  const [currentEditorIndex, setCurrentEditorIndex] = useState(0);
+  const [editorNavigationData, setEditorNavigationData] = useState(null);
   // ✅ NEW: Phone logs state
   const [phoneLogs, setPhoneLogs] = useState<any[]>([]);
 
@@ -880,6 +882,61 @@ const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: s
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white">
       {/* Header */}
       <header className="p-4 border-b border-indigo-500/20 backdrop-blur-md bg-black/20">
+  <div className="container mx-auto flex justify-between items-center">
+    <div className="flex items-center gap-2">
+      <Code size={28} className="text-indigo-300" />
+      <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+        VibeConsole
+      </h1>
+      {/* NEW: Last navigation display */}
+      {lastNavigationDirection && (
+        <div className="ml-4 flex items-center gap-2 bg-purple-900/30 px-3 py-1 rounded-full border border-purple-500/30">
+          <span className="text-purple-300 text-sm">Last Input:</span>
+          <span className="text-white font-mono bg-purple-500/20 px-2 py-1 rounded text-sm">
+            {lastNavigationDirection}
+          </span>
+        </div>
+      )}
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full">
+        <Users size={16} />
+        <span>{players.filter(p => p.deviceType === 'phone').length}/4 players</span>
+      </div>
+      {lobbyCode && (
+        <div className="bg-purple-500/20 px-3 py-1 rounded-full">
+          <span className="font-mono text-lg">{lobbyCode}</span>
+        </div>
+      )}
+      <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
+        connectionError 
+          ? 'bg-red-500/20 text-red-300' 
+          : 'bg-green-500/20 text-green-300'
+      }`}>
+        <Wifi size={16} />
+        <span>{connectionError ? 'Offline' : 'Live'}</span>
+      </div>
+      <button
+        onClick={() => setShowDebugPanel(!showDebugPanel)}
+        className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
+          webrtc.status.isInitialized 
+            ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
+            : 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30'
+        }`}
+      >
+        <Activity size={16} />
+        <span>WebRTC</span>
+        <div className={`w-2 h-2 rounded-full ${
+          webrtc.status.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-gray-400'
+        }`}></div>
+        <span className="text-xs">
+          {webrtc.status.connectedDevices.length}/{Object.keys(webrtc.status.connections).length}
+        </span>
+      </button>
+    </div>
+  </div>
+</header>
+      {/* <header className="p-4 border-b border-indigo-500/20 backdrop-blur-md bg-black/20">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Code size={28} className="text-indigo-300" />
@@ -924,7 +981,7 @@ const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: s
             </button>
           </div>
         </div>
-      </header>
+      </header> */}
 
       {/* Connection Error Banner */}
       {connectionError && sessionId && (
