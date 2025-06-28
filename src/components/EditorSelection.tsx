@@ -296,7 +296,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 className={`relative group transition-all duration-500 transform cursor-pointer ${
                   isSelected 
                     ? 'scale-100 z-10' 
-                    : 'scale-95 opacity-60'
+                    : 'scale-95 opacity-80'
                 }`}
                 onClick={() => {
                   setSelectedIndex(index);
