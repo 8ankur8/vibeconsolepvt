@@ -26,12 +26,11 @@ const ConsoleDisplay: React.FC = () => {
   const [isLobbyLocked, setIsLobbyLocked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(true);
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [lastProcessedInput, setLastProcessedInput] = useState<ControllerInput | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  // ✅ Navigation state (keeping this - it's the good stuff!)
+  // Navigation state
   const [navigationEvents, setNavigationEvents] = useState<any[]>([]);
   const [lastNavigationDirection, setLastNavigationDirection] = useState<string>('');
   const [currentEditorIndex, setCurrentEditorIndex] = useState(0);
@@ -39,7 +38,7 @@ const ConsoleDisplay: React.FC = () => {
   // InputRouter integration
   const inputRouterRef = useRef<InputRouter | null>(null);
 
-  // Create device name mapping for WebRTC messages and debug panel
+  // Create device name mapping for WebRTC messages
   const deviceNames = players.reduce((acc, player) => {
     acc[player.id] = player.name;
     return acc;
@@ -95,7 +94,7 @@ const ConsoleDisplay: React.FC = () => {
     return false;
   };
 
-  // ✅ Navigation handler function
+  // Navigation handler function
   const handleNavigation = useCallback((direction: string, deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
     const deviceName = deviceNames[deviceId] || 'Unknown';
     console.log(`🎮 [CONSOLE] Navigation: ${direction} from ${deviceName} (${deviceId.slice(-8)}) via ${source}`);
@@ -117,7 +116,7 @@ const ConsoleDisplay: React.FC = () => {
     console.log(`📤 [CONSOLE] Navigation processed: ${direction}`);
   }, [deviceNames, isLobbyLocked]);
 
-  // ✅ Selection handler function
+  // Selection handler function
   const handleSelection = useCallback((deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
     const deviceName = deviceNames[deviceId] || 'Unknown';
     console.log(`🎯 [CONSOLE] Selection from ${deviceName} (${deviceId.slice(-8)}) via ${source}`);
@@ -137,7 +136,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   }, [deviceNames, currentEditorIndex, isLobbyLocked]);
 
-  // ✅ Editor grid navigation handler
+  // Editor grid navigation handler
   const handleEditorGridNavigation = useCallback((direction: string) => {
     const editors = ['Bolt.new', 'Loveable', 'Firebase', 'Supabase'];
     
@@ -161,7 +160,7 @@ const ConsoleDisplay: React.FC = () => {
     console.log(`🎯 [CONSOLE] Current editor index: ${currentEditorIndex} (${editors[currentEditorIndex]})`);
   }, [currentEditorIndex]);
 
-  // ✅ Enhanced WebRTC message handler
+  // Enhanced WebRTC message handler
   const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
     const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
     console.log(`📩 [CONSOLE] WebRTC Message from ${deviceName} (${fromDeviceId.slice(-8)}):`, message);
@@ -180,7 +179,7 @@ const ConsoleDisplay: React.FC = () => {
       console.log(`❌ [CONSOLE] InputRouter not available!`);
     }
     
-    // ✅ Enhanced navigation handling
+    // Enhanced navigation handling
     if (message.type === 'game_data' && message.data) {
       const { data } = message;
       
@@ -229,7 +228,7 @@ const ConsoleDisplay: React.FC = () => {
     enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked && !connectionError
   });
 
-  // ✅ NEW: Supabase Real-time Input Listener for device_inputs table
+  // Supabase Real-time Input Listener for device_inputs table
   useEffect(() => {
     if (!sessionId || !inputRouterRef.current || connectionError) {
       console.log('⚠️ [CONSOLE] Skipping device_inputs subscription:', {
@@ -286,7 +285,7 @@ const ConsoleDisplay: React.FC = () => {
     };
   }, [sessionId, consoleDeviceId, connectionError, handleNavigation, handleSelection]);
 
-  // ✅ CLEAN: Listen for Supabase navigation (fallback when WebRTC isn't connected)
+  // Listen for Supabase navigation (fallback when WebRTC isn't connected)
   useEffect(() => {
     if (!sessionId) return;
 
@@ -630,12 +629,6 @@ const ConsoleDisplay: React.FC = () => {
     };
   }, [sessionId, consoleDeviceId, isLobbyLocked, webrtc.status.isInitialized, initializeWebRTCConnections, connectionError]);
 
-  // Manual connection trigger for debugging
-  const manualConnectAll = async () => {
-    console.log('🔧 [CONSOLE] Manual connection trigger activated');
-    await initializeWebRTCConnections();
-  };
-
   // Manual retry connection
   const handleRetryConnection = async () => {
     console.log('🔄 [CONSOLE] Manual retry connection triggered');
@@ -646,7 +639,6 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
- 
   // Create session on component mount
   useEffect(() => {
     createSession();
@@ -730,8 +722,6 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
- 
-
   // Show editor selection when lobby is locked
   if (isLobbyLocked) {
     return (
@@ -768,7 +758,7 @@ const ConsoleDisplay: React.FC = () => {
             )}
           </div>
           <div className="flex items-center gap-4">
-              {lobbyCode}
+            {lobbyCode}
           </div>
         </div>
       </header>
@@ -907,7 +897,6 @@ const ConsoleDisplay: React.FC = () => {
                 </div>
               </div>
             </div>
-    
           </div>
         </div>
       </div>

@@ -69,10 +69,8 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedEditor, setSelectedEditor] = useState<Editor | null>(null);
   const [showFullscreen, setShowFullscreen] = useState(false);
-  const [inputHistory, setInputHistory] = useState<ControllerInput[]>([]);
   
   const selectedIndexRef = useRef(selectedIndex);
-  const lastProcessedInputTimestampRef = useRef(0);
 
   // Keep ref updated with current selectedIndex
   useEffect(() => {
@@ -84,16 +82,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
     if (!lastControllerInput) return;
 
     console.log('🎮 [CONSOLE] Processing controller input:', lastControllerInput.input.type, lastControllerInput.input.action);
-
-    // Prevent duplicate processing
-    if (lastControllerInput.input.timestamp <= lastProcessedInputTimestampRef.current) {
-      return;
-    }
-
-    lastProcessedInputTimestampRef.current = lastControllerInput.input.timestamp;
-
-    // Add to input history
-    setInputHistory(prev => [lastControllerInput, ...prev.slice(0, 19)]);
 
     // Process input
     if (lastControllerInput.input.type === 'dpad') {
@@ -131,25 +119,14 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   const handleSelectEditor = async () => {
     console.log('🎯 [CONSOLE] Editor selected:', editors[selectedIndex].name);
     
-    // Find the last key direction from input history
-    const lastDirectionInput = inputHistory.find(input => 
-      input.input.type === 'dpad' && 
-      ['left', 'right', 'up', 'down'].includes(input.input.action)
-    );
-    
-    const lastDirection = lastDirectionInput?.input.action || 'none';
-    const lastDirectionDevice = lastDirectionInput?.deviceName || 'unknown';
-    
     // Get selected editor info
     const selectedEditorInfo = editors[selectedIndex];
     
-    // Create selection data with last direction
+    // Create selection data
     const selectionData = {
       selectedEditor: selectedEditorInfo.id,
       selectedEditorName: selectedEditorInfo.name,
       selectedIndex: selectedIndex,
-      lastKeyDirection: lastDirection,
-      lastDirectionDevice: lastDirectionDevice,
       selectionTimestamp: Date.now(),
       sessionId: sessionId,
       lobbyCode: lobbyCode
@@ -332,7 +309,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                   <div className="space-y-3 mb-8">
                     {editor.features.map((feature, idx) => (
                       <div key={idx} className="flex items-center gap-3">
-                       
                         <span className="text-gray-200">{feature}</span>
                       </div>
                     ))}

@@ -574,6 +574,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           <span className="text-sm text-green-400">Connected</span>
         </div>
       </div>
+
       {/* Host Controls - Only show in waiting state */}
       {isHost && gameStatus === 'waiting' && (
         <div className="mb-6 bg-purple-900/30 rounded-lg p-4 border border-purple-500/20">
@@ -597,16 +598,16 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       {/* Editor Selection Mode - TV Remote */}
       {gameStatus === 'editor_selection' && (
         <div className="flex-1">
-            {isHost && (
-              <div className="mb-4">
-                <button
-                  onClick={unlockLobby}
-                  className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
-                >
-                  Unlock Lobby
-                </button>
-              </div>
-            )}
+          {isHost && (
+            <div className="mb-4">
+              <button
+                onClick={unlockLobby}
+                className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
+              >
+                Unlock Lobby
+              </button>
+            </div>
+          )}
 
           {/* TV Remote Controls */}
           <div className="flex justify-center mb-6">
@@ -667,19 +668,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       {/* Waiting State */}
       {gameStatus === 'waiting' && !isHost && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Gamepad2 size={64} className="text-indigo-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Ready to Play!</h2>
-            <p className="text-indigo-200 mb-4">Waiting for the host to lock the lobby...</p>
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 text-sm text-purple-300">
-              The host will lock the lobby when everyone is ready
-            </div>
-          </div>
-        </div>
-      )}
-
-      {gameStatus === 'lanuch' && !isHost && (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <Gamepad2 size={64} className="text-indigo-300 mx-auto mb-4" />
