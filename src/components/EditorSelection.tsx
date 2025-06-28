@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft } from 'lucide-react';
+import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { ControllerInput } from '../lib/inputRouter';
 
