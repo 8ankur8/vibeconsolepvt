@@ -372,23 +372,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             );
           })}
         </div>
-
-        {/* Connected Controllers */}
-        <div className="mt-12 bg-black/20 rounded-lg p-6 border border-indigo-500/20 max-w-2xl mx-auto">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Users className="text-indigo-300" />
-            Connected Controllers
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            {players.map((player) => (
-              <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20">
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-white font-medium">{player.name}</span>
-                <span className="text-xs text-gray-400 ml-auto">Ready</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
