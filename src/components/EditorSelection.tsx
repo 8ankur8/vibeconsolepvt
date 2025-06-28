@@ -295,7 +295,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 key={editor.id}
                 className={`relative group transition-all duration-500 transform cursor-pointer ${
                   isSelected 
-                    ? 'scale-110 z-10' 
+                    ? 'scale-100 z-10' 
                     : 'scale-95 opacity-60'
                 }`}
                 onClick={() => {
@@ -306,13 +306,13 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 {/* Enhanced Selection Ring with animation */}
                 {isSelected && (
                   <>
-                    <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-75 animate-pulse"></div>
-                    <div className="absolute -inset-4 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-2xl blur-md opacity-50 animate-ping"></div>
+                    <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-75 "></div>
+                    <div className="absolute -inset-4 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-2xl blur-md opacity-50 "></div>
                   </>
                 )}
                 
                 <div className={`relative bg-gradient-to-br ${editor.bgGradient} backdrop-blur-md border-2 ${
-                  isSelected ? 'border-indigo-400 shadow-2xl shadow-indigo-500/25' : 'border-white/10'
+                  isSelected ? 'shadow-indigo-500/25' : 'border-white/10'
                 } rounded-xl p-8 h-full transition-all duration-500`}>
                   
                   {/* Header */}
