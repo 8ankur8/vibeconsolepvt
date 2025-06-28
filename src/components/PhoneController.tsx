@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor } from 'lucide-react';
+import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, sessionHelpers, deviceHelpers, deviceInputHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
@@ -25,6 +25,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLobbyLocked, setIsLobbyLocked] = useState(false);
   const [lastNavigationTime, setLastNavigationTime] = useState(0);
+  const [isLoadingSession, setIsLoadingSession] = useState(false);
   
   const navigate = useNavigate();
 
@@ -42,12 +43,16 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   // Load session and check if it exists
   const loadSession = async () => {
     console.log('🔍 [PHONE] Loading session for lobby code:', lobbyCode);
+    setIsLoadingSession(true);
+    setConnectionError('');
+    
     try {
       const session = await sessionHelpers.getSessionByCode(lobbyCode);
       
       if (!session) {
         console.error('❌ [PHONE] Session not found for lobby code:', lobbyCode);
-        setConnectionError('Lobby not found or inactive');
+        setConnectionError(`No active game found with lobby code "${lobbyCode}". Please check the code or ask the host to create a new game.`);
+        setIsLoadingSession(false);
         return null;
       }
 
@@ -67,12 +72,19 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         setGameStatus('waiting');
       }
       
+      setIsLoadingSession(false);
       return session;
     } catch (error) {
       console.error('💥 [PHONE] Error loading session:', error);
-      setConnectionError('Failed to load lobby');
+      setConnectionError('Failed to connect to the game server. Please check your internet connection and try again.');
+      setIsLoadingSession(false);
       return null;
     }
+  };
+
+  // Retry loading session
+  const retryLoadSession = async () => {
+    await loadSession();
   };
 
   // Load players in the session
@@ -382,6 +394,76 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
+  // Show session not found error
+  if (connectionError && !isJoined && !isLoadingSession) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white p-6">
+        <button 
+          onClick={() => navigate('/')}
+          className="mb-8 p-2 hover:bg-gray-800 rounded-full transition-colors"
+        >
+          <ArrowLeft size={24} />
+        </button>
+
+        <div className="flex flex-col items-center justify-center min-h-[80vh]">
+          <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mb-8">
+            <AlertCircle size={40} className="text-white" />
+          </div>
+          
+          <h1 className="text-3xl font-bold mb-4 text-red-300">Game Not Found</h1>
+          
+          <div className="w-full max-w-md space-y-6">
+            <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 text-red-300 text-sm">
+              <div className="font-medium mb-2">Connection Error:</div>
+              <div>{connectionError}</div>
+            </div>
+
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+              <h3 className="font-medium text-gray-300 mb-3">Troubleshooting:</h3>
+              <ul className="text-sm text-gray-400 space-y-2">
+                <li>• Make sure the console game is running</li>
+                <li>• Check that the lobby code is correct: <span className="font-mono text-white">{lobbyCode}</span></li>
+                <li>• Ask the host to create a new game</li>
+                <li>• Verify your internet connection</li>
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={retryLoadSession}
+                disabled={isLoadingSession}
+                className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+                  isLoadingSession
+                    ? 'bg-gray-700 cursor-not-allowed'
+                    : 'bg-indigo-500 hover:bg-indigo-600'
+                }`}
+              >
+                {isLoadingSession ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Checking...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={16} />
+                    <span>Try Again</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => navigate('/')}
+                className="w-full py-3 rounded-lg font-medium bg-gray-700 hover:bg-gray-600 transition-colors"
+              >
+                Back to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isJoined) {
     return (
       <div className="min-h-screen bg-gray-900 text-white p-6">
@@ -434,16 +516,23 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               </div>
             )}
 
+            {isLoadingSession && (
+              <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3 text-blue-300 text-sm flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                <span>Checking game session...</span>
+              </div>
+            )}
+
             <button
               onClick={joinLobby}
-              disabled={!playerName.trim()}
+              disabled={!playerName.trim() || isLoadingSession}
               className={`w-full py-4 rounded-lg text-lg font-medium transition-colors ${
-                playerName.trim() 
+                playerName.trim() && !isLoadingSession
                   ? 'bg-indigo-500 hover:bg-indigo-600' 
                   : 'bg-gray-700 cursor-not-allowed'
               }`}
             >
-              Join Game
+              {isLoadingSession ? 'Checking Game...' : 'Join Game'}
             </button>
 
             <div className="text-center text-sm text-gray-400">
