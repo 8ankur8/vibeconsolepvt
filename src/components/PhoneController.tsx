@@ -632,18 +632,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                 </button>
               </div>
             )}
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-2 bg-gray-800/50 p-2 rounded">
-                <ChevronLeft size={16} />
-                <ChevronRight size={16} />
-                <span>Navigate</span>
-              </div>
-              <div className="flex items-center gap-2 bg-indigo-500/20 p-2 rounded">
-                <span className="w-4 h-4 bg-indigo-500 rounded text-center text-xs leading-4">A</span>
-                <span>Select</span>
-              </div>
-            </div>
           </div>
 
           {/* TV Remote Controls */}
