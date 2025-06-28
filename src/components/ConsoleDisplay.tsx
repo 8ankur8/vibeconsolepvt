@@ -945,7 +945,8 @@ const ConsoleDisplay: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>  
+            </div>
+          </div>
                
           {/* Sidebar */}
           <div className="space-y-6">
