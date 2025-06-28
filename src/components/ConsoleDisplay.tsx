@@ -907,73 +907,7 @@ const ConsoleDisplay: React.FC = () => {
                 </div>
               </div>
             </div>
-           
-            {/* 🧹 CLEAN System Status */}
-            <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Wifi className="text-indigo-300" />
-                System Status
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Database:</span>
-                  <span className={connectionError ? 'text-red-300' : 'text-green-300'}>
-                    {connectionError ? 'Disconnected ❌' : 'Connected ✅'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Cross-Device Navigation:</span>
-                  <span className="text-green-300">
-                    {navigationEvents.length > 0 ? 'Working ✅' : 'Ready ⏳'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Navigation Events:</span>
-                  <span className="text-purple-300">{navigationEvents.length} received</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">WebRTC Connections:</span>
-                  <span className="text-blue-300">
-                    {webrtc.status.connectedDevices.length} active
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Database Input Listener:</span>
-                  <span className="text-green-300">Active ✅</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Current Host:</span>
-                  <span className="text-yellow-300">
-                    {players.find(p => p.isHost && p.deviceType === 'phone')?.name || 'None'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Editor Selection:</span>
-                  <span className="text-cyan-300">
-                    {isLobbyLocked ? `Ready (Index ${currentEditorIndex})` : 'Lock lobby first'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className={`mt-6 p-4 border rounded-lg ${
-                connectionError 
-                  ? 'bg-red-500/10 border-red-500/20' 
-                  : 'bg-green-500/10 border-green-500/20'
-              }`}>
-                <h4 className={`font-medium mb-2 ${
-                  connectionError ? 'text-red-300' : 'text-green-300'
-                }`}>
-                  {connectionError ? '⚠️ Issues:' : '✅ Enhanced System:'}
-                </h4>
-                <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• Navigation System: ✅ Active</li>
-                  <li>• Phone → Console: ✅ Working</li>
-                  <li>• Database Fallback: ✅ Active</li>
-                  <li>• Editor Integration: {isLobbyLocked ? '✅ Ready' : '⏳ Waiting'}</li>
-                  <li>• WebRTC: {webrtc.status.connectedDevices.length > 0 ? '✅ Connected' : '⚠️ Fallback mode'}</li>
-                </ul>
-              </div>
-            </div>
+    
           </div>
         </div>
       </div>
