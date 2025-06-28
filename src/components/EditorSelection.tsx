@@ -332,9 +332,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                   <div className="space-y-3 mb-8">
                     {editor.features.map((feature, idx) => (
                       <div key={idx} className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${editor.color.replace('text-', 'bg-')} ${
-                          isSelected ? 'animate-pulse' : ''
-                        }`}></div>
+                       
                         <span className="text-gray-200">{feature}</span>
                       </div>
                     ))}
