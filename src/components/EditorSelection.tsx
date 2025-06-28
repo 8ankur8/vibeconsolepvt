@@ -282,37 +282,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         {/* Instructions */}
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-4">Choose Your Development Environment</h2>
-          <p className="text-xl text-indigo-200 mb-6">
-            Use your phone controller to navigate and select an editor
-          </p>
-          <div className="flex justify-center gap-8 text-sm text-indigo-300">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-6 bg-gray-700 rounded flex items-center justify-center">←→</div>
-              <span>Navigate</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-6 bg-indigo-500 rounded flex items-center justify-center">A</div>
-              <span>Select</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-6 bg-red-500 rounded flex items-center justify-center">B</div>
-              <span>Back</span>
-            </div>
-          </div>
-          
-          {/* Current selection indicator */}
-          <div className="mt-6 bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 max-w-md mx-auto">
-            <div className="flex items-center justify-center gap-2 text-indigo-300">
-              <span className="text-sm">Currently Selected:</span>
-              <span className="font-bold text-white">{editors[selectedIndex].name}</span>
-              <span className="text-xs bg-indigo-500 px-2 py-1 rounded">{selectedIndex + 1}/{editors.length}</span>
-            </div>
-            {lastControllerInput && (
-              <div className="mt-2 text-xs text-purple-300">
-                Last Input: {lastControllerInput.deviceName} - {lastControllerInput.input.type}.{lastControllerInput.input.action}
-                {lastControllerInput.webrtcMessage ? ' (WebRTC)' : ' (Supabase)'}
-              </div>
-            )}
           </div>
         </div>
 
