@@ -850,6 +850,7 @@ const ConsoleDisplay: React.FC = () => {
               <Users size={16} />
               <span>{players.filter(p => p.deviceType === 'phone').length}/4 players</span>
             </div>
+            <div>
               {lobbyCode}
             </div>
               <span className="text-xs">
