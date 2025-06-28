@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft, Activity } from 'lucide-react';
+import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { ControllerInput } from '../lib/inputRouter';
-import WebRTCDebugPanel from './WebRTCDebugPanel';
 
 interface EditorSelectionProps {
   sessionId: string;
@@ -70,12 +69,9 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedEditor, setSelectedEditor] = useState<Editor | null>(null);
   const [showFullscreen, setShowFullscreen] = useState(false);
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [inputHistory, setInputHistory] = useState<ControllerInput[]>([]);
   
-  // Use refs to prevent stale closures and unnecessary re-subscriptions
   const selectedIndexRef = useRef(selectedIndex);
-  const lastNavigationTimeRef = useRef(0);
   const lastProcessedInputTimestampRef = useRef(0);
 
   // Keep ref updated with current selectedIndex
@@ -83,99 +79,57 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
     selectedIndexRef.current = selectedIndex;
   }, [selectedIndex]);
 
-  // ENHANCED: Handle lastControllerInput from InputRouter with detailed logging
+  // Handle lastControllerInput from InputRouter
   useEffect(() => {
-  if (!lastControllerInput) {
-    console.log('🎮 [EDITOR] No controller input received');
-    return;
-  }
+    if (!lastControllerInput) return;
 
-  console.log('🎮 [EDITOR] ===== NEW CONTROLLER INPUT =====');
-  console.log('🎮 [EDITOR] Input:', lastControllerInput);
-  console.log('🎮 [EDITOR] Current selection:', selectedIndex);
+    console.log('🎮 [CONSOLE] Processing controller input:', lastControllerInput.input.type, lastControllerInput.input.action);
 
-  // Prevent duplicate processing
-  if (lastControllerInput.input.timestamp <= lastProcessedInputTimestampRef.current) {
-    console.log('🎮 [EDITOR] ⚠️ Duplicate input, skipping');
-    return;
-  }
+    // Prevent duplicate processing
+    if (lastControllerInput.input.timestamp <= lastProcessedInputTimestampRef.current) {
+      return;
+    }
 
-  lastProcessedInputTimestampRef.current = lastControllerInput.input.timestamp;
+    lastProcessedInputTimestampRef.current = lastControllerInput.input.timestamp;
 
-  // Add to input history
-  setInputHistory(prev => [lastControllerInput, ...prev.slice(0, 19)]);
+    // Add to input history
+    setInputHistory(prev => [lastControllerInput, ...prev.slice(0, 19)]);
 
-  // Process input with detailed logging
-  if (lastControllerInput.input.type === 'dpad') {
-    const direction = lastControllerInput.input.action;
-    console.log(`🎮 [EDITOR] Processing dpad: ${direction}`);
+    // Process input
+    if (lastControllerInput.input.type === 'dpad') {
+      const direction = lastControllerInput.input.action;
+      handleNavigation(direction);
+    } else if (lastControllerInput.input.type === 'button' && lastControllerInput.input.action === 'a') {
+      handleSelectEditor();
+    }
+  }, [lastControllerInput, selectedIndex]);
+
+  // Navigation handler
+  const handleNavigation = (direction: string) => {
+    console.log('🧭 [CONSOLE] Navigation:', direction);
     
-    // Visual feedback
-    const currentEditor = editors[selectedIndex];
-    console.log(`🎮 [EDITOR] Current editor: ${currentEditor.name} (index: ${selectedIndex})`);
-    
-    handleNavigation(direction);
-    
-  } else if (lastControllerInput.input.type === 'button' && lastControllerInput.input.action === 'a') {
-    console.log('🎮 [EDITOR] Processing button A (select)');
-    handleSelectEditor();
-  } else {
-    console.log(`🎮 [EDITOR] ⚠️ Unhandled input: ${lastControllerInput.input.type}.${lastControllerInput.input.action}`);
-  }
+    switch (direction) {
+      case 'left':
+        setSelectedIndex(prev => {
+          const newIndex = prev > 0 ? prev - 1 : editors.length - 1;
+          selectedIndexRef.current = newIndex;
+          return newIndex;
+        });
+        break;
+        
+      case 'right':
+        setSelectedIndex(prev => {
+          const newIndex = prev < editors.length - 1 ? prev + 1 : 0;
+          selectedIndexRef.current = newIndex;
+          return newIndex;
+        });
+        break;
+    }
+  };
 
-  console.log('🎮 [EDITOR] ===== INPUT PROCESSING COMPLETE =====');
-}, [lastControllerInput, selectedIndex]);
-
-// Enhanced navigation handler with better logging
-const handleNavigation = (direction: string) => {
-  console.log('🧭 [EDITOR] ===== NAVIGATION HANDLER =====');
-  console.log('🧭 [EDITOR] Direction:', direction);
-  console.log('🧭 [EDITOR] Current index (ref):', selectedIndexRef.current);
-  console.log('🧭 [EDITOR] Current index (state):', selectedIndex);
-  
-  switch (direction) {
-    case 'left':
-      setSelectedIndex(prev => {
-        const newIndex = prev > 0 ? prev - 1 : editors.length - 1;
-        console.log('🧭 [EDITOR] Moving left: from', prev, 'to', newIndex);
-        
-        // Visual feedback
-        const newEditor = editors[newIndex];
-        console.log('🧭 [EDITOR] New editor:', newEditor.name);
-        
-        // Update ref immediately
-        selectedIndexRef.current = newIndex;
-        
-        return newIndex;
-      });
-      break;
-      
-    case 'right':
-      setSelectedIndex(prev => {
-        const newIndex = prev < editors.length - 1 ? prev + 1 : 0;
-        console.log('🧭 [EDITOR] Moving right: from', prev, 'to', newIndex);
-        
-        // Visual feedback
-        const newEditor = editors[newIndex];
-        console.log('🧭 [EDITOR] New editor:', newEditor.name);
-        
-        // Update ref immediately
-        selectedIndexRef.current = newIndex;
-        
-        return newIndex;
-      });
-      break;
-      
-    default:
-      console.log('🧭 [EDITOR] ⚠️ Unknown direction:', direction);
-  }
-  
-  console.log('🧭 [EDITOR] ===== NAVIGATION COMPLETE =====');
-};
-
-  // ENHANCED: Handle editor selection with last direction fetching
+  // Handle editor selection
   const handleSelectEditor = async () => {
-    console.log('🎯 [EDITOR] ===== EDITOR SELECTION TRIGGERED =====');
+    console.log('🎯 [CONSOLE] Editor selected:', editors[selectedIndex].name);
     
     // Find the last key direction from input history
     const lastDirectionInput = inputHistory.find(input => 
@@ -185,18 +139,9 @@ const handleNavigation = (direction: string) => {
     
     const lastDirection = lastDirectionInput?.input.action || 'none';
     const lastDirectionDevice = lastDirectionInput?.deviceName || 'unknown';
-    const lastDirectionTimestamp = lastDirectionInput?.input.timestamp || 0;
-    
-    console.log('🔍 [EDITOR] Last direction analysis:');
-    console.log('🔍 [EDITOR] - Direction:', lastDirection);
-    console.log('🔍 [EDITOR] - Device:', lastDirectionDevice);
-    console.log('🔍 [EDITOR] - Timestamp:', new Date(lastDirectionTimestamp).toLocaleTimeString());
-    console.log('🔍 [EDITOR] - Input history length:', inputHistory.length);
     
     // Get selected editor info
     const selectedEditorInfo = editors[selectedIndex];
-    console.log('🎯 [EDITOR] Selected editor:', selectedEditorInfo.name);
-    console.log('🎯 [EDITOR] Selected index:', selectedIndex);
     
     // Create selection data with last direction
     const selectionData = {
@@ -205,18 +150,13 @@ const handleNavigation = (direction: string) => {
       selectedIndex: selectedIndex,
       lastKeyDirection: lastDirection,
       lastDirectionDevice: lastDirectionDevice,
-      lastDirectionTimestamp: lastDirectionTimestamp,
       selectionTimestamp: Date.now(),
       sessionId: sessionId,
-      lobbyCode: lobbyCode,
-      totalInputHistory: inputHistory.length
+      lobbyCode: lobbyCode
     };
-    
-    console.log('📊 [EDITOR] Complete selection data:', selectionData);
     
     try {
       // Update session with selection data
-      console.log('💾 [EDITOR] Saving selection to database...');
       const { error } = await supabase
         .from('sessions')
         .update({ 
@@ -225,25 +165,22 @@ const handleNavigation = (direction: string) => {
         .eq('id', sessionId);
 
       if (error) {
-        console.error('❌ [EDITOR] Error saving selection:', error);
+        console.error('❌ [CONSOLE] Error saving selection:', error);
         return;
       }
 
-      console.log('✅ [EDITOR] Selection saved successfully');
+      console.log('✅ [CONSOLE] Selection saved successfully');
       
       // Set selected editor and show fullscreen
       setSelectedEditor(selectedEditorInfo);
       setShowFullscreen(true);
       
-      console.log('🎯 [EDITOR] ===== EDITOR SELECTION COMPLETE =====');
-      
     } catch (error) {
-      console.error('💥 [EDITOR] Exception during selection:', error);
+      console.error('💥 [CONSOLE] Exception during selection:', error);
     }
   };
 
   const handleCloseFullscreen = () => {
-    console.log('🔙 [EDITOR] Closing fullscreen editor');
     setShowFullscreen(false);
     setSelectedEditor(null);
   };
@@ -251,35 +188,27 @@ const handleNavigation = (direction: string) => {
   // Keyboard navigation for console (backup)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      console.log('⌨️ [EDITOR_SELECTION] Keyboard event:', e.key);
       switch (e.key) {
         case 'ArrowLeft':
-          console.log('⌨️ [EDITOR_SELECTION] Keyboard left arrow');
           handleNavigation('left');
           break;
         case 'ArrowRight':
-          console.log('⌨️ [EDITOR_SELECTION] Keyboard right arrow');
           handleNavigation('right');
           break;
         case 'ArrowUp':
-          console.log('⌨️ [EDITOR_SELECTION] Keyboard up arrow');
           handleNavigation('up');
           break;
         case 'ArrowDown':
-          console.log('⌨️ [EDITOR_SELECTION] Keyboard down arrow');
           handleNavigation('down');
           break;
         case 'Enter':
         case ' ':
-          console.log('⌨️ [EDITOR_SELECTION] Keyboard select (Enter/Space)');
           handleSelectEditor();
           break;
         case 'Escape':
           if (showFullscreen) {
-            console.log('⌨️ [EDITOR_SELECTION] Keyboard escape (close fullscreen)');
             handleCloseFullscreen();
           } else {
-            console.log('⌨️ [EDITOR_SELECTION] Keyboard escape (go back)');
             onBack();
           }
           break;
@@ -288,42 +217,7 @@ const handleNavigation = (direction: string) => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [showFullscreen]); // Only depend on showFullscreen
-
-  // Create device name mapping for debug panel
-  const deviceNames = players.reduce((acc, player) => {
-    acc[player.id] = player.name;
-    return acc;
-  }, {} as Record<string, string>);
-
-  // ENHANCED: Debug function to test input processing
-  const testInputProcessing = () => {
-    console.log('🧪 [EDITOR_SELECTION] ===== TESTING INPUT PROCESSING =====');
-    
-    // Simulate a controller input
-    const testInput: ControllerInput = {
-      deviceId: 'test-device-123',
-      deviceName: 'Test Controller',
-      deviceType: 'phone',
-      input: {
-        type: 'dpad',
-        action: 'right',
-        data: { pressed: true, direction: 'right' },
-        timestamp: Date.now()
-      },
-      webrtcMessage: false
-    };
-    
-    console.log('🧪 [EDITOR_SELECTION] Simulating controller input:', testInput);
-    
-    // Add to history
-    setInputHistory(prev => [testInput, ...prev.slice(0, 19)]);
-    
-    // Process the test input
-    handleNavigation('right');
-    
-    console.log('🧪 [EDITOR_SELECTION] ===== TEST COMPLETE =====');
-  };
+  }, [showFullscreen]);
 
   if (showFullscreen && selectedEditor) {
     return (
@@ -384,26 +278,6 @@ const handleNavigation = (direction: string) => {
               <Lock size={16} />
               <span>Locked</span>
             </div>
-            {/* WebRTC Status */}
-            {webrtcStatus && (
-              <button
-                onClick={() => setShowDebugPanel(!showDebugPanel)}
-                className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
-                  webrtcStatus.isInitialized 
-                    ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
-                    : 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30'
-                }`}
-              >
-                <Activity size={16} />
-                <span>WebRTC</span>
-                <div className={`w-2 h-2 rounded-full ${
-                  webrtcStatus.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-gray-400'
-                }`}></div>
-                <span className="text-xs">
-                  {webrtcStatus.connectedDevices.length}/{Object.keys(webrtcStatus.connections).length}
-                </span>
-              </button>
-            )}
           </div>
         </div>
       </header>
@@ -437,11 +311,6 @@ const handleNavigation = (direction: string) => {
               <span className="font-bold text-white">{editors[selectedIndex].name}</span>
               <span className="text-xs bg-indigo-500 px-2 py-1 rounded">{selectedIndex + 1}/{editors.length}</span>
             </div>
-            {webrtcStatus && (
-              <div className="mt-2 text-xs text-gray-400">
-                WebRTC: {webrtcStatus.connectedDevices.length} connected, {Object.keys(webrtcStatus.connections).length} total
-              </div>
-            )}
             {lastControllerInput && (
               <div className="mt-2 text-xs text-purple-300">
                 Last Input: {lastControllerInput.deviceName} - {lastControllerInput.input.type}.{lastControllerInput.input.action}
@@ -466,7 +335,6 @@ const handleNavigation = (direction: string) => {
                     : 'scale-95 opacity-60'
                 }`}
                 onClick={() => {
-                  console.log('🖱️ [EDITOR_SELECTION] Mouse click on editor:', editor.name, 'index:', index);
                   setSelectedIndex(index);
                   setTimeout(() => handleSelectEditor(), 200);
                 }}
@@ -556,122 +424,7 @@ const handleNavigation = (direction: string) => {
               </div>
             ))}
           </div>
-          
-          {/* Enhanced Debug info for development */}
-          <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
-            <div className="flex justify-between mb-2">
-              <span>Selected Index:</span>
-              <span className="text-indigo-300">{selectedIndex}</span>
-            </div>
-            <div className="flex justify-between mb-2">
-              <span>Session ID:</span>
-              <span className="text-indigo-300 font-mono">{sessionId.slice(-8)}</span>
-            </div>
-            {webrtcStatus && (
-              <>
-                <div className="flex justify-between mb-2">
-                  <span>WebRTC Status:</span>
-                  <span className={webrtcStatus.isInitialized ? 'text-green-300' : 'text-red-300'}>
-                    {webrtcStatus.isInitialized ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span>Connected/Total:</span>
-                  <span className="text-blue-300">
-                    {webrtcStatus.connectedDevices.length}/{Object.keys(webrtcStatus.connections).length}
-                  </span>
-                </div>
-              </>
-            )}
-            {lastControllerInput && (
-              <>
-                <div className="flex justify-between mb-2">
-                  <span>InputRouter:</span>
-                  <span className="text-green-300">Active ✅</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span>Last Input:</span>
-                  <span className="text-purple-300">
-                    {lastControllerInput.input.type}.{lastControllerInput.input.action}
-                  </span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span>Input Source:</span>
-                  <span className={lastControllerInput.webrtcMessage ? 'text-green-300' : 'text-yellow-300'}>
-                    {lastControllerInput.webrtcMessage ? 'WebRTC' : 'Supabase'}
-                  </span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span>Device:</span>
-                  <span className="text-blue-300">{lastControllerInput.deviceName}</span>
-                </div>
-              </>
-            )}
-            <div className="flex justify-between mb-2">
-              <span>Input History:</span>
-              <span className="text-purple-300">{inputHistory.length} entries</span>
-            </div>
-            
-            {/* Test button */}
-            <div className="mt-3 pt-2 border-t border-gray-600">
-              <button
-                onClick={testInputProcessing}
-                className="w-full py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded text-purple-300 text-sm transition-colors"
-              >
-                🧪 Test Input Processing
-              </button>
-            </div>
-          </div>
         </div>
-
-        {/* ENHANCED: Input History Panel */}
-        {inputHistory.length > 0 && (
-          <div className="mt-8 bg-black/20 rounded-lg p-6 border border-indigo-500/20 max-w-4xl mx-auto">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Activity className="text-indigo-300" />
-              Input History ({inputHistory.length})
-            </h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {inputHistory.map((input, index) => (
-                <div key={index} className="p-3 bg-gray-800/50 rounded border border-gray-600 text-sm">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-white">{input.deviceName}</span>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        input.webrtcMessage ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'
-                      }`}>
-                        {input.webrtcMessage ? 'WebRTC' : 'Supabase'}
-                      </span>
-                      <span className="text-gray-400 text-xs">
-                        {new Date(input.input.timestamp).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-gray-300">
-                    <span className="text-indigo-300">{input.input.type}</span>
-                    <span className="text-gray-500">.</span>
-                    <span className="text-purple-300">{input.input.action}</span>
-                    {input.input.data && Object.keys(input.input.data).length > 0 && (
-                      <span className="text-gray-400 ml-2">
-                        {JSON.stringify(input.input.data)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* WebRTC Debug Panel */}
-        {showDebugPanel && webrtcStatus && (
-          <div className="mt-8 max-w-4xl mx-auto">
-            <WebRTCDebugPanel
-              status={webrtcStatus}
-              deviceNames={deviceNames}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

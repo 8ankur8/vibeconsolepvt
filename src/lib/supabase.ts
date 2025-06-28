@@ -83,7 +83,7 @@ export const sessionHelpers = {
         return null;
       }
 
-      console.log('✅ Session created:', data);
+      console.log('✅ Session created:', data.id.slice(-8));
       return data;
     } catch (error) {
       console.error('❌ Exception creating session:', error);
@@ -103,7 +103,6 @@ export const sessionHelpers = {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          console.log('ℹ️ Session not found:', code);
           return null;
         }
         console.error('❌ Error fetching session:', error);
@@ -154,16 +153,6 @@ export const deviceHelpers = {
       const now = new Date().toISOString();
       const joinedAtTimestamp = Date.now(); // Use milliseconds timestamp for BIGINT
       
-      console.log('📝 Creating device with explicit parameters:', {
-        session_id: sessionId,
-        name,
-        device_type: deviceType,
-        is_host: isHost,
-        joined_at: joinedAtTimestamp,
-        last_seen: now,
-        connected_at: now
-      });
-      
       const { data, error } = await supabase
         .from('devices')
         .insert({
@@ -179,58 +168,15 @@ export const deviceHelpers = {
         .single();
 
       if (error) {
-        console.error('❌ DETAILED ERROR creating device:', {
-          error: error,
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          insertData: {
-            session_id: sessionId,
-            name,
-            device_type: deviceType,
-            is_host: isHost,
-            joined_at: joinedAtTimestamp,
-            last_seen: now,
-            connected_at: now
-          }
-        });
+        console.error('❌ Error creating device:', error);
         return null;
       }
 
-      console.log(`✅ Device created successfully: ${name} (${deviceType})`, data);
+      console.log(`✅ Device created: ${name} (${deviceType})`);
       return data;
     } catch (error) {
-      console.error('❌ EXCEPTION creating device:', {
-        error: error,
-        message: error.message,
-        stack: error.stack,
-        sessionId,
-        name,
-        deviceType,
-        isHost
-      });
+      console.error('❌ Exception creating device:', error);
       return null;
-    }
-  },
-
-  // Update device activity
-  async updateDeviceActivity(deviceId: string): Promise<boolean> {
-    try {
-      const { error } = await supabase
-        .from('devices')
-        .update({ last_seen: new Date().toISOString() })
-        .eq('id', deviceId);
-
-      if (error) {
-        console.error('❌ Error updating device activity:', error);
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('❌ Exception updating device activity:', error);
-      return false;
     }
   },
 
@@ -253,31 +199,10 @@ export const deviceHelpers = {
       console.error('❌ Exception fetching devices:', error);
       return [];
     }
-  },
-
-  // Check if device is host
-  async isDeviceHost(deviceId: string): Promise<boolean> {
-    try {
-      const { data, error } = await supabase
-        .from('devices')
-        .select('is_host')
-        .eq('id', deviceId)
-        .single();
-
-      if (error) {
-        console.error('❌ Error checking host status:', error);
-        return false;
-      }
-
-      return data?.is_host || false;
-    } catch (error) {
-      console.error('❌ Exception checking host status:', error);
-      return false;
-    }
   }
 };
 
-// NEW: Device Input Helpers
+// Device Input Helpers
 export const deviceInputHelpers = {
   // Create a new device input record
   async createDeviceInput(
@@ -292,16 +217,6 @@ export const deviceInputHelpers = {
     try {
       const inputTimestamp = timestamp || new Date().toISOString();
       
-      console.log('📝 Creating device input:', {
-        session_id: sessionId,
-        device_id: deviceId,
-        input_type: inputType,
-        input_action: inputAction,
-        input_data: inputData,
-        source,
-        timestamp: inputTimestamp
-      });
-
       const { data, error } = await supabase
         .from('device_inputs')
         .insert({
@@ -321,84 +236,10 @@ export const deviceInputHelpers = {
         return null;
       }
 
-      console.log('✅ Device input created successfully:', data);
       return data;
     } catch (error) {
       console.error('❌ Exception creating device input:', error);
       return null;
-    }
-  },
-
-  // Get device inputs for a session (all devices)
-  async getDeviceInputsForSession(
-    sessionId: string, 
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<DeviceInput[]> {
-    try {
-      const { data, error } = await supabase
-        .from('device_inputs')
-        .select(`
-          *,
-          devices!inner(name, device_type)
-        `)
-        .eq('session_id', sessionId)
-        .order('timestamp', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (error) {
-        console.error('❌ Error fetching session inputs:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('❌ Exception fetching session inputs:', error);
-      return [];
-    }
-  },
-
-  // Get device inputs for a specific device
-  async getDeviceInputsForDevice(
-    deviceId: string, 
-    limit: number = 20,
-    offset: number = 0
-  ): Promise<DeviceInput[]> {
-    try {
-      const { data, error } = await supabase
-        .from('device_inputs')
-        .select('*')
-        .eq('device_id', deviceId)
-        .order('timestamp', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (error) {
-        console.error('❌ Error fetching device inputs:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('❌ Exception fetching device inputs:', error);
-      return [];
-    }
-  },
-
-  // Get last input for each device in a session
-  async getSessionLastInputs(sessionId: string): Promise<any[]> {
-    try {
-      const { data, error } = await supabase
-        .rpc('get_session_last_inputs', { session_uuid: sessionId });
-
-      if (error) {
-        console.error('❌ Error fetching session last inputs:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('❌ Exception fetching session last inputs:', error);
-      return [];
     }
   },
 
@@ -427,7 +268,7 @@ export const deviceInputHelpers = {
           filter
         }, 
         (payload) => {
-          console.log('📱 New device input received:', payload);
+          console.log('📱 New device input received:', payload.new.input_type, payload.new.input_action);
           const input = payload.new as DeviceInput;
           onNewInput(input);
         }
@@ -437,52 +278,6 @@ export const deviceInputHelpers = {
       });
 
     return channel;
-  },
-
-  // Get input statistics for a session
-  async getInputStats(sessionId: string, timeRange: number = 60000): Promise<any> {
-    try {
-      const cutoffTime = new Date(Date.now() - timeRange).toISOString();
-      
-      const { data, error } = await supabase
-        .from('device_inputs')
-        .select(`
-          input_type,
-          input_action,
-          source,
-          device_id,
-          devices!inner(name, device_type)
-        `)
-        .eq('session_id', sessionId)
-        .gte('timestamp', cutoffTime);
-
-      if (error) {
-        console.error('❌ Error fetching input stats:', error);
-        return null;
-      }
-
-      // Process statistics
-      const stats = {
-        totalInputs: data.length,
-        webrtcInputs: data.filter(i => i.source === 'webrtc').length,
-        supabaseInputs: data.filter(i => i.source === 'supabase').length,
-        inputTypes: {} as Record<string, number>,
-        deviceBreakdown: {} as Record<string, number>,
-        actionBreakdown: {} as Record<string, number>
-      };
-
-      data.forEach(input => {
-        const inputKey = `${input.input_type}.${input.input_action}`;
-        stats.inputTypes[inputKey] = (stats.inputTypes[inputKey] || 0) + 1;
-        stats.deviceBreakdown[input.devices.name] = (stats.deviceBreakdown[input.devices.name] || 0) + 1;
-        stats.actionBreakdown[input.input_action] = (stats.actionBreakdown[input.input_action] || 0) + 1;
-      });
-
-      return stats;
-    } catch (error) {
-      console.error('❌ Exception fetching input stats:', error);
-      return null;
-    }
   }
 };
 
@@ -530,26 +325,6 @@ export const webrtcHelpers = {
     return false;
   },
 
-  // Mark signal as processed
-  async markSignalProcessed(signalId: string): Promise<boolean> {
-    try {
-      const { error } = await supabase
-        .from('webrtc_signals')
-        .update({ processed: true })
-        .eq('id', signalId);
-
-      if (error) {
-        console.error('❌ Error marking signal as processed:', error);
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('❌ Exception marking signal as processed:', error);
-      return false;
-    }
-  },
-
   // Subscribe to WebRTC signals with refined filter
   subscribeToWebRTCSignals(
     sessionId: string,
@@ -576,15 +351,11 @@ export const webrtcHelpers = {
           filter: `receiver_device_id=eq.${deviceId}`
         }, 
         async (payload) => {
-          console.log('📡 Received WebRTC signal:', payload);
+          console.log('📡 Received WebRTC signal:', payload.new.type);
           
           try {
             const signal = payload.new as WebRTCSignal;
             onSignal(signal);
-            
-            if (!includeProcessed && signal.id) {
-              await webrtcHelpers.markSignalProcessed(signal.id);
-            }
           } catch (error) {
             console.error('❌ Error handling WebRTC signal:', error);
           }
@@ -609,11 +380,9 @@ export const realtimeHelpers = {
   // Subscribe to device changes
   subscribeToDevices(
     sessionId: string,
-    onDeviceChange: (payload: any) => void,
-    enableDeduplication: boolean = true
+    onDeviceChange: (payload: any) => void
   ) {
     const channelName = `devices_${sessionId}`;
-    let lastPayload: any = null;
     
     console.log(`📱 Setting up devices subscription for session ${sessionId.slice(-8)}`);
     
@@ -627,14 +396,7 @@ export const realtimeHelpers = {
           filter: `session_id=eq.${sessionId}`
         }, 
         (payload) => {
-          console.log('📱 Device change detected:', payload);
-          
-          if (enableDeduplication && JSON.stringify(payload) === JSON.stringify(lastPayload)) {
-            console.log('🔄 Duplicate device change ignored');
-            return;
-          }
-          
-          lastPayload = payload;
+          console.log('📱 Device change detected:', payload.eventType);
           onDeviceChange(payload);
         }
       )
@@ -664,7 +426,7 @@ export const realtimeHelpers = {
           filter: `id=eq.${sessionId}`
         }, 
         (payload) => {
-          console.log('🏠 Session change detected:', payload);
+          console.log('🏠 Session change detected');
           onSessionChange(payload);
         }
       )

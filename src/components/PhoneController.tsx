@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor, Activity } from 'lucide-react';
+import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, sessionHelpers, deviceHelpers, deviceInputHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
-import WebRTCDebugPanel from './WebRTCDebugPanel';
-import ConnectionTester from './ConnectionTester';
-import PhoneControllerDebugPanel from './PhoneControllerDebugPanel';
 
 interface PhoneControllerProps {
   lobbyCode: string;
@@ -16,8 +13,6 @@ interface Player {
   name: string;
   isHost: boolean;
 }
-
-// Phone log forwarder hook for debugging
 
 const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [playerName, setPlayerName] = useState('');
@@ -30,27 +25,19 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLobbyLocked, setIsLobbyLocked] = useState(false);
   const [lastNavigationTime, setLastNavigationTime] = useState(0);
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   const navigate = useNavigate();
 
-  // WebRTC integration for phone controller with enhanced logging
+  // WebRTC integration for phone controller
   const webrtc = useWebRTC({
     sessionId: currentSessionId,
     deviceId: myPlayerId,
     isHost: false,
     onMessage: (message, fromDeviceId) => {
-      console.log('📩 [PHONE] WebRTC message from', fromDeviceId, ':', message);
-      // Handle WebRTC messages from console here
+      console.log('📩 [PHONE] WebRTC message from console:', message.type);
     },
     enabled: currentSessionId !== '' && myPlayerId !== '' && isLobbyLocked
   });
-
-  // Create device name mapping for debug panel
-  const deviceNames = players.reduce((acc, player) => {
-    acc[player.id] = player.name;
-    return acc;
-  }, {} as Record<string, string>);
 
   // Load session and check if it exists
   const loadSession = async () => {
@@ -64,7 +51,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         return null;
       }
 
-      console.log('✅ [PHONE] Session loaded:', session);
+      console.log('✅ [PHONE] Session loaded:', session.id.slice(-8));
       setCurrentSessionId(session.id);
       const wasLocked = isLobbyLocked;
       const nowLocked = session.is_locked || false;
@@ -72,13 +59,11 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       setIsLobbyLocked(nowLocked);
       
       if (!wasLocked && nowLocked) {
-        console.log('🔒 [PHONE] Lobby locked - instantly switching to editor selection mode');
+        console.log('🔒 [PHONE] Lobby locked - switching to editor selection mode');
         setGameStatus('editor_selection');
       } else if (nowLocked) {
-        console.log('🔒 [PHONE] Lobby is locked - setting editor selection mode');
         setGameStatus('editor_selection');
       } else {
-        console.log('🔓 [PHONE] Lobby is unlocked - setting waiting mode');
         setGameStatus('waiting');
       }
       
@@ -92,16 +77,10 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
   // Load players in the session
   const loadPlayers = async () => {
-    if (!currentSessionId) {
-      console.log('⚠️ [PHONE] No session ID available for loading players');
-      return;
-    }
+    if (!currentSessionId) return;
 
-    console.log('👥 [PHONE] Loading players for session:', currentSessionId);
     try {
       const devices = await deviceHelpers.getSessionDevices(currentSessionId);
-
-      console.log('📱 [PHONE] Raw devices data:', devices);
 
       // Filter out console device and only show phone controllers
       const mappedPlayers: Player[] = devices
@@ -113,38 +92,30 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         }));
 
       setPlayers(mappedPlayers);
-      console.log('✅ [PHONE] Players mapped (phone controllers only):', mappedPlayers);
 
       // Check if current player is host
       const myDevice = devices.find(d => d.id === myPlayerId);
       if (myDevice) {
         const amHost = myDevice.is_host || false;
         setIsHost(amHost);
-        console.log('👑 [PHONE] Am I host?', amHost, 'My device:', myDevice);
       }
     } catch (error) {
       console.error('💥 [PHONE] Error loading players:', error);
     }
   };
 
-  // ENHANCED: Send navigation input using device_inputs table
+  // Send navigation input
   const sendNavigation = async (direction: string) => {
-    if (!currentSessionId || !myPlayerId) {
-      console.log('❌ [PHONE] Missing session or player ID');
-      return;
-    }
+    if (!currentSessionId || !myPlayerId) return;
 
     // Throttle navigation to prevent spam
     const currentTime = Date.now();
-    if (currentTime - lastNavigationTime < 150) {
-      console.log('⏱️ [PHONE] Throttling navigation input - too soon since last input');
-      return;
-    }
+    if (currentTime - lastNavigationTime < 150) return;
 
     console.log(`🎮 [PHONE] Sending ${direction} navigation`);
 
     try {
-      // ENHANCED: Send structured game_data message for InputRouter compatibility
+      // Send structured game_data message for InputRouter compatibility
       const webrtcMessage = {
         type: 'game_data' as const,
         data: {
@@ -156,8 +127,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           }
         }
       };
-
-      console.log('📡 [PHONE] Prepared WebRTC message:', webrtcMessage);
 
       // Find console device to send WebRTC message to
       const { data: consoleDevice, error: consoleError } = await supabase
@@ -173,25 +142,13 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       let webrtcSent = false;
       if (consoleDevice && webrtc.status.isInitialized) {
-        console.log('📡 [PHONE] Attempting to send WebRTC message to console:', consoleDevice.id.slice(-8));
         webrtcSent = webrtc.sendMessage(consoleDevice.id, webrtcMessage);
-        console.log('📡 [PHONE] WebRTC navigation sent:', webrtcSent, 'Message:', webrtcMessage);
-        
         if (webrtcSent) {
-          console.log('✅ [PHONE] WebRTC message sent successfully');
-        } else {
-          console.log('⚠️ [PHONE] WebRTC message failed to send');
+          console.log('✅ [PHONE] WebRTC navigation sent to console');
         }
-      } else {
-        console.log('⚠️ [PHONE] WebRTC not available:', {
-          hasConsoleDevice: !!consoleDevice,
-          webrtcInitialized: webrtc.status.isInitialized,
-          webrtcConnections: Object.keys(webrtc.status.connections).length,
-          webrtcConnected: webrtc.status.connectedDevices.length
-        });
       }
 
-      // ENHANCED: Store input in device_inputs table
+      // Store input in device_inputs table
       const inputCreated = await deviceInputHelpers.createDeviceInput(
         currentSessionId,
         myPlayerId,
@@ -206,40 +163,25 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         new Date(currentTime).toISOString()
       );
 
-      if (inputCreated) {
-        console.log('✅ [PHONE] Input stored in device_inputs table');
-      } else {
+      if (!inputCreated) {
         console.error('❌ [PHONE] Failed to store input in device_inputs table');
       }
 
       setLastNavigationTime(currentTime);
-      
-      console.log('📊 [PHONE] Navigation send summary:', {
-        direction,
-        webrtcSent,
-        inputStored: !!inputCreated,
-        timestamp: currentTime
-      });
       
     } catch (error) {
       console.error('💥 [PHONE] Error sending navigation:', error);
     }
   };
 
-  // ENHANCED: Send selection input using device_inputs table
+  // Send selection input
   const sendSelection = async () => {
-    console.log('🎯 [PHONE] sendSelection called');
-    console.log('📊 [PHONE] Current state - Session ID:', currentSessionId, 'Player ID:', myPlayerId);
-    
-    if (!currentSessionId || !myPlayerId) {
-      console.log('❌ [PHONE] Cannot send selection - no session ID');
-      return;
-    }
+    if (!currentSessionId || !myPlayerId) return;
+
+    console.log('🎯 [PHONE] Sending selection');
 
     try {
-      console.log('📤 [PHONE] Sending selection');
-      
-      // ENHANCED: Send structured game_data message for InputRouter compatibility
+      // Send structured game_data message for InputRouter compatibility
       const webrtcMessage = {
         type: 'game_data' as const,
         data: {
@@ -250,8 +192,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           }
         }
       };
-
-      console.log('📡 [PHONE] Prepared WebRTC selection message:', webrtcMessage);
 
       // Find console device to send WebRTC message to
       const { data: consoleDevice, error: consoleError } = await supabase
@@ -267,25 +207,13 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       let webrtcSent = false;
       if (consoleDevice && webrtc.status.isInitialized) {
-        console.log('📡 [PHONE] Attempting to send WebRTC selection to console:', consoleDevice.id.slice(-8));
         webrtcSent = webrtc.sendMessage(consoleDevice.id, webrtcMessage);
-        console.log('📡 [PHONE] WebRTC selection sent:', webrtcSent, 'Message:', webrtcMessage);
-        
         if (webrtcSent) {
-          console.log('✅ [PHONE] WebRTC selection sent successfully');
-        } else {
-          console.log('⚠️ [PHONE] WebRTC selection failed to send');
+          console.log('✅ [PHONE] WebRTC selection sent to console');
         }
-      } else {
-        console.log('⚠️ [PHONE] WebRTC not available for selection:', {
-          hasConsoleDevice: !!consoleDevice,
-          webrtcInitialized: webrtc.status.isInitialized,
-          webrtcConnections: Object.keys(webrtc.status.connections).length,
-          webrtcConnected: webrtc.status.connectedDevices.length
-        });
       }
 
-      // ENHANCED: Store input in device_inputs table
+      // Store input in device_inputs table
       const inputCreated = await deviceInputHelpers.createDeviceInput(
         currentSessionId,
         myPlayerId,
@@ -298,17 +226,9 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         webrtcSent ? 'webrtc' : 'supabase'
       );
 
-      if (inputCreated) {
-        console.log('✅ [PHONE] Selection input stored in device_inputs table');
-      } else {
+      if (!inputCreated) {
         console.error('❌ [PHONE] Failed to store selection input in device_inputs table');
       }
-
-      console.log('📊 [PHONE] Selection send summary:', {
-        webrtcSent,
-        inputStored: !!inputCreated,
-        timestamp: Date.now()
-      });
       
     } catch (error) {
       console.error('💥 [PHONE] Error sending selection:', error);
@@ -321,20 +241,8 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   }, [lobbyCode]);
 
   useEffect(() => {
-    console.log('🔍 [PHONE] WebRTC Status Check:', {
-      isInitialized: webrtc.status.isInitialized,
-      sessionId: currentSessionId,
-      myPlayerId: myPlayerId,
-      connections: webrtc.status.connections,
-      connectedDevices: webrtc.status.connectedDevices
-    });
-  }, [webrtc.status]);
-  
-  useEffect(() => {
     if (!currentSessionId || !myPlayerId || !isLobbyLocked) return;
 
-    console.log('🔄 [PHONE] Setting up WebRTC connection attempts');
-    
     const attemptConsoleConnection = async () => {
       try {
         // Find console device
@@ -350,14 +258,10 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           return;
         }
 
-        console.log('📡 [PHONE] Found console device:', consoleDevice.id.slice(-8));
+        console.log('📡 [PHONE] Found console device, attempting WebRTC connection');
         
-        // Wait a bit for WebRTC to initialize
         if (webrtc.status.isInitialized) {
-          console.log('🤝 [PHONE] Attempting connection to console');
           await webrtc.connectToDevice(consoleDevice.id);
-        } else {
-          console.log('⚠️ [PHONE] WebRTC not initialized yet');
         }
       } catch (error) {
         console.error('💥 [PHONE] Error in console connection:', error);
@@ -370,7 +274,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     // Retry every 10 seconds if not connected
     const retryInterval = setInterval(() => {
       if (webrtc.status.connectedDevices.length === 0) {
-        console.log('🔄 [PHONE] Retrying console connection...');
         attemptConsoleConnection();
       }
     }, 10000);
@@ -382,18 +285,12 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   }, [currentSessionId, myPlayerId, isLobbyLocked, webrtc.status.isInitialized]);
 
   const joinLobby = async () => {
-    if (!playerName.trim() || !lobbyCode) {
-      console.log('⚠️ [PHONE] Missing player name or lobby code');
-      return;
-    }
+    if (!playerName.trim() || !lobbyCode) return;
 
     console.log('🚪 [PHONE] Attempting to join lobby with name:', playerName.trim());
     try {
       const session = await loadSession();
-      if (!session) {
-        console.log('❌ [PHONE] Failed to load session, cannot join');
-        return;
-      }
+      if (!session) return;
 
       // Check if lobby is full (max 4 players, excluding console)
       const existingDevices = await deviceHelpers.getSessionDevices(session.id);
@@ -408,7 +305,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       const phoneControllers = existingDevices.filter(device => 
         device.device_type !== 'console' && device.name !== 'Console'
       );
-      console.log('📊 [PHONE] Current phone controllers in lobby:', phoneControllers.length);
       
       if (phoneControllers.length >= 4) {
         console.log('🚫 [PHONE] Lobby is full');
@@ -418,15 +314,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       // First phone controller becomes host (not including console)
       const isFirstPlayer = phoneControllers.length === 0;
-      console.log('👑 [PHONE] Is first phone controller (will be host)?', isFirstPlayer);
-
-      // Create device with detailed error logging
-      console.log('📝 [PHONE] Creating device with parameters:', {
-        sessionId: session.id,
-        name: playerName.trim(),
-        deviceType: 'phone',
-        isHost: isFirstPlayer
-      });
 
       const device = await deviceHelpers.createDevice(
         session.id,
@@ -436,42 +323,16 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       );
 
       if (!device) {
-        console.error('❌ [PHONE] Device creation failed - checking Supabase for detailed error...');
-        
-        // Try to get more specific error information
-        try {
-          const { error: testError } = await supabase
-            .from('devices')
-            .select('id')
-            .eq('session_id', session.id)
-            .limit(1);
-          
-          if (testError) {
-            console.error('❌ [PHONE] Supabase connection test failed:', {
-              code: testError.code,
-              message: testError.message,
-              details: testError.details,
-              hint: testError.hint
-            });
-            setConnectionError(`Database error: ${testError.message}`);
-          } else {
-            console.error('❌ [PHONE] Device creation failed but Supabase connection is working');
-            setConnectionError('Failed to create player device - unknown error');
-          }
-        } catch (testError) {
-          console.error('❌ [PHONE] Supabase connection test exception:', testError);
-          setConnectionError('Database connection failed');
-        }
+        console.error('❌ [PHONE] Device creation failed');
+        setConnectionError('Failed to join lobby');
         return;
       }
 
-      console.log('✅ [PHONE] Successfully joined lobby:', device);
+      console.log('✅ [PHONE] Successfully joined lobby');
       setMyPlayerId(device.id);
       setIsJoined(true);
       setIsHost(isFirstPlayer);
       setConnectionError('');
-
-      console.log('🎉 [PHONE] Join complete - Player ID:', device.id, 'Is host:', isFirstPlayer);
     } catch (error) {
       console.error('💥 [PHONE] Exception during lobby join:', error);
       setConnectionError(`Failed to join lobby: ${error.message || 'Unknown error'}`);
@@ -479,10 +340,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   };
 
   const lockLobby = async () => {
-    if (!isHost || !currentSessionId) {
-      console.log('⚠️ [PHONE] Cannot lock lobby - not host or no session ID');
-      return;
-    }
+    if (!isHost || !currentSessionId) return;
 
     console.log('🔒 [PHONE] Host attempting to lock lobby');
     try {
@@ -495,17 +353,14 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       setIsLobbyLocked(true);
       setGameStatus('editor_selection');
-      console.log('✅ [PHONE] Lobby locked - immediately switching to editor selection');
+      console.log('✅ [PHONE] Lobby locked successfully');
     } catch (error) {
       console.error('💥 [PHONE] Error locking lobby:', error);
     }
   };
 
   const unlockLobby = async () => {
-    if (!isHost || !currentSessionId) {
-      console.log('⚠️ [PHONE] Cannot unlock lobby - not host or no session ID');
-      return;
-    }
+    if (!isHost || !currentSessionId) return;
 
     console.log('🔓 [PHONE] Host attempting to unlock lobby');
     try {
@@ -521,24 +376,10 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
       setIsLobbyLocked(false);
       setGameStatus('waiting');
-      console.log('✅ [PHONE] Lobby unlocked - immediately switching to waiting');
+      console.log('✅ [PHONE] Lobby unlocked successfully');
     } catch (error) {
       console.error('💥 [PHONE] Error unlocking lobby:', error);
     }
-  };
-
-  // Test function to verify log forwarding works
-  const testLogForwarding = () => {
-    console.log('🧪 [TEST] Manual test from phone controller - this should appear on console screen!');
-    console.log('🧪 [TEST] WebRTC Status:', webrtc.status);
-    console.error('🧪 [TEST] Test error message - should appear in red on console');
-    console.warn('🧪 [TEST] Test warning message - should appear in yellow on console');
-    console.info('🧪 [TEST] Session info:', { 
-      sessionId: currentSessionId.slice(-8), 
-      playerId: myPlayerId.slice(-8),
-      playerName,
-      isLocked: isLobbyLocked
-    });
   };
 
   if (!isJoined) {
@@ -590,9 +431,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-3 text-red-300 text-sm">
                 <div className="font-medium mb-1">Connection Error:</div>
                 <div>{connectionError}</div>
-                <div className="mt-2 text-xs text-red-400">
-                  Check console for detailed error information
-                </div>
               </div>
             )}
 
@@ -611,9 +449,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             <div className="text-center text-sm text-gray-400">
               <p>First player to join becomes the host</p>
               <p>Maximum 4 players per lobby</p>
-              <div className="mt-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded text-blue-300 text-xs">
-                ✅ Phone log forwarding active - logs will appear on console screen
-              </div>
             </div>
           </div>
         </div>
@@ -657,20 +492,11 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         <div className="flex items-center gap-2 mb-3">
           <Users size={16} className="text-indigo-300" />
           <h3 className="font-semibold">Players ({players.length}/4)</h3>
-          <button
-            onClick={() => setShowDebugPanel(!showDebugPanel)}
-            className={`ml-auto flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-              webrtc.status.isInitialized 
-                ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
-                : 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30'
-            }`}
-          >
-            <Activity size={12} />
-            <span>WebRTC</span>
-            <div className={`w-1 h-1 rounded-full ${
-              webrtc.status.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-gray-400'
-            }`}></div>
-          </button>
+          {webrtc.status.isInitialized && (
+            <div className="ml-auto text-xs text-blue-300">
+              WebRTC: {webrtc.status.connectedDevices.length > 0 ? 'Connected' : 'Connecting...'}
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-2">
           {players.map((player) => (
@@ -682,52 +508,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           ))}
         </div>
       </div>
-
-      {/* WebRTC Debug Panel */}
-      {showDebugPanel && (
-        <div className="mb-6">
-          <WebRTCDebugPanel
-            status={webrtc.status}
-            deviceNames={deviceNames}
-            className="text-sm"
-          />
-        </div>
-      )}
-
-      {showDebugPanel && (
-        <div className="mb-6 space-y-4">
-          <PhoneControllerDebugPanel
-            sessionId={currentSessionId}
-            myPlayerId={myPlayerId}
-            webrtcStatus={webrtc.status}
-            onTestInput={() => {
-              console.log('🧪 Testing input from debug panel');
-              sendNavigation('right');
-            }}
-          />
-          <ConnectionTester
-            sessionId={currentSessionId}
-            deviceId={myPlayerId}
-            webrtcStatus={webrtc.status}
-          />
-          
-          {/* Log Forwarding Test Panel */}
-          <div className="bg-green-900/20 border border-green-500/20 rounded-lg p-4">
-            <h4 className="text-green-300 font-medium mb-3">📱➡️🖥️ Log Forwarding Test</h4>
-            <div className="space-y-2">
-              <button
-                onClick={testLogForwarding}
-                className="w-full py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-green-300 text-sm transition-colors"
-              >
-                🧪 Send Test Logs to Console Screen
-              </button>
-              <div className="text-xs text-gray-400 text-center">
-                Press this button and check the console screen for your logs!
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Host Controls - Only show in waiting state */}
       {isHost && gameStatus === 'waiting' && (
@@ -762,11 +542,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               <Monitor size={48} className="text-purple-400 mx-auto mb-2" />
               <h2 className="text-xl font-bold">Control the Main Screen</h2>
               <p className="text-sm text-gray-400">Navigate and select editors on the console</p>
-              {webrtc.status.isInitialized && (
-                <p className="text-xs text-green-400 mt-1">
-                  WebRTC: {webrtc.status.connectedDevices.length > 0 ? 'Connected' : 'Connecting...'}
-                </p>
-              )}
             </div>
 
             {isHost && (
@@ -793,7 +568,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             </div>
           </div>
 
-          {/* TV Remote Controls with better feedback */}
+          {/* TV Remote Controls */}
           <div className="flex justify-center mb-6">
             <div className="relative w-48 h-48">
               <div className="absolute inset-0 rounded-full bg-gray-800 border-2 border-gray-700 shadow-2xl">
@@ -846,50 +621,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               <span className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold">B</span>
               <span className="text-sm">Exit</span>
             </button>
-          </div>
-          
-          {/* Debug info for development */}
-          <div className="mt-6 bg-gray-800/30 rounded-lg p-3 text-xs text-gray-400">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex justify-between">
-                <span>Session:</span>
-                <span className="text-indigo-300 font-mono">{currentSessionId.slice(-8)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Player ID:</span>
-                <span className="text-purple-300 font-mono">{myPlayerId.slice(-8)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>WebRTC:</span>
-                <span className={webrtc.status.isInitialized ? 'text-green-300' : 'text-red-300'}>
-                  {webrtc.status.isInitialized ? 'Ready' : 'Disabled'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Connected:</span>
-                <span className="text-blue-300">{webrtc.status.connectedDevices.length}</span>
-              </div>
-              <button
-                onClick={async () => {
-                  console.log('🧪 [PHONE] Testing device input creation');
-                  const testInput = await deviceInputHelpers.createDeviceInput(
-                    currentSessionId,
-                    myPlayerId,
-                    'dpad',
-                    'test_right',
-                    { test: true, timestamp: Date.now() },
-                    'supabase'
-                  );
-                  console.log('🧪 [PHONE] Test input result:', testInput);
-                }}
-                className="col-span-2 w-full py-2 bg-blue-500/20 border border-blue-500/30 rounded text-blue-300 text-sm"
-              >
-                🧪 Test Device Input Creation
-              </button>
-            </div>
-            <div className="mt-2 text-center text-green-400 text-xs">
-              ✅ Enhanced input system with device_inputs table • Phone logs forwarding to console
-            </div>
           </div>
         </div>
       )}
