@@ -907,73 +907,7 @@ const ConsoleDisplay: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Connected Players */}
-            <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Users className="text-indigo-300" />
-                Players ({players.filter(p => p.deviceType === 'phone').length}/4)
-              </h3>
-              <div className="space-y-3">
-                {players.filter(p => p.deviceType === 'phone').length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-3 animate-bounce">📱</div>
-                    <p className="text-indigo-300 font-medium">Waiting for players...</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      First player to join becomes the host
-                    </p>
-                  </div>
-                ) : (
-                  players.filter(p => p.deviceType === 'phone').map((player) => {
-                    const timeSinceLastSeen = Date.now() - player.lastSeen;
-                    const isRecentlyActive = timeSinceLastSeen < 30000;
-                    
-                    return (
-                      <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20 transition-all hover:bg-indigo-900/40">
-                        <div className={`w-3 h-3 rounded-full ${
-                          webrtc.status.connectedDevices.includes(player.id) 
-                            ? 'bg-green-400' 
-                            : isRecentlyActive 
-                              ? 'bg-yellow-400' 
-                              : 'bg-gray-400'
-                        } animate-pulse`}></div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-medium">{player.name}</span>
-                            {player.isHost && (
-                              <Crown size={16} className="text-yellow-400" />
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {player.isHost ? 'Host' : 'Player'} • {
-                              webrtc.status.connectedDevices.includes(player.id) 
-                                ? 'WebRTC Connected'
-                                : isRecentlyActive 
-                                  ? 'Recently Active'
-                                  : 'Inactive'
-                            }
-                          </div>
-                        </div>
-                        <div className={`text-xs px-2 py-1 rounded ${
-                          webrtc.status.connectedDevices.includes(player.id)
-                            ? 'text-green-400 bg-green-400/10'
-                            : isRecentlyActive
-                              ? 'text-yellow-400 bg-yellow-400/10'
-                              : 'text-gray-400 bg-gray-400/10'
-                        }`}>
-                          {webrtc.status.connectedDevices.includes(player.id) 
-                            ? 'P2P' 
-                            : isRecentlyActive 
-                              ? 'Online' 
-                              : 'Offline'}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
+           
             {/* 🧹 CLEAN System Status */}
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
