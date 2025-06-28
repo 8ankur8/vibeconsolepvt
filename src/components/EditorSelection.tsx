@@ -282,7 +282,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         {/* Instructions */}
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-4">Choose Your Development Environment</h2>
-          </div>
         </div>
 
         {/* Editor Cards */}
