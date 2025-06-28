@@ -3,6 +3,7 @@ import { ArrowLeft, Gamepad2, Crown, Lock, Users, Code, Monitor, AlertCircle, Re
 import { useNavigate } from 'react-router-dom';
 import { supabase, sessionHelpers, deviceHelpers, deviceInputHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
+import EditorControlPanel from './EditorControlPanel';
 
 interface PhoneControllerProps {
   lobbyCode: string;
@@ -61,7 +62,7 @@ const editors: Editor[] = [
 const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [playerName, setPlayerName] = useState('');
   const [isJoined, setIsJoined] = useState(false);
-  const [gameStatus, setGameStatus] = useState<'waiting' | 'editor_selection'>('waiting');
+  const [gameStatus, setGameStatus] = useState<'waiting' | 'editor_selection' | 'in_editor'>('waiting');
   const [myPlayerId, setMyPlayerId] = useState<string>('');
   const [connectionError, setConnectionError] = useState<string>('');
   const [currentSessionId, setCurrentSessionId] = useState<string>('');
@@ -205,10 +206,37 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         return;
       }
 
-      console.log('✅ [PHONE] Editor selection saved successfully - console will launch the editor');
+      console.log('✅ [PHONE] Editor selection saved - switching to in_editor mode');
+      
+      // Switch to in_editor mode immediately
+      setGameStatus('in_editor');
 
     } catch (error) {
       console.error('💥 [PHONE] Exception during editor selection:', error);
+    }
+  };
+
+  // NEW: Handle back from editor
+  const handleBackFromEditor = async () => {
+    console.log('🔙 [PHONE] Going back from editor to selection');
+    
+    try {
+      // Clear the selected_editor field in Supabase
+      const { error } = await supabase
+        .from('sessions')
+        .update({ selected_editor: null })
+        .eq('id', currentSessionId);
+
+      if (error) {
+        console.error('❌ [PHONE] Error clearing selected editor:', error);
+        return;
+      }
+
+      // Switch back to editor selection
+      setGameStatus('editor_selection');
+      console.log('✅ [PHONE] Returned to editor selection');
+    } catch (error) {
+      console.error('💥 [PHONE] Exception going back from editor:', error);
     }
   };
 
@@ -358,6 +386,20 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       console.error('💥 [PHONE] Error unlocking lobby:', error);
     }
   };
+
+  // NEW: Show Stage 6 - Editor Control Panel
+  if (gameStatus === 'in_editor') {
+    return (
+      <EditorControlPanel
+        sessionId={currentSessionId}
+        myPlayerId={myPlayerId}
+        playerName={playerName}
+        webrtcStatus={webrtc.status}
+        webrtcSendMessage={webrtc.sendMessage}
+        onBack={handleBackFromEditor}
+      />
+    );
+  }
 
   // Show session not found error
   if (connectionError && !isJoined && !isLoadingSession) {
@@ -560,7 +602,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         </div>
       )}
 
-      {/* NEW: Editor Selection Mode - Horizontal Scroll */}
+      {/* NEW: Stage 5 - Editor Selection Mode - Horizontal Scroll Carousel */}
       {gameStatus === 'editor_selection' && (
         <div className="flex-1">
           <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/20 mb-6">
@@ -572,7 +614,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             <div className="text-center mb-4">
               <Monitor size={48} className="text-purple-400 mx-auto mb-2" />
               <h2 className="text-xl font-bold">Select Development Environment</h2>
-              <p className="text-sm text-gray-400">Tap an editor to launch it on the console</p>
+              <p className="text-sm text-gray-400">Swipe or tap an editor to launch it on the console</p>
             </div>
 
             {isHost && (
@@ -587,81 +629,98 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             )}
           </div>
 
-          {/* NEW: Horizontal Editor Cards */}
-          <div className="space-y-4">
-            {editors.map((editor, index) => {
-              const IconComponent = editor.icon;
-              const isSelected = index === phoneSelectedEditorIndex;
-              
-              return (
-                <div
-                  key={editor.id}
-                  className={`relative transition-all duration-300 transform cursor-pointer ${
-                    isSelected ? 'scale-105' : 'scale-100'
-                  }`}
-                  onClick={() => {
-                    console.log('📱 [PHONE] Editor selected:', editor.name);
-                    setPhoneSelectedEditorIndex(index);
-                    handlePhoneEditorSelection(editor.id);
-                  }}
-                >
-                  {/* Selection Ring */}
-                  {isSelected && (
-                    <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl blur opacity-75 animate-pulse"></div>
-                  )}
-                  
-                  <div className={`relative bg-gradient-to-br ${editor.bgGradient} backdrop-blur-md border-2 ${
-                    isSelected ? 'border-indigo-400 shadow-xl shadow-indigo-500/25' : 'border-white/10'
-                  } rounded-xl p-4 transition-all duration-300`}>
+          {/* NEW: Horizontal Scroll Carousel */}
+          <div className="mb-6">
+            <div className="flex overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide">
+              {editors.map((editor, index) => {
+                const IconComponent = editor.icon;
+                const isSelected = index === phoneSelectedEditorIndex;
+                
+                return (
+                  <div
+                    key={editor.id}
+                    className={`flex-shrink-0 w-64 snap-center transition-all duration-300 transform cursor-pointer ${
+                      isSelected ? 'scale-105' : 'scale-95 opacity-70'
+                    }`}
+                    onClick={() => {
+                      console.log('📱 [PHONE] Editor selected:', editor.name);
+                      setPhoneSelectedEditorIndex(index);
+                      handlePhoneEditorSelection(editor.id);
+                    }}
+                  >
+                    {/* Selection Ring */}
+                    {isSelected && (
+                      <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl blur opacity-75 animate-pulse"></div>
+                    )}
                     
-                    <div className="flex items-center gap-4">
-                      {/* Icon */}
-                      <div className={`p-3 rounded-lg bg-black/30 ${editor.color} ${
-                        isSelected ? 'animate-pulse' : ''
-                      }`}>
-                        <IconComponent size={24} />
-                      </div>
+                    <div className={`relative bg-gradient-to-br ${editor.bgGradient} backdrop-blur-md border-2 ${
+                      isSelected ? 'border-indigo-400 shadow-xl shadow-indigo-500/25' : 'border-white/10'
+                    } rounded-xl p-4 h-full flex flex-col justify-between transition-all duration-300`}>
                       
-                      {/* Content */}
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-white">{editor.name}</h3>
-                        <p className="text-gray-300 text-sm">{editor.description}</p>
-                        
-                        {/* Features */}
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {editor.features.slice(0, 2).map((feature, idx) => (
-                            <span key={idx} className="text-xs bg-black/20 px-2 py-1 rounded text-gray-300">
-                              {feature}
-                            </span>
-                          ))}
+                      {/* Header */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className={`p-2 rounded-lg bg-black/30 ${editor.color} ${
+                          isSelected ? 'animate-pulse' : ''
+                        }`}>
+                          <IconComponent size={20} />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-white">{editor.name}</h3>
+                          <p className="text-gray-300 text-xs">{editor.description}</p>
                         </div>
                       </div>
-                      
-                      {/* URL Preview */}
-                      <div className="text-right">
-                        <div className="flex items-center gap-1 text-xs text-gray-400 mb-2">
-                          <ExternalLink size={12} />
-                          <span className="font-mono">{editor.url}</span>
-                        </div>
-                        
-                        {/* Selection Indicator */}
-                        {isSelected && (
-                          <div className="bg-indigo-500 text-white px-3 py-1 rounded-full text-xs font-medium animate-bounce">
-                            ✨ Selected!
+
+                      {/* Features */}
+                      <div className="space-y-2 mb-4">
+                        {editor.features.slice(0, 3).map((feature, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${editor.color.replace('text-', 'bg-')} ${
+                              isSelected ? 'animate-pulse' : ''
+                            }`}></div>
+                            <span className="text-gray-200 text-xs">{feature}</span>
                           </div>
-                        )}
+                        ))}
+                      </div>
+
+                      {/* URL Preview */}
+                      <div className="bg-black/30 rounded-lg p-2 mb-3">
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                          <ExternalLink size={10} />
+                          <span className="font-mono truncate">{editor.url}</span>
+                        </div>
+                      </div>
+
+                      {/* Selection Indicator */}
+                      {isSelected && (
+                        <div className="text-center">
+                          <div className="bg-indigo-500 text-white px-3 py-1 rounded-full text-xs font-medium animate-bounce">
+                            ✨ Launching...
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Index indicator */}
+                      <div className="absolute top-2 right-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                          isSelected 
+                            ? 'bg-indigo-500 text-white' 
+                            : 'bg-gray-700 text-gray-300'
+                        }`}>
+                          {index + 1}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
           {/* Instructions */}
-          <div className="mt-6 bg-black/20 rounded-lg p-4 border border-indigo-500/20">
+          <div className="bg-black/20 rounded-lg p-4 border border-indigo-500/20">
             <h4 className="text-indigo-300 font-medium mb-2">Instructions:</h4>
             <ul className="text-sm text-gray-400 space-y-1">
+              <li>• Swipe horizontally to browse editors</li>
               <li>• Tap any editor card to launch it on the console screen</li>
               <li>• The selected editor will open in fullscreen mode</li>
               <li>• All players will see the same editor interface</li>
@@ -691,7 +750,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               </div>
             </div>
             <div className="mt-2 text-center text-green-400 text-xs">
-              ✅ Direct editor selection via phone interface
+              ✅ Horizontal carousel editor selection
             </div>
           </div>
         </div>

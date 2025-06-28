@@ -43,7 +43,7 @@ export interface DeviceInput {
   id: string;
   session_id: string;
   device_id: string;
-  input_type: 'dpad' | 'button' | 'swipe' | 'touch' | 'accelerometer';
+  input_type: 'dpad' | 'button' | 'swipe' | 'touch' | 'accelerometer' | 'voice' | 'canvas';
   input_action: string;
   input_data: any; // JSONB
   timestamp: string; // TIMESTAMPTZ
@@ -208,7 +208,7 @@ export const deviceInputHelpers = {
   async createDeviceInput(
     sessionId: string,
     deviceId: string,
-    inputType: 'dpad' | 'button' | 'swipe' | 'touch' | 'accelerometer',
+    inputType: 'dpad' | 'button' | 'swipe' | 'touch' | 'accelerometer' | 'voice' | 'canvas',
     inputAction: string,
     inputData: any = {},
     source: 'webrtc' | 'supabase' = 'supabase',

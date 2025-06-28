@@ -1,5 +1,5 @@
 export interface InputEvent {
-  type: 'dpad' | 'button' | 'swipe' | 'touch' | 'accelerometer';
+  type: 'dpad' | 'button' | 'swipe' | 'touch' | 'accelerometer' | 'voice' | 'canvas';
   action: string;
   data: any;
   timestamp: number;
@@ -58,7 +58,7 @@ export class InputRouter {
       return []; // Console doesn't need input mappings
     }
 
-    // Default phone controller mappings
+    // Default phone controller mappings (simplified for new UI)
     return [
       {
         deviceId,
@@ -91,15 +91,22 @@ export class InputRouter {
       {
         deviceId,
         deviceName,
-        inputType: 'button.a',
-        mappedAction: 'select',
+        inputType: 'button.folder',
+        mappedAction: 'open_files',
         isActive: true
       },
       {
         deviceId,
         deviceName,
-        inputType: 'button.b',
-        mappedAction: 'cancel',
+        inputType: 'voice.recording',
+        mappedAction: 'voice_input',
+        isActive: true
+      },
+      {
+        deviceId,
+        deviceName,
+        inputType: 'canvas.draw_move',
+        mappedAction: 'canvas_draw',
         isActive: true
       }
     ];
@@ -143,17 +150,20 @@ export class InputRouter {
     }
   }
 
-  // Extract input event from various message formats
+  // ENHANCED: Extract input event from various message formats including new types
   private extractInputFromMessage(message: any): InputEvent | null {
     const data = message.data;
     
     // Handle AirConsole-style dpad input
-    if (data?.dpad?.directionchange) {
-      const { key, pressed } = data.dpad.directionchange;
+    if (data?.dpad) {
+      const dpadData = data.dpad;
+      const actionKey = Object.keys(dpadData)[0];
+      const actionData = dpadData[actionKey];
+      
       return {
         type: 'dpad',
-        action: key,
-        data: { pressed, direction: key },
+        action: actionData.direction || actionKey,
+        data: actionData,
         timestamp: message.timestamp || Date.now()
       };
     }
@@ -166,6 +176,32 @@ export class InputRouter {
         type: 'button',
         action: buttonName,
         data: buttonData,
+        timestamp: message.timestamp || Date.now()
+      };
+    }
+
+    // NEW: Handle voice input
+    if (data?.voice) {
+      const voiceAction = Object.keys(data.voice)[0];
+      const voiceData = data.voice[voiceAction];
+      console.log(`🎤 [InputRouter] Extracted voice input: ${voiceAction}`, voiceData);
+      return {
+        type: 'voice',
+        action: voiceAction,
+        data: voiceData,
+        timestamp: message.timestamp || Date.now()
+      };
+    }
+
+    // NEW: Handle canvas input
+    if (data?.canvas) {
+      const canvasAction = Object.keys(data.canvas)[0];
+      const canvasData = data.canvas[canvasAction];
+      console.log(`🎨 [InputRouter] Extracted canvas input: ${canvasAction}`, canvasData);
+      return {
+        type: 'canvas',
+        action: canvasAction,
+        data: canvasData,
         timestamp: message.timestamp || Date.now()
       };
     }

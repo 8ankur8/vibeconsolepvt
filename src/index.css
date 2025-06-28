@@ -39,3 +39,12 @@
 .gradient-text {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400;
 }
+
+/* Hide scrollbar for horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar { 
+  display: none;  /* Safari and Chrome */
+}
