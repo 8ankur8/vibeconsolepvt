@@ -466,7 +466,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
   if (!isJoined) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-6">
+      <div className="min-h-screen bg-gray-900 text-white overflow-hidden p-6">
         <button 
           onClick={() => navigate('/')}
           className="mb-8 p-2 hover:bg-gray-800 rounded-full transition-colors"
@@ -537,7 +537,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
 
             <div className="text-center text-sm text-gray-400">
               <p>First player to join becomes the host</p>
-              <p>Maximum 4 players per lobby</p>
             </div>
           </div>
         </div>
@@ -622,17 +621,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       {gameStatus === 'editor_selection' && (
         <div className="flex-1">
           <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/20 mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Code size={20} className="text-purple-400" />
-              <h3 className="text-lg font-semibold">TV Remote Mode</h3>
-            </div>
-            
-            <div className="text-center mb-4">
-              <Monitor size={48} className="text-purple-400 mx-auto mb-2" />
-              <h2 className="text-xl font-bold">Control the Main Screen</h2>
-              <p className="text-sm text-gray-400">Navigate and select editors on the console</p>
-            </div>
-
+           
             {isHost && (
               <div className="mb-4">
                 <button
