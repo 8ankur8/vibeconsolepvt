@@ -574,29 +574,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           <span className="text-sm text-green-400">Connected</span>
         </div>
       </div>
-
-      {/* Players List */}
-      <div className="mb-6 bg-black/20 rounded-lg p-4 border border-indigo-500/20">
-        <div className="flex items-center gap-2 mb-3">
-          <Users size={16} className="text-indigo-300" />
-          <h3 className="font-semibold">Players ({players.length}/4)</h3>
-          {webrtc.status.isInitialized && (
-            <div className="ml-auto text-xs text-blue-300">
-              WebRTC: {webrtc.status.connectedDevices.length > 0 ? 'Connected' : 'Connecting...'}
-            </div>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {players.map((player) => (
-            <div key={player.id} className="flex items-center gap-2 bg-indigo-900/30 p-2 rounded border border-indigo-500/20">
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-              <span className="text-sm">{player.name}</span>
-              {player.isHost && <Crown size={12} className="text-yellow-400" />}
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Host Controls - Only show in waiting state */}
       {isHost && gameStatus === 'waiting' && (
         <div className="mb-6 bg-purple-900/30 rounded-lg p-4 border border-purple-500/20">
@@ -620,8 +597,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       {/* Editor Selection Mode - TV Remote */}
       {gameStatus === 'editor_selection' && (
         <div className="flex-1">
-          <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/20 mb-6">
-           
             {isHost && (
               <div className="mb-4">
                 <button
@@ -632,7 +607,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                 </button>
               </div>
             )}
-          </div>
 
           {/* TV Remote Controls */}
           <div className="flex justify-center mb-6">
