@@ -678,6 +678,19 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
           </div>
         </div>
       )}
+
+      {gameStatus === 'lanuch' && !isHost && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Gamepad2 size={64} className="text-indigo-300 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2">Ready to Play!</h2>
+            <p className="text-indigo-200 mb-4">Waiting for the host to lock the lobby...</p>
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 text-sm text-purple-300">
+              The host will lock the lobby when everyone is ready
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
