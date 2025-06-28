@@ -34,17 +34,11 @@ const ConsoleDisplay: React.FC = () => {
   const [isLobbyLocked, setIsLobbyLocked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(true);
-  const [lastProcessedInput, setLastProcessedInput] = useState<ControllerInput | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
   // NEW: Selected editor state from Supabase
   const [selectedEditor, setSelectedEditor] = useState<SelectedEditor | null>(null);
-
-  // Navigation state
-  const [navigationEvents, setNavigationEvents] = useState<any[]>([]);
-  const [lastNavigationDirection, setLastNavigationDirection] = useState<string>('');
-  const [currentEditorIndex, setCurrentEditorIndex] = useState(0);
 
   // InputRouter integration
   const inputRouterRef = useRef<InputRouter | null>(null);
@@ -105,72 +99,6 @@ const ConsoleDisplay: React.FC = () => {
     return false;
   };
 
-  // Navigation handler function
-  const handleNavigation = useCallback((direction: string, deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
-    const deviceName = deviceNames[deviceId] || 'Unknown';
-    console.log(`🎮 [CONSOLE] Navigation: ${direction} from ${deviceName} (${deviceId.slice(-8)}) via ${source}`);
-    
-    setLastNavigationDirection(direction);
-    setNavigationEvents(prev => [...prev.slice(-9), {
-      direction,
-      deviceId: deviceId.slice(-8),
-      deviceName,
-      source,
-      timestamp: new Date().toLocaleTimeString()
-    }]);
-
-    // Handle editor grid navigation if lobby is locked
-    if (isLobbyLocked) {
-      handleEditorGridNavigation(direction);
-    }
-
-    console.log(`📤 [CONSOLE] Navigation processed: ${direction}`);
-  }, [deviceNames, isLobbyLocked]);
-
-  // Selection handler function
-  const handleSelection = useCallback((deviceId: string, source: 'webrtc' | 'supabase' = 'webrtc') => {
-    const deviceName = deviceNames[deviceId] || 'Unknown';
-    console.log(`🎯 [CONSOLE] Selection from ${deviceName} (${deviceId.slice(-8)}) via ${source}`);
-    
-    setNavigationEvents(prev => [...prev.slice(-9), {
-      direction: 'SELECT',
-      deviceId: deviceId.slice(-8),
-      deviceName,
-      source,
-      timestamp: new Date().toLocaleTimeString()
-    }]);
-
-    console.log(`📤 [CONSOLE] Selection processed`);
-    
-    if (isLobbyLocked) {
-      console.log('🚀 [CONSOLE] Launching selected editor...');
-    }
-  }, [deviceNames, currentEditorIndex, isLobbyLocked]);
-
-  // Editor grid navigation handler
-  const handleEditorGridNavigation = useCallback((direction: string) => {
-    const editors = ['Bolt.new', 'Loveable', 'Firebase', 'Supabase'];
-    
-    switch (direction) {
-      case 'left':
-        setCurrentEditorIndex(prev => Math.max(0, prev - 1));
-        console.log('⬅️ [CONSOLE] Editor selection: moved left');
-        break;
-      case 'right':
-        setCurrentEditorIndex(prev => Math.min(editors.length - 1, prev + 1));
-        console.log('➡️ [CONSOLE] Editor selection: moved right');
-        break;
-      case 'up':
-        console.log('⬆️ [CONSOLE] Editor selection: moved up');
-        break;
-      case 'down':
-        console.log('⬇️ [CONSOLE] Editor selection: moved down');
-        break;
-    }
-    
-    console.log(`🎯 [CONSOLE] Current editor index: ${currentEditorIndex} (${editors[currentEditorIndex]})`);
-  }, [currentEditorIndex]);
-
   // Enhanced WebRTC message handler
   const handleWebRTCMessage = useCallback((message: WebRTCMessage, fromDeviceId: string) => {
     const deviceName = deviceNames[fromDeviceId] || 'Unknown Device';
@@ -182,7 +110,6 @@ const ConsoleDisplay: React.FC = () => {
       const processedInput = inputRouterRef.current.processWebRTCInput(fromDeviceId, message);
       if (processedInput) {
         console.log(`✅ [CONSOLE] InputRouter processed input from ${deviceName}:`, processedInput);
-        setLastProcessedInput(processedInput);
       } else {
         console.log(`⚠️ [CONSOLE] InputRouter failed to process input from ${deviceName}`);
       }
@@ -190,45 +117,25 @@ const ConsoleDisplay: React.FC = () => {
       console.log(`❌ [CONSOLE] InputRouter not available!`);
     }
     
-    // Enhanced navigation handling
-    if (message.type === 'game_data' && message.data) {
-      const { data } = message;
-      
-      // Handle D-pad navigation
-      if (data.dpad?.directionchange) {
-        const direction = data.dpad.directionchange.key;
-        handleNavigation(direction, fromDeviceId, 'webrtc');
-      }
-      
-      // Handle button presses
-      if (data.button?.a?.pressed) {
-        handleSelection(fromDeviceId, 'webrtc');
-      }
-    }
-    
     // Handle different message types for debugging
     switch (message.type) {
       case 'navigation':
         console.log(`🎮 [CONSOLE] Navigation input from ${deviceName}:`, message.data);
-        if (message.data.direction) {
-          handleNavigation(message.data.direction, fromDeviceId, 'webrtc');
-        }
         break;
       case 'selection':
         console.log(`👆 [CONSOLE] Selection input from ${deviceName}:`, message.data);
-        handleSelection(fromDeviceId, 'webrtc');
         break;
       case 'game_data':
         console.log(`🎯 [CONSOLE] Game data from ${deviceName}:`, message.data);
         break;
       case 'heartbeat':
         console.log(`💓 [CONSOLE] Heartbeat from ${deviceName}`);
-        deviceHelpers.updateDeviceActivity(fromDeviceId);
+        deviceHelpers.updateDeviceActivity?.(fromDeviceId);
         break;
       default:
         console.log(`❓ [CONSOLE] Unknown message type from ${deviceName}:`, message);
     }
-  }, [deviceNames, handleNavigation, handleSelection]);
+  }, [deviceNames]);
 
   // WebRTC integration with enhanced logging
   const webrtc = useWebRTC({
@@ -239,114 +146,12 @@ const ConsoleDisplay: React.FC = () => {
     enabled: sessionId !== '' && consoleDeviceId !== '' && isLobbyLocked && !connectionError
   });
 
-  // Supabase Real-time Input Listener for device_inputs table
-  useEffect(() => {
-    if (!sessionId || !inputRouterRef.current || connectionError) {
-      console.log('⚠️ [CONSOLE] Skipping device_inputs subscription:', {
-        hasSessionId: !!sessionId,
-        hasInputRouter: !!inputRouterRef.current,
-        hasConnectionError: !!connectionError
-      });
-      return;
-    }
-
-    console.log('📡 [CONSOLE] Setting up device_inputs real-time listener for session:', sessionId.slice(-8));
-
-    const deviceInputsChannel = deviceInputHelpers.subscribeToDeviceInputs(
-      sessionId,
-      (input) => {
-        console.log('📱 [CONSOLE] ===== NEW DEVICE INPUT FROM DATABASE =====');
-        console.log('📱 [CONSOLE] Input received:', input);
-        
-        // Skip inputs from console device (avoid self-processing)
-        if (input.device_id === consoleDeviceId) {
-          console.log('⚠️ [CONSOLE] Skipping input from console device (self)');
-          return;
-        }
-
-        // Process through InputRouter
-        if (inputRouterRef.current) {
-          console.log('🎮 [CONSOLE] Processing database input through InputRouter...');
-          const processedInput = inputRouterRef.current.processDeviceInput(input);
-          
-          if (processedInput) {
-            console.log('✅ [CONSOLE] InputRouter processed database input:', processedInput);
-            setLastProcessedInput(processedInput);
-            
-            // Handle navigation from database input
-            if (processedInput.input.type === 'dpad') {
-              handleNavigation(processedInput.input.action, processedInput.deviceId, 'supabase');
-            } else if (processedInput.input.type === 'button' && processedInput.input.action === 'a') {
-              handleSelection(processedInput.deviceId, 'supabase');
-            }
-          } else {
-            console.log('⚠️ [CONSOLE] InputRouter failed to process database input');
-          }
-        } else {
-          console.log('❌ [CONSOLE] InputRouter not available for database input!');
-        }
-        
-        console.log('📱 [CONSOLE] ===== DATABASE INPUT PROCESSING COMPLETE =====');
-      }
-    );
-
-    return () => {
-      console.log('🧹 [CONSOLE] Cleaning up device_inputs subscription');
-      deviceInputsChannel.unsubscribe();
-    };
-  }, [sessionId, consoleDeviceId, connectionError, handleNavigation, handleSelection]);
-
-  // Listen for Supabase navigation (fallback when WebRTC isn't connected)
-  useEffect(() => {
-    if (!sessionId) return;
-
-    console.log('📡 [CONSOLE] Starting session listener for:', sessionId.slice(-8));
-
-    const sessionChannel = supabase
-      .channel(`session_navigation_${sessionId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'sessions',
-        filter: `id=eq.${sessionId}`
-      }, (payload) => {
-        const newData = payload.new as any;
-        
-        if (newData.selected_editor) {
-          try {
-            const inputData = JSON.parse(newData.selected_editor);
-            
-            if (inputData.action === 'navigate' && inputData.source === 'phone_controller') {
-              console.log('🎮 [CONSOLE] Phone navigation received:', inputData.direction, 'from', inputData.playerName);
-              
-              // Process navigation
-              handleNavigation(inputData.direction, inputData.playerId, 'supabase');
-            }
-          } catch (error) {
-            // Silently ignore parsing errors
-          }
-        }
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ [CONSOLE] Navigation listener ready');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ [CONSOLE] Navigation listener failed');
-        }
-      });
-
-    return () => {
-      sessionChannel.unsubscribe();
-    };
-  }, [sessionId, handleNavigation]);
-
   // Initialize InputRouter with enhanced logging
   useEffect(() => {
     if (sessionId && consoleDeviceId) {
       console.log('🎮 [CONSOLE] Initializing InputRouter');
       inputRouterRef.current = new InputRouter((input) => {
         console.log(`🎯 [CONSOLE] InputRouter processed input:`, input);
-        setLastProcessedInput(input);
       });
 
       // Register console device
@@ -819,17 +624,14 @@ const ConsoleDisplay: React.FC = () => {
     );
   }
 
-  // Show editor selection when lobby is locked (but no editor selected yet)
-  if (isLobbyLocked) {
+  // NEW: Show editor selection when lobby is locked (but no editor selected yet)
+  if (isLobbyLocked && !selectedEditor) {
     return (
       <EditorSelection
         sessionId={sessionId}
         lobbyCode={lobbyCode}
         players={players}
         onBack={() => setIsLobbyLocked(false)}
-        webrtcStatus={webrtc.status}
-        onWebRTCMessage={webrtc.broadcastMessage}
-        lastControllerInput={lastProcessedInput}
       />
     );
   }
@@ -844,15 +646,6 @@ const ConsoleDisplay: React.FC = () => {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
               VibeConsole
             </h1>
-            {/* Last navigation display */}
-            {lastNavigationDirection && (
-              <div className="ml-4 flex items-center gap-2 bg-purple-900/30 px-3 py-1 rounded-full border border-purple-500/30">
-                <span className="text-purple-300 text-sm">Last Input:</span>
-                <span className="text-white font-mono bg-purple-500/20 px-2 py-1 rounded text-sm">
-                  {lastNavigationDirection}
-                </span>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-4">
             {lobbyCode}

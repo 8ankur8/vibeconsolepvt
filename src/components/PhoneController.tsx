@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Gamepad2, Crown, Lock, Users, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Code, Monitor, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Gamepad2, Crown, Lock, Users, Code, Monitor, AlertCircle, RefreshCw, Zap, Database, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, sessionHelpers, deviceHelpers, deviceInputHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
@@ -14,6 +14,50 @@ interface Player {
   isHost: boolean;
 }
 
+interface Editor {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  icon: React.ComponentType<any>;
+  color: string;
+  bgGradient: string;
+  features: string[];
+}
+
+const editors: Editor[] = [
+  {
+    id: 'bolt',
+    name: 'Bolt.new',
+    description: 'AI-powered full-stack development platform',
+    url: 'https://bolt.new',
+    icon: Zap,
+    color: 'text-yellow-400',
+    bgGradient: 'from-yellow-500/20 to-orange-500/20',
+    features: ['AI Code Generation', 'Real-time Preview', 'Full-stack Support', 'Instant Deployment']
+  },
+  {
+    id: 'loveable',
+    name: 'Loveable',
+    description: 'Visual development platform for modern apps',
+    url: 'https://loveable.dev',
+    icon: Code,
+    color: 'text-pink-400',
+    bgGradient: 'from-pink-500/20 to-purple-500/20',
+    features: ['Visual Builder', 'Component Library', 'Responsive Design', 'Team Collaboration']
+  },
+  {
+    id: 'co',
+    name: 'co.dev',
+    description: 'Google\'s app development platform',
+    url: 'https://co.dev',
+    icon: Database,
+    color: 'text-orange-400',
+    bgGradient: 'from-orange-500/20 to-red-500/20',
+    features: ['Real-time Database', 'Authentication', 'Cloud Functions', 'Analytics']
+  }
+];
+
 const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [playerName, setPlayerName] = useState('');
   const [isJoined, setIsJoined] = useState(false);
@@ -24,8 +68,10 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
   const [isHost, setIsHost] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLobbyLocked, setIsLobbyLocked] = useState(false);
-  const [lastNavigationTime, setLastNavigationTime] = useState(0);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
+  
+  // NEW: Phone editor selection state
+  const [phoneSelectedEditorIndex, setPhoneSelectedEditorIndex] = useState(0);
   
   const navigate = useNavigate();
 
@@ -116,134 +162,53 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
     }
   };
 
-  // Send navigation input
-  const sendNavigation = async (direction: string) => {
-    if (!currentSessionId || !myPlayerId) return;
-
-    // Throttle navigation to prevent spam
-    const currentTime = Date.now();
-    if (currentTime - lastNavigationTime < 150) return;
-
-    console.log(`🎮 [PHONE] Sending ${direction} navigation`);
-
-    try {
-      // Send structured game_data message for InputRouter compatibility
-      const webrtcMessage = {
-        type: 'game_data' as const,
-        data: {
-          dpad: {
-            directionchange: {
-              key: direction,
-              pressed: true
-            }
-          }
-        }
-      };
-
-      // Find console device to send WebRTC message to
-      const { data: consoleDevice, error: consoleError } = await supabase
-        .from('devices')
-        .select('id')
-        .eq('session_id', currentSessionId)
-        .eq('name', 'Console')
-        .single();
-
-      if (consoleError) {
-        console.error('❌ [PHONE] Error finding console device:', consoleError);
-      }
-
-      let webrtcSent = false;
-      if (consoleDevice && webrtc.status.isInitialized) {
-        webrtcSent = webrtc.sendMessage(consoleDevice.id, webrtcMessage);
-        if (webrtcSent) {
-          console.log('✅ [PHONE] WebRTC navigation sent to console');
-        }
-      }
-
-      // Store input in device_inputs table
-      const inputCreated = await deviceInputHelpers.createDeviceInput(
-        currentSessionId,
-        myPlayerId,
-        'dpad',
-        direction,
-        {
-          pressed: true,
-          direction: direction,
-          playerName: playerName
-        },
-        webrtcSent ? 'webrtc' : 'supabase',
-        new Date(currentTime).toISOString()
-      );
-
-      if (!inputCreated) {
-        console.error('❌ [PHONE] Failed to store input in device_inputs table');
-      }
-
-      setLastNavigationTime(currentTime);
-      
-    } catch (error) {
-      console.error('💥 [PHONE] Error sending navigation:', error);
+  // NEW: Handle phone editor selection
+  const handlePhoneEditorSelection = async (editorId: string) => {
+    console.log('🎯 [PHONE] Editor selected on phone:', editorId);
+    
+    if (!currentSessionId) {
+      console.error('❌ [PHONE] No session ID available for editor selection');
+      return;
     }
-  };
-
-  // Send selection input
-  const sendSelection = async () => {
-    if (!currentSessionId || !myPlayerId) return;
-
-    console.log('🎯 [PHONE] Sending selection');
 
     try {
-      // Send structured game_data message for InputRouter compatibility
-      const webrtcMessage = {
-        type: 'game_data' as const,
-        data: {
-          button: {
-            a: {
-              pressed: true
-            }
-          }
-        }
+      // Find the selected editor
+      const selectedEditorInfo = editors.find(editor => editor.id === editorId);
+      if (!selectedEditorInfo) {
+        console.error('❌ [PHONE] Editor not found:', editorId);
+        return;
+      }
+
+      // Create selection data for Supabase
+      const selectionData = {
+        selectedEditor: selectedEditorInfo.id,
+        selectedEditorName: selectedEditorInfo.name,
+        selectedIndex: editors.findIndex(e => e.id === editorId),
+        selectionTimestamp: Date.now(),
+        sessionId: currentSessionId,
+        lobbyCode: lobbyCode,
+        selectedBy: playerName
       };
 
-      // Find console device to send WebRTC message to
-      const { data: consoleDevice, error: consoleError } = await supabase
-        .from('devices')
-        .select('id')
-        .eq('session_id', currentSessionId)
-        .eq('name', 'Console')
-        .single();
+      console.log('💾 [PHONE] Saving editor selection to Supabase:', selectionData);
 
-      if (consoleError) {
-        console.error('❌ [PHONE] Error finding console device:', consoleError);
+      // Update session with selection data - this will trigger ConsoleDisplay to show the editor
+      const { error } = await supabase
+        .from('sessions')
+        .update({ 
+          selected_editor: JSON.stringify(selectionData)
+        })
+        .eq('id', currentSessionId);
+
+      if (error) {
+        console.error('❌ [PHONE] Error saving editor selection:', error);
+        return;
       }
 
-      let webrtcSent = false;
-      if (consoleDevice && webrtc.status.isInitialized) {
-        webrtcSent = webrtc.sendMessage(consoleDevice.id, webrtcMessage);
-        if (webrtcSent) {
-          console.log('✅ [PHONE] WebRTC selection sent to console');
-        }
-      }
+      console.log('✅ [PHONE] Editor selection saved successfully - console will launch the editor');
 
-      // Store input in device_inputs table
-      const inputCreated = await deviceInputHelpers.createDeviceInput(
-        currentSessionId,
-        myPlayerId,
-        'button',
-        'a',
-        {
-          pressed: true,
-          playerName: playerName
-        },
-        webrtcSent ? 'webrtc' : 'supabase'
-      );
-
-      if (!inputCreated) {
-        console.error('❌ [PHONE] Failed to store selection input in device_inputs table');
-      }
-      
     } catch (error) {
-      console.error('💥 [PHONE] Error sending selection:', error);
+      console.error('💥 [PHONE] Exception during editor selection:', error);
     }
   };
 
@@ -564,7 +529,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             gameStatus === 'editor_selection' ? 'text-purple-400' : 'text-indigo-400'
           }`}>
             {isHost ? 'Host' : 'Player'} • {
-              gameStatus === 'editor_selection' ? 'Remote Control' : 'Waiting'
+              gameStatus === 'editor_selection' ? 'Select Editor' : 'Waiting'
             }
           </div>
         </div>
@@ -595,73 +560,139 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         </div>
       )}
 
-      {/* Editor Selection Mode - TV Remote */}
+      {/* NEW: Editor Selection Mode - Horizontal Scroll */}
       {gameStatus === 'editor_selection' && (
         <div className="flex-1">
-          {isHost && (
-            <div className="mb-4">
-              <button
-                onClick={unlockLobby}
-                className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
-              >
-                Unlock Lobby
-              </button>
+          <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/20 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Code size={20} className="text-purple-400" />
+              <h3 className="text-lg font-semibold">Choose Your Editor</h3>
             </div>
-          )}
+            
+            <div className="text-center mb-4">
+              <Monitor size={48} className="text-purple-400 mx-auto mb-2" />
+              <h2 className="text-xl font-bold">Select Development Environment</h2>
+              <p className="text-sm text-gray-400">Tap an editor to launch it on the console</p>
+            </div>
 
-          {/* TV Remote Controls */}
-          <div className="flex justify-center mb-6">
-            <div className="relative w-48 h-48">
-              <div className="absolute inset-0 rounded-full bg-gray-800 border-2 border-gray-700 shadow-2xl">
-                {/* Navigation buttons */}
-                <button 
-                  onClick={() => sendNavigation('left')}
-                  className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
+            {isHost && (
+              <div className="mb-4">
+                <button
+                  onClick={unlockLobby}
+                  className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
                 >
-                  <ChevronLeft size={20} className="text-white" />
-                </button>
-
-                <button 
-                  onClick={() => sendNavigation('right')}
-                  className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
-                >
-                  <ChevronRight size={20} className="text-white" />
-                </button>
-
-                <button 
-                  onClick={() => sendNavigation('up')}
-                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
-                >
-                  <ChevronUp size={20} className="text-white" />
-                </button>
-
-                <button 
-                  onClick={() => sendNavigation('down')}
-                  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
-                >
-                  <ChevronDown size={20} className="text-white" />
+                  Unlock Lobby
                 </button>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-4">
-            <button 
-              onClick={sendSelection}
-              className="p-4 rounded-lg border-2 bg-indigo-500/20 hover:bg-indigo-500/30 active:bg-indigo-500/40 border-indigo-500/30 text-indigo-300 transition-all duration-150 flex flex-col items-center gap-2 active:scale-95"
-            >
-              <span className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold">A</span>
-              <span className="text-sm">Select</span>
-            </button>
-            
-            <button 
-              onClick={() => navigate('/')}
-              className="p-4 rounded-lg border-2 bg-red-500/20 hover:bg-red-500/30 active:bg-red-500/40 border-red-500/30 text-red-300 transition-all duration-150 flex flex-col items-center gap-2 active:scale-95"
-            >
-              <span className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold">B</span>
-              <span className="text-sm">Exit</span>
-            </button>
+          {/* NEW: Horizontal Editor Cards */}
+          <div className="space-y-4">
+            {editors.map((editor, index) => {
+              const IconComponent = editor.icon;
+              const isSelected = index === phoneSelectedEditorIndex;
+              
+              return (
+                <div
+                  key={editor.id}
+                  className={`relative transition-all duration-300 transform cursor-pointer ${
+                    isSelected ? 'scale-105' : 'scale-100'
+                  }`}
+                  onClick={() => {
+                    console.log('📱 [PHONE] Editor selected:', editor.name);
+                    setPhoneSelectedEditorIndex(index);
+                    handlePhoneEditorSelection(editor.id);
+                  }}
+                >
+                  {/* Selection Ring */}
+                  {isSelected && (
+                    <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl blur opacity-75 animate-pulse"></div>
+                  )}
+                  
+                  <div className={`relative bg-gradient-to-br ${editor.bgGradient} backdrop-blur-md border-2 ${
+                    isSelected ? 'border-indigo-400 shadow-xl shadow-indigo-500/25' : 'border-white/10'
+                  } rounded-xl p-4 transition-all duration-300`}>
+                    
+                    <div className="flex items-center gap-4">
+                      {/* Icon */}
+                      <div className={`p-3 rounded-lg bg-black/30 ${editor.color} ${
+                        isSelected ? 'animate-pulse' : ''
+                      }`}>
+                        <IconComponent size={24} />
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-white">{editor.name}</h3>
+                        <p className="text-gray-300 text-sm">{editor.description}</p>
+                        
+                        {/* Features */}
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {editor.features.slice(0, 2).map((feature, idx) => (
+                            <span key={idx} className="text-xs bg-black/20 px-2 py-1 rounded text-gray-300">
+                              {feature}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* URL Preview */}
+                      <div className="text-right">
+                        <div className="flex items-center gap-1 text-xs text-gray-400 mb-2">
+                          <ExternalLink size={12} />
+                          <span className="font-mono">{editor.url}</span>
+                        </div>
+                        
+                        {/* Selection Indicator */}
+                        {isSelected && (
+                          <div className="bg-indigo-500 text-white px-3 py-1 rounded-full text-xs font-medium animate-bounce">
+                            ✨ Selected!
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Instructions */}
+          <div className="mt-6 bg-black/20 rounded-lg p-4 border border-indigo-500/20">
+            <h4 className="text-indigo-300 font-medium mb-2">Instructions:</h4>
+            <ul className="text-sm text-gray-400 space-y-1">
+              <li>• Tap any editor card to launch it on the console screen</li>
+              <li>• The selected editor will open in fullscreen mode</li>
+              <li>• All players will see the same editor interface</li>
+            </ul>
+          </div>
+
+          {/* Debug Info */}
+          <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex justify-between">
+                <span>Session:</span>
+                <span className="text-indigo-300 font-mono">{currentSessionId.slice(-8)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Player ID:</span>
+                <span className="text-purple-300 font-mono">{myPlayerId.slice(-8)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>WebRTC:</span>
+                <span className={webrtc.status.isInitialized ? 'text-green-300' : 'text-red-300'}>
+                  {webrtc.status.isInitialized ? 'Ready' : 'Disabled'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Connected:</span>
+                <span className="text-blue-300">{webrtc.status.connectedDevices.length}</span>
+              </div>
+            </div>
+            <div className="mt-2 text-center text-green-400 text-xs">
+              ✅ Direct editor selection via phone interface
+            </div>
           </div>
         </div>
       )}

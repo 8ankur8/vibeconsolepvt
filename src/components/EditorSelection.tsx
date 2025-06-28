@@ -1,16 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Code, Database, Zap, ExternalLink, Lock, Users, ArrowLeft, Crown } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { ControllerInput } from '../lib/inputRouter';
 
 interface EditorSelectionProps {
   sessionId: string;
   lobbyCode: string;
   players: any[];
   onBack: () => void;
-  webrtcStatus?: any;
-  onWebRTCMessage?: (message: any) => any;
-  lastControllerInput?: ControllerInput | null;
 }
 
 interface Editor {
@@ -61,124 +56,19 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   sessionId, 
   lobbyCode, 
   players, 
-  onBack,
-  webrtcStatus,
-  onWebRTCMessage,
-  lastControllerInput
+  onBack
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  
-  const selectedIndexRef = useRef(selectedIndex);
-
-  // Keep ref updated with current selectedIndex
-  useEffect(() => {
-    selectedIndexRef.current = selectedIndex;
-  }, [selectedIndex]);
-
-  // Handle lastControllerInput from InputRouter
-  useEffect(() => {
-    if (!lastControllerInput) return;
-
-    console.log('🎮 [EDITOR_SELECTION] Processing controller input:', lastControllerInput.input.type, lastControllerInput.input.action);
-
-    // Process input
-    if (lastControllerInput.input.type === 'dpad') {
-      const direction = lastControllerInput.input.action;
-      handleNavigation(direction);
-    } else if (lastControllerInput.input.type === 'button' && lastControllerInput.input.action === 'a') {
-      handleSelectEditor();
-    }
-  }, [lastControllerInput, selectedIndex]);
-
-  // Navigation handler
-  const handleNavigation = (direction: string) => {
-    console.log('🧭 [EDITOR_SELECTION] Navigation:', direction);
-    
-    switch (direction) {
-      case 'left':
-        setSelectedIndex(prev => {
-          const newIndex = prev > 0 ? prev - 1 : editors.length - 1;
-          selectedIndexRef.current = newIndex;
-          return newIndex;
-        });
-        break;
-        
-      case 'right':
-        setSelectedIndex(prev => {
-          const newIndex = prev < editors.length - 1 ? prev + 1 : 0;
-          selectedIndexRef.current = newIndex;
-          return newIndex;
-        });
-        break;
-    }
-  };
-
-  // MODIFIED: Handle editor selection - only update Supabase, no local state
-  const handleSelectEditor = async () => {
-    console.log('🎯 [EDITOR_SELECTION] Editor selected:', editors[selectedIndex].name);
-    
-    // Get selected editor info
-    const selectedEditorInfo = editors[selectedIndex];
-    
-    // Find the device that made the selection (host)
-    const hostPlayer = players.find(p => p.isHost && p.deviceType === 'phone');
-    
-    // Create selection data for Supabase
-    const selectionData = {
-      selectedEditor: selectedEditorInfo.id,
-      selectedEditorName: selectedEditorInfo.name,
-      selectedIndex: selectedIndex,
-      selectionTimestamp: Date.now(),
-      sessionId: sessionId,
-      lobbyCode: lobbyCode,
-      selectedBy: hostPlayer?.name || 'Host'
-    };
-    
-    try {
-      console.log('💾 [EDITOR_SELECTION] Saving selection to Supabase:', selectionData);
-      
-      // Update session with selection data - this will trigger ConsoleDisplay to show the editor
-      const { error } = await supabase
-        .from('sessions')
-        .update({ 
-          selected_editor: JSON.stringify(selectionData)
-        })
-        .eq('id', sessionId);
-
-      if (error) {
-        console.error('❌ [EDITOR_SELECTION] Error saving selection:', error);
-        return;
-      }
-
-      console.log('✅ [EDITOR_SELECTION] Selection saved successfully - ConsoleDisplay will handle the display');
-      
-      // NOTE: We don't set any local state here - ConsoleDisplay will detect the change
-      // and show the fullscreen editor iframe
-      
-    } catch (error) {
-      console.error('💥 [EDITOR_SELECTION] Exception during selection:', error);
-    }
-  };
 
   // Keyboard navigation for console (backup)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       switch (e.key) {
         case 'ArrowLeft':
-          handleNavigation('left');
+          setSelectedIndex(prev => prev > 0 ? prev - 1 : editors.length - 1);
           break;
         case 'ArrowRight':
-          handleNavigation('right');
-          break;
-        case 'ArrowUp':
-          handleNavigation('up');
-          break;
-        case 'ArrowDown':
-          handleNavigation('down');
-          break;
-        case 'Enter':
-        case ' ':
-          handleSelectEditor();
+          setSelectedIndex(prev => prev < editors.length - 1 ? prev + 1 : 0);
           break;
         case 'Escape':
           onBack();
@@ -188,9 +78,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
-
-  // REMOVED: The fullscreen editor display logic - ConsoleDisplay handles this now
+  }, [onBack]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white">
@@ -232,45 +120,23 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-4">Choose Your Development Environment</h2>
           <p className="text-xl text-indigo-200 mb-6">
-            Use your phone controller to navigate and select an editor
+            Use your phone to select an editor
           </p>
-          <div className="flex justify-center gap-8 text-sm text-indigo-300">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-6 bg-gray-700 rounded flex items-center justify-center">←→</div>
-              <span>Navigate</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-6 bg-indigo-500 rounded flex items-center justify-center">A</div>
-              <span>Select</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-6 bg-red-500 rounded flex items-center justify-center">B</div>
-              <span>Back</span>
-            </div>
-          </div>
           
           {/* Current selection indicator */}
           <div className="mt-6 bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 max-w-md mx-auto">
             <div className="flex items-center justify-center gap-2 text-indigo-300">
-              <span className="text-sm">Currently Selected:</span>
+              <span className="text-sm">Currently Highlighted:</span>
               <span className="font-bold text-white">{editors[selectedIndex].name}</span>
               <span className="text-xs bg-indigo-500 px-2 py-1 rounded">{selectedIndex + 1}/{editors.length}</span>
             </div>
-            {webrtcStatus && (
-              <div className="mt-2 text-xs text-gray-400">
-                WebRTC: {webrtcStatus.connectedDevices.length} connected, {Object.keys(webrtcStatus.connections).length} total
-              </div>
-            )}
-            {lastControllerInput && (
-              <div className="mt-2 text-xs text-purple-300">
-                Last Input: {lastControllerInput.deviceName} - {lastControllerInput.input.type}.{lastControllerInput.input.action}
-                {lastControllerInput.webrtcMessage ? ' (WebRTC)' : ' (Supabase)'}
-              </div>
-            )}
+            <div className="mt-2 text-xs text-purple-300">
+              Waiting for phone controller selection...
+            </div>
           </div>
         </div>
 
-        {/* Editor Cards */}
+        {/* Editor Cards - Purely Presentational */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {editors.map((editor, index) => {
             const isSelected = index === selectedIndex;
@@ -279,16 +145,11 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             return (
               <div
                 key={editor.id}
-                className={`relative group transition-all duration-500 transform cursor-pointer ${
+                className={`relative group transition-all duration-500 transform ${
                   isSelected 
                     ? 'scale-110 z-10' 
                     : 'scale-95 opacity-60'
                 }`}
-                onClick={() => {
-                  console.log('🖱️ [EDITOR_SELECTION] Mouse click on editor:', editor.name, 'index:', index);
-                  setSelectedIndex(index);
-                  setTimeout(() => handleSelectEditor(), 200);
-                }}
               >
                 {/* Enhanced Selection Ring with animation */}
                 {isSelected && (
@@ -335,11 +196,11 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                     </div>
                   </div>
 
-                  {/* Enhanced Selection Indicator */}
+                  {/* Selection Indicator */}
                   {isSelected && (
                     <div className="absolute bottom-4 right-4">
                       <div className="bg-indigo-500 text-white px-4 py-2 rounded-full text-sm font-medium animate-bounce shadow-lg">
-                        ✨ Press A to Select
+                        📱 Select on Phone
                       </div>
                     </div>
                   )}
@@ -376,58 +237,14 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             ))}
           </div>
           
-          {/* Debug info for development */}
+          {/* Info */}
           <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
-            <div className="flex justify-between mb-2">
-              <span>Selected Index:</span>
-              <span className="text-indigo-300">{selectedIndex}</span>
-            </div>
             <div className="flex justify-between mb-2">
               <span>Session ID:</span>
               <span className="text-indigo-300 font-mono">{sessionId.slice(-8)}</span>
             </div>
-            {webrtcStatus && (
-              <>
-                <div className="flex justify-between mb-2">
-                  <span>WebRTC Status:</span>
-                  <span className={webrtcStatus.isInitialized ? 'text-green-300' : 'text-red-300'}>
-                    {webrtcStatus.isInitialized ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span>Connected/Total:</span>
-                  <span className="text-blue-300">
-                    {webrtcStatus.connectedDevices.length}/{Object.keys(webrtcStatus.connections).length}
-                  </span>
-                </div>
-              </>
-            )}
-            {lastControllerInput && (
-              <>
-                <div className="flex justify-between mb-2">
-                  <span>InputRouter:</span>
-                  <span className="text-green-300">Active ✅</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span>Last Input:</span>
-                  <span className="text-purple-300">
-                    {lastControllerInput.input.type}.{lastControllerInput.input.action}
-                  </span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span>Input Source:</span>
-                  <span className={lastControllerInput.webrtcMessage ? 'text-green-300' : 'text-yellow-300'}>
-                    {lastControllerInput.webrtcMessage ? 'WebRTC' : 'Supabase'}
-                  </span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span>Device:</span>
-                  <span className="text-blue-300">{lastControllerInput.deviceName}</span>
-                </div>
-              </>
-            )}
             <div className="mt-2 text-center text-green-400 text-xs">
-              ✅ Editor selection via Supabase status control
+              ✅ Waiting for phone controller selection
             </div>
           </div>
         </div>
