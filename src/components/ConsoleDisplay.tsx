@@ -772,30 +772,6 @@ const ConsoleDisplay: React.FC = () => {
           </div>
         </div>
       </header>
-
-      {/* Connection Error Banner */}
-      {connectionError && sessionId && (
-        <div className="bg-red-500/20 border-b border-red-500/30 p-3">
-          <div className="container mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2 text-red-300">
-              <AlertCircle size={16} />
-              <span className="text-sm">{connectionError}</span>
-            </div>
-            <button
-              onClick={handleRetryConnection}
-              disabled={isRetrying}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
-                isRetrying
-                  ? 'bg-gray-600 cursor-not-allowed'
-                  : 'bg-red-600 hover:bg-red-700'
-              }`}
-            >
-              {isRetrying ? 'Retrying...' : 'Retry'}
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Game Area */}
