@@ -267,10 +267,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full">
-              <Users size={16} />
-              <span>{players.length} players</span>
-            </div>
             <div className="bg-purple-500/20 px-3 py-1 rounded-full">
               <span className="font-mono text-lg">{lobbyCode}</span>
             </div>
