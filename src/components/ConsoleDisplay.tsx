@@ -646,34 +646,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // Test input processing function
-  const testInputProcessing = () => {
-    console.log('🧪 [CONSOLE] Testing input processing...');
-    
-    if (!inputRouterRef.current) {
-      console.log('❌ [CONSOLE] InputRouter not available for testing');
-      return;
-    }
-
-    const testMessage = {
-      type: 'game_data' as const,
-      data: {
-        dpad: {
-          directionchange: {
-            key: 'right',
-            pressed: true
-          }
-        }
-      },
-      timestamp: Date.now(),
-      senderId: 'test-device'
-    };
-
-    console.log('🧪 [CONSOLE] Simulating WebRTC message:', testMessage);
-    const result = inputRouterRef.current.processWebRTCInput('test-device', testMessage);
-    console.log('🧪 [CONSOLE] Test result:', result);
-  };
-
+ 
   // Create session on component mount
   useEffect(() => {
     createSession();
@@ -757,58 +730,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // Show connection error screen
-  if (connectionError && !sessionId) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center p-8">
-          <div className="mb-6">
-            <AlertCircle size={64} className="text-red-400 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-red-300 mb-2">Connection Error</h1>
-            <p className="text-gray-300 mb-4">{connectionError}</p>
-          </div>
-          
-          <div className="space-y-4">
-            <button
-              onClick={handleRetryConnection}
-              disabled={isRetrying}
-              className={`w-full px-6 py-3 rounded-lg font-medium transition-colors ${
-                isRetrying
-                  ? 'bg-gray-600 cursor-not-allowed'
-                  : 'bg-indigo-600 hover:bg-indigo-700'
-              }`}
-            >
-              {isRetrying ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Retrying...</span>
-                </div>
-              ) : (
-                'Retry Connection'
-              )}
-            </button>
-            
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full px-6 py-3 rounded-lg font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
-            >
-              Refresh Page
-            </button>
-          </div>
-          
-          <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-left">
-            <h3 className="text-yellow-300 font-medium mb-2">Troubleshooting:</h3>
-            <ul className="text-sm text-gray-300 space-y-1">
-              <li>• Check your internet connection</li>
-              <li>• Verify Supabase configuration</li>
-              <li>• Ensure environment variables are set</li>
-              <li>• Try refreshing the page</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    );
-  }
+ 
 
   // Show editor selection when lobby is locked
   if (isLobbyLocked) {
@@ -846,16 +768,7 @@ const ConsoleDisplay: React.FC = () => {
             )}
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full">
-              <Users size={16} />
-              <span>{players.filter(p => p.deviceType === 'phone').length}/4 players</span>
-            </div>
-            <div>
               {lobbyCode}
-            </div>
-              <span className="text-xs">
-            {webrtc.status.connectedDevices.length}/{Object.keys(webrtc.status.connections).length}
-              </span>
           </div>
         </div>
       </header>
