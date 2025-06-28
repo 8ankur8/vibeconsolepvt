@@ -5,7 +5,6 @@ import { useWebRTC } from '../hooks/useWebRTC';
 import { WebRTCMessage } from '../lib/webrtc';
 import { InputRouter, ControllerInput } from '../lib/inputRouter';
 import EditorSelection from './EditorSelection';
-import WebRTCDebugPanel from './WebRTCDebugPanel';
 
 interface Player {
   id: string;
@@ -1092,12 +1091,50 @@ const ConsoleDisplay: React.FC = () => {
                   )}
                 </div>
 
-                <WebRTCDebugPanel
-                  status={webrtc.status}
-                  deviceNames={deviceNames}
-                  onConnectToDevice={webrtc.connectToDevice}
-                  getDetailedStatus={webrtc.getDetailedStatus}
-                />
+                {/* WebRTC Status Panel */}
+                <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-4">
+                  <h4 className="text-blue-300 font-bold mb-3">📡 WebRTC Status</h4>
+                  
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Initialized:</span>
+                      <span className={webrtc.status.isInitialized ? 'text-green-300' : 'text-red-300'}>
+                        {webrtc.status.isInitialized ? 'Yes ✅' : 'No ❌'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Connected Devices:</span>
+                      <span className="text-blue-300">{webrtc.status.connectedDevices.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Total Connections:</span>
+                      <span className="text-blue-300">{Object.keys(webrtc.status.connections).length}</span>
+                    </div>
+                    
+                    {Object.keys(webrtc.status.connections).length > 0 && (
+                      <div className="border-t border-blue-500/30 pt-3">
+                        <div className="text-blue-300 font-medium mb-2">Connection Details:</div>
+                        <div className="space-y-1">
+                          {Object.entries(webrtc.status.connections).map(([deviceId, state]) => {
+                            const deviceName = deviceNames[deviceId] || 'Unknown';
+                            return (
+                              <div key={deviceId} className="flex justify-between text-xs">
+                                <span className="text-gray-300">{deviceName} ({deviceId.slice(-8)}):</span>
+                                <span className={`${
+                                  state === 'connected' ? 'text-green-300' :
+                                  state === 'connecting' ? 'text-yellow-300' :
+                                  'text-red-300'
+                                }`}>
+                                  {state}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 
                 <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
                   <h4 className="text-green-300 font-medium mb-2">✅ Enhanced Navigation System</h4>
