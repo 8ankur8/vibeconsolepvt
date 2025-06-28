@@ -67,8 +67,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   lastControllerInput
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [selectedEditor, setSelectedEditor] = useState<Editor | null>(null);
-  const [showFullscreen, setShowFullscreen] = useState(false);
   
   const selectedIndexRef = useRef(selectedIndex);
 
@@ -81,7 +79,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
   useEffect(() => {
     if (!lastControllerInput) return;
 
-    console.log('🎮 [CONSOLE] Processing controller input:', lastControllerInput.input.type, lastControllerInput.input.action);
+    console.log('🎮 [EDITOR_SELECTION] Processing controller input:', lastControllerInput.input.type, lastControllerInput.input.action);
 
     // Process input
     if (lastControllerInput.input.type === 'dpad') {
@@ -94,7 +92,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
 
   // Navigation handler
   const handleNavigation = (direction: string) => {
-    console.log('🧭 [CONSOLE] Navigation:', direction);
+    console.log('🧭 [EDITOR_SELECTION] Navigation:', direction);
     
     switch (direction) {
       case 'left':
@@ -115,25 +113,31 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
     }
   };
 
-  // Handle editor selection
+  // MODIFIED: Handle editor selection - only update Supabase, no local state
   const handleSelectEditor = async () => {
-    console.log('🎯 [CONSOLE] Editor selected:', editors[selectedIndex].name);
+    console.log('🎯 [EDITOR_SELECTION] Editor selected:', editors[selectedIndex].name);
     
     // Get selected editor info
     const selectedEditorInfo = editors[selectedIndex];
     
-    // Create selection data
+    // Find the device that made the selection (host)
+    const hostPlayer = players.find(p => p.isHost && p.deviceType === 'phone');
+    
+    // Create selection data for Supabase
     const selectionData = {
       selectedEditor: selectedEditorInfo.id,
       selectedEditorName: selectedEditorInfo.name,
       selectedIndex: selectedIndex,
       selectionTimestamp: Date.now(),
       sessionId: sessionId,
-      lobbyCode: lobbyCode
+      lobbyCode: lobbyCode,
+      selectedBy: hostPlayer?.name || 'Host'
     };
     
     try {
-      // Update session with selection data
+      console.log('💾 [EDITOR_SELECTION] Saving selection to Supabase:', selectionData);
+      
+      // Update session with selection data - this will trigger ConsoleDisplay to show the editor
       const { error } = await supabase
         .from('sessions')
         .update({ 
@@ -142,24 +146,18 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         .eq('id', sessionId);
 
       if (error) {
-        console.error('❌ [CONSOLE] Error saving selection:', error);
+        console.error('❌ [EDITOR_SELECTION] Error saving selection:', error);
         return;
       }
 
-      console.log('✅ [CONSOLE] Selection saved successfully');
+      console.log('✅ [EDITOR_SELECTION] Selection saved successfully - ConsoleDisplay will handle the display');
       
-      // Set selected editor and show fullscreen
-      setSelectedEditor(selectedEditorInfo);
-      setShowFullscreen(true);
+      // NOTE: We don't set any local state here - ConsoleDisplay will detect the change
+      // and show the fullscreen editor iframe
       
     } catch (error) {
-      console.error('💥 [CONSOLE] Exception during selection:', error);
+      console.error('💥 [EDITOR_SELECTION] Exception during selection:', error);
     }
-  };
-
-  const handleCloseFullscreen = () => {
-    setShowFullscreen(false);
-    setSelectedEditor(null);
   };
 
   // Keyboard navigation for console (backup)
@@ -183,46 +181,16 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
           handleSelectEditor();
           break;
         case 'Escape':
-          if (showFullscreen) {
-            handleCloseFullscreen();
-          } else {
-            onBack();
-          }
+          onBack();
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [showFullscreen]);
+  }, []);
 
-  if (showFullscreen && selectedEditor) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black">
-        <div className="absolute top-4 left-4 z-10 flex items-center gap-4">
-          <button
-            onClick={handleCloseFullscreen}
-            className="bg-black/50 hover:bg-black/70 text-white p-3 rounded-full backdrop-blur-md border border-white/20 transition-colors"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <div className="bg-black/50 backdrop-blur-md border border-white/20 rounded-lg px-4 py-2 text-white">
-            <div className="flex items-center gap-2">
-              <selectedEditor.icon size={20} className={selectedEditor.color} />
-              <span className="font-medium">{selectedEditor.name}</span>
-            </div>
-          </div>
-        </div>
-        
-        <iframe
-          src={selectedEditor.url}
-          className="w-full h-full border-0"
-          title={selectedEditor.name}
-          allow="fullscreen"
-        />
-      </div>
-    );
-  }
+  // REMOVED: The fullscreen editor display logic - ConsoleDisplay handles this now
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white">
@@ -244,6 +212,10 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full">
+              <Users size={16} />
+              <span>{players.length} players</span>
+            </div>
             <div className="bg-purple-500/20 px-3 py-1 rounded-full">
               <span className="font-mono text-lg">{lobbyCode}</span>
             </div>
@@ -259,6 +231,43 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         {/* Instructions */}
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-4">Choose Your Development Environment</h2>
+          <p className="text-xl text-indigo-200 mb-6">
+            Use your phone controller to navigate and select an editor
+          </p>
+          <div className="flex justify-center gap-8 text-sm text-indigo-300">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-6 bg-gray-700 rounded flex items-center justify-center">←→</div>
+              <span>Navigate</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-6 bg-indigo-500 rounded flex items-center justify-center">A</div>
+              <span>Select</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-6 bg-red-500 rounded flex items-center justify-center">B</div>
+              <span>Back</span>
+            </div>
+          </div>
+          
+          {/* Current selection indicator */}
+          <div className="mt-6 bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 max-w-md mx-auto">
+            <div className="flex items-center justify-center gap-2 text-indigo-300">
+              <span className="text-sm">Currently Selected:</span>
+              <span className="font-bold text-white">{editors[selectedIndex].name}</span>
+              <span className="text-xs bg-indigo-500 px-2 py-1 rounded">{selectedIndex + 1}/{editors.length}</span>
+            </div>
+            {webrtcStatus && (
+              <div className="mt-2 text-xs text-gray-400">
+                WebRTC: {webrtcStatus.connectedDevices.length} connected, {Object.keys(webrtcStatus.connections).length} total
+              </div>
+            )}
+            {lastControllerInput && (
+              <div className="mt-2 text-xs text-purple-300">
+                Last Input: {lastControllerInput.deviceName} - {lastControllerInput.input.type}.{lastControllerInput.input.action}
+                {lastControllerInput.webrtcMessage ? ' (WebRTC)' : ' (Supabase)'}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Editor Cards */}
@@ -272,10 +281,11 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 key={editor.id}
                 className={`relative group transition-all duration-500 transform cursor-pointer ${
                   isSelected 
-                    ? 'scale-100 z-10' 
-                    : 'scale-95 opacity-80'
+                    ? 'scale-110 z-10' 
+                    : 'scale-95 opacity-60'
                 }`}
                 onClick={() => {
+                  console.log('🖱️ [EDITOR_SELECTION] Mouse click on editor:', editor.name, 'index:', index);
                   setSelectedIndex(index);
                   setTimeout(() => handleSelectEditor(), 200);
                 }}
@@ -283,13 +293,13 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 {/* Enhanced Selection Ring with animation */}
                 {isSelected && (
                   <>
-                    <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-75 "></div>
-                    <div className="absolute -inset-4 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-2xl blur-md opacity-50 "></div>
+                    <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-75 animate-pulse"></div>
+                    <div className="absolute -inset-4 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-2xl blur-md opacity-50 animate-ping"></div>
                   </>
                 )}
                 
                 <div className={`relative bg-gradient-to-br ${editor.bgGradient} backdrop-blur-md border-2 ${
-                  isSelected ? 'shadow-indigo-500/25' : 'border-white/10'
+                  isSelected ? 'border-indigo-400 shadow-2xl shadow-indigo-500/25' : 'border-white/10'
                 } rounded-xl p-8 h-full transition-all duration-500`}>
                   
                   {/* Header */}
@@ -309,6 +319,9 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                   <div className="space-y-3 mb-8">
                     {editor.features.map((feature, idx) => (
                       <div key={idx} className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${editor.color.replace('text-', 'bg-')} ${
+                          isSelected ? 'animate-pulse' : ''
+                        }`}></div>
                         <span className="text-gray-200">{feature}</span>
                       </div>
                     ))}
@@ -345,6 +358,78 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
               </div>
             );
           })}
+        </div>
+
+        {/* Connected Controllers */}
+        <div className="mt-12 bg-black/20 rounded-lg p-6 border border-indigo-500/20 max-w-2xl mx-auto">
+          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Users className="text-indigo-300" />
+            Connected Controllers
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            {players.map((player) => (
+              <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20">
+                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-white font-medium">{player.name}</span>
+                {player.isHost && <Crown size={12} className="text-yellow-400" />}
+              </div>
+            ))}
+          </div>
+          
+          {/* Debug info for development */}
+          <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
+            <div className="flex justify-between mb-2">
+              <span>Selected Index:</span>
+              <span className="text-indigo-300">{selectedIndex}</span>
+            </div>
+            <div className="flex justify-between mb-2">
+              <span>Session ID:</span>
+              <span className="text-indigo-300 font-mono">{sessionId.slice(-8)}</span>
+            </div>
+            {webrtcStatus && (
+              <>
+                <div className="flex justify-between mb-2">
+                  <span>WebRTC Status:</span>
+                  <span className={webrtcStatus.isInitialized ? 'text-green-300' : 'text-red-300'}>
+                    {webrtcStatus.isInitialized ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span>Connected/Total:</span>
+                  <span className="text-blue-300">
+                    {webrtcStatus.connectedDevices.length}/{Object.keys(webrtcStatus.connections).length}
+                  </span>
+                </div>
+              </>
+            )}
+            {lastControllerInput && (
+              <>
+                <div className="flex justify-between mb-2">
+                  <span>InputRouter:</span>
+                  <span className="text-green-300">Active ✅</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span>Last Input:</span>
+                  <span className="text-purple-300">
+                    {lastControllerInput.input.type}.{lastControllerInput.input.action}
+                  </span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span>Input Source:</span>
+                  <span className={lastControllerInput.webrtcMessage ? 'text-green-300' : 'text-yellow-300'}>
+                    {lastControllerInput.webrtcMessage ? 'WebRTC' : 'Supabase'}
+                  </span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span>Device:</span>
+                  <span className="text-blue-300">{lastControllerInput.deviceName}</span>
+                </div>
+              </>
+            )}
+            <div className="mt-2 text-center text-green-400 text-xs">
+              ✅ Editor selection via Supabase status control
+            </div>
+          </div>
         </div>
       </div>
     </div>

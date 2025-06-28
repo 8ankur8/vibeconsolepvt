@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity, AlertCircle, Trash2 } from 'lucide-react';
+import { Code, Users, QrCode, Copy, Check, Crown, Wifi, Activity, AlertCircle, Trash2, ArrowLeft } from 'lucide-react';
 import { supabase, sessionHelpers, deviceHelpers, deviceInputHelpers } from '../lib/supabase';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { WebRTCMessage } from '../lib/webrtc';
@@ -16,6 +16,14 @@ interface Player {
   status: string;
 }
 
+interface SelectedEditor {
+  id: string;
+  name: string;
+  url: string;
+  selectedBy: string;
+  timestamp: number;
+}
+
 const ConsoleDisplay: React.FC = () => {
   const [sessionId, setSessionId] = useState<string>('');
   const [consoleDeviceId, setConsoleDeviceId] = useState<string>('');
@@ -29,6 +37,9 @@ const ConsoleDisplay: React.FC = () => {
   const [lastProcessedInput, setLastProcessedInput] = useState<ControllerInput | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+
+  // NEW: Selected editor state from Supabase
+  const [selectedEditor, setSelectedEditor] = useState<SelectedEditor | null>(null);
 
   // Navigation state
   const [navigationEvents, setNavigationEvents] = useState<any[]>([]);
@@ -484,7 +495,7 @@ const ConsoleDisplay: React.FC = () => {
     }
   }, [sessionId, connectionError]);
 
-  // Load session status with improved error handling
+  // NEW: Load session status with selected editor parsing
   const loadSessionStatus = useCallback(async () => {
     if (!sessionId || connectionError) return;
 
@@ -508,6 +519,36 @@ const ConsoleDisplay: React.FC = () => {
       
       setIsLobbyLocked(nowLocked);
       
+      // NEW: Parse selected_editor field
+      if (session.selected_editor) {
+        try {
+          const editorData = JSON.parse(session.selected_editor);
+          
+          // Check if this is an editor selection (not navigation data)
+          if (editorData.selectedEditor && editorData.selectedEditorName) {
+            console.log('🎯 [CONSOLE] Editor selected via Supabase:', editorData.selectedEditorName);
+            
+            // Map editor data to our format
+            const editorUrls = {
+              'bolt': 'https://bolt.new',
+              'loveable': 'https://loveable.dev',
+              'co': 'https://co.dev'
+            };
+            
+            setSelectedEditor({
+              id: editorData.selectedEditor,
+              name: editorData.selectedEditorName,
+              url: editorUrls[editorData.selectedEditor] || 'https://bolt.new',
+              selectedBy: editorData.selectedBy || 'Host',
+              timestamp: editorData.selectionTimestamp || Date.now()
+            });
+          }
+        } catch (parseError) {
+          console.log('⚠️ [CONSOLE] Could not parse selected_editor field:', parseError);
+          // Not an error - might be navigation data or other format
+        }
+      }
+      
       if (!wasLocked && nowLocked) {
         console.log('🔒 Lobby locked - switching to editor selection');
       }
@@ -519,6 +560,30 @@ const ConsoleDisplay: React.FC = () => {
       }
     }
   }, [sessionId, isLobbyLocked, connectionError]);
+
+  // NEW: Clear selected editor and return to editor selection
+  const clearSelectedEditor = async () => {
+    console.log('🔙 [CONSOLE] Clearing selected editor');
+    
+    try {
+      // Clear the selected_editor field in Supabase
+      const { error } = await supabase
+        .from('sessions')
+        .update({ selected_editor: null })
+        .eq('id', sessionId);
+
+      if (error) {
+        console.error('❌ [CONSOLE] Error clearing selected editor:', error);
+        return;
+      }
+
+      // Clear local state
+      setSelectedEditor(null);
+      console.log('✅ [CONSOLE] Selected editor cleared successfully');
+    } catch (error) {
+      console.error('💥 [CONSOLE] Exception clearing selected editor:', error);
+    }
+  };
 
   // WebRTC connection management
   const connectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -722,7 +787,39 @@ const ConsoleDisplay: React.FC = () => {
     }
   };
 
-  // Show editor selection when lobby is locked
+  // NEW: Show selected editor in fullscreen iframe if one is selected
+  if (selectedEditor) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black">
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-4">
+          <button
+            onClick={clearSelectedEditor}
+            className="bg-black/50 hover:bg-black/70 text-white p-3 rounded-full backdrop-blur-md border border-white/20 transition-colors"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <div className="bg-black/50 backdrop-blur-md border border-white/20 rounded-lg px-4 py-2 text-white">
+            <div className="flex items-center gap-2">
+              <Code size={20} className="text-indigo-300" />
+              <span className="font-medium">{selectedEditor.name}</span>
+              <span className="text-xs text-gray-400">
+                Selected by {selectedEditor.selectedBy}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <iframe
+          src={selectedEditor.url}
+          className="w-full h-full border-0"
+          title={selectedEditor.name}
+          allow="fullscreen"
+        />
+      </div>
+    );
+  }
+
+  // Show editor selection when lobby is locked (but no editor selected yet)
   if (isLobbyLocked) {
     return (
       <EditorSelection
