@@ -212,6 +212,91 @@ function App() {
         </div>
       </section>
 
+       <section className="mt-[20px] overflow-hidden py-8">
+          <style jsx>{`
+            @keyframes scrollRight {
+              0% {
+                transform: translateX(0);
+              }
+              100% {
+                transform: translateX(-50%);
+              }
+            }
+            @keyframes scrollLeft {
+              0% {
+                transform: translateX(-50%);
+              }
+              100% {
+                transform: translateX(0);
+              }
+            }
+            .scroll-fast {
+              animation: scrollRight 15s linear infinite;
+            }
+            .scroll-medium-reverse {
+              animation: scrollLeft 25s linear infinite;
+            }
+            .scroll-slow {
+              animation: scrollRight 35s linear infinite;
+            }
+          `}</style>
+          
+          {/* First Row - Fast Speed */}
+          <div className="mb-6 overflow-hidden">
+            <div className="flex space-x-6 scroll-fast">
+              {[...platformLogos, ...platformLogos].map((logo, index) => (
+                <Card
+                  key={`row1-${index}`}
+                  className="flex-shrink-0 w-48 h-20 flex items-center justify-center bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300"
+                >
+                  <CardContent className="p-0">
+                    <div className="[font-family:'Space_Grotesk',Helvetica] font-medium text-white text-lg text-center">
+                      {logo.name}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Second Row - Medium Speed, Reverse Direction */}
+          <div className="mb-6 overflow-hidden">
+            <div className="flex space-x-6 scroll-medium-reverse">
+              {[...secondRowLogos, ...secondRowLogos].map((logo, index) => (
+                <Card
+                  key={`row2-${index}`}
+                  className="flex-shrink-0 w-48 h-20 flex items-center justify-center bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300"
+                >
+                  <CardContent className="p-0">
+                    <div className="[font-family:'Space_Grotesk',Helvetica] font-medium text-white text-lg text-center">
+                      {logo.name}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Third Row - Slow Speed */}
+          <div className="overflow-hidden">
+            <div className="flex space-x-6 scroll-slow">
+              {[...thirdRowLogos, ...thirdRowLogos].map((logo, index) => (
+                <Card
+                  key={`row3-${index}`}
+                  className="flex-shrink-0 w-48 h-20 flex items-center justify-center bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300"
+                >
+                  <CardContent className="p-0">
+                    <div className="[font-family:'Space_Grotesk',Helvetica] font-medium text-white text-lg text-center">
+                      {logo.name}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+
       {/* Pricing */}
       <section id="pricing" className="py-20 px-4">
         <div className="container mx-auto max-w-4xl">
