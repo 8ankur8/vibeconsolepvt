@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useSearchParams } from 'react-router-dom';
-import { Code, Smartphone, Monitor, Music2, Users, Heart, Lock, Clock, Github } from 'lucide-react';
+import { Code, Smartphone, Monitor, Car, Users, Heart, Lock, Clock, Github } from 'lucide-react';
 import ConsoleDisplay from './components/ConsoleDisplay';
 import PhoneController from './components/PhoneController';
 import LobbyJoin from './components/LobbyJoin';
