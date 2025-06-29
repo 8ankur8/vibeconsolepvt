@@ -303,7 +303,7 @@ function App() {
 </section>
 
 {/* Stats Section */}
-<section className="mt-[60px] sm:mt-[70px] lg:mt-[80px] px-4 sm:px-6 lg:px-8">
+<section className="mt-[40px] px-4 sm:px-6 lg:px-8">
   <div className="max-w-7xl mx-auto">
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-6">
       {stats.map((stat, index) => (
