@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useSearchParams } from 'react-router-dom';
 import { Code, Smartphone, Monitor,Tv, Car, Users,Cast, Heart, Lock, Clock, Github } from 'lucide-react';
 import ConsoleDisplay from './components/ConsoleDisplay';
+import { Card, CardContent } from "../../components/card";
 import PhoneController from './components/PhoneController';
 import LobbyJoin from './components/LobbyJoin';
 
