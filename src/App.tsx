@@ -178,7 +178,7 @@ function App() {
       </section>
 
       {/* Demo Section */}
-      <section className="py-20 px-4">
+      <section className="relative flex justify-center -mt-10-vh overflow-hidden">
         <div className="container mx-auto flex flex-col items-center">
           <div className="relative w-full max-w-4xl aspect-video rounded-lg overflow-hidden border border-indigo-500/20 shadow-2xl">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-900/60 to-blue-900/60">
