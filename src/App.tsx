@@ -177,42 +177,102 @@ function App() {
         </p>
       </section>
 
-      {/* Demo Section */}
-      <section className="relative flex justify-center -mt-10-vh overflow-hidden">
-        {/* <div className="relative w-4/5 px-36-vh laptop-l:w-3/4">
-          <div className="relative w-full max-w-4xl aspect-video rounded-lg overflow-hidden border border-indigo-500/20 shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/60 to-blue-900/60">
-              <div className="h-full flex items-center justify-center">
-                <Visualizer />
+      {/* Demo Section - Made Responsive */}
+      <section className="relative flex justify-center px-4 sm:px-6 lg:px-8 overflow-hidden">
+        <div className="w-full max-w-7xl mx-auto">
+          {/* Mobile Layout (sm and below) */}
+          <div className="block lg:hidden">
+            <div className="flex flex-col items-center space-y-6">
+              {/* Main Console Display */}
+              <div className="w-full max-w-md aspect-video">
+                <img
+                  className="w-full h-full object-cover rounded-lg border-4 border-purple-600"
+                  alt="Landing widget"
+                  src="/landing-wiget-1.png"
+                />
+              </div>
+              
+              {/* Phone Controllers */}
+              <div className="flex justify-center space-x-4">
+                <div className="w-20 h-32">
+                  <img
+                    className="w-full h-full object-cover rounded-lg"
+                    alt="Phone controller 1"
+                    src="/image-12.png"
+                  />
+                </div>
+                <div className="w-20 h-32">
+                  <img
+                    className="w-full h-full object-cover rounded-lg"
+                    alt="Phone controller 2"
+                    src="/image-12.png"
+                  />
+                </div>
               </div>
             </div>
           </div>
-          <div className="mt-8 grid grid-cols-2 gap-4 max-w-xs">
-            {[1, 2].map((i) => (
-              <div key={i} className="bg-black/30 p-4 rounded-lg border border-indigo-500/20">
-                <div className="h-32 flex items-center justify-center">
-                  <Smartphone className="text-indigo-300" size={48} />
+
+          {/* Tablet Layout (md to lg) */}
+          <div className="hidden lg:block xl:hidden">
+            <div className="flex flex-col items-center space-y-8">
+              {/* Main Console Display */}
+              <div className="w-full max-w-2xl aspect-video relative">
+                <img
+                  className="w-full h-full object-cover rounded-lg border-4 border-purple-600"
+                  alt="Landing widget"
+                  src="/landing-wiget-1.png"
+                />
+                
+                {/* Overlay Image */}
+                <div className="absolute bottom-4 right-4 w-32 h-20">
+                  <img
+                    className="w-full h-full object-cover rounded"
+                    alt="Overlay"
+                    src="/image-11.png"
+                  />
                 </div>
               </div>
-            ))}
+              
+              {/* Phone Controllers */}
+              <div className="flex justify-center space-x-6">
+                <div className="w-24 h-40">
+                  <img
+                    className="w-full h-full object-cover rounded-lg"
+                    alt="Phone controller"
+                    src="/image-12.png"
+                  />
+                </div>
+                <div className="w-24 h-40">
+                  <img
+                    className="w-full h-full object-cover rounded-lg"
+                    alt="Phone controller"
+                    src="/image-12.png"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-        </div> */}
-        <div className="w-[1108px] h-[646px] mt-[70px] mx-auto relative">
-          <img
-            className="absolute w-[899px] h-[593px] top-0 left-0 object-cover"
-            alt="Landing widget"
-            src="/landing-wiget-1.png"
-          />
-          <img
-            className="absolute w-[439px] h-64 top-[390px] left-[386px]"
-            alt="Image"
-            src="/image-11.png"
-          />
-          <img
-            className="absolute w-[258px] h-[448px] top-48 left-[850px]"
-            alt="Image"
-            src="/image-12.png"
-          />
+
+          {/* Desktop Layout (xl and above) - Original Layout */}
+          <div className="hidden xl:block">
+            <div className="relative w-full h-[646px] mt-[70px] mx-auto max-w-[1108px]">
+              <img
+                className="absolute w-[899px] h-[593px] top-0 left-0 object-cover"
+                alt="Landing widget"
+                src="/landing-wiget-1.png"
+              />
+              <img
+                className="absolute w-[439px] h-64 top-[390px] left-[386px]"
+                alt="Image"
+                src="/image-11.png"
+              />
+              <img
+                className="absolute w-[258px] h-[448px] top-48 left-[850px]"
+                alt="Image"
+                src="/image-12.png"
+              />
+            </div>
+          </div>
         </div>
       </section>
 
