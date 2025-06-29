@@ -229,9 +229,13 @@ function App() {
       {/* Features */}
       <section id="features" className="py-20 px-4 bg-black/20">
         <div className="container mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            Play on any device, anywhere
+          <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-4xl text-center mb-12">
+             Vibe Anywhere Code on any screen
           </h2>
+          <p className="text-lg [font-family:'Caveat',Helvetica] font-bold text-gray-500 mt-4 ">
+        Turn any screen into a multiplayer code editor like a console,
+            supported on
+        </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { icon: Monitor, text: "Console Display", desc: "Big screen gaming experience" },
