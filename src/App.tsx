@@ -168,11 +168,11 @@ function App() {
         </p>
         <button 
           onClick={() => setIsOnboarding(true)}
-          className="bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-3 rounded-full font-medium transition-colors"
+          className="bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-3 rounded-full font-medium transition-colors shadow-[0px_0px_12px_#ffaa3e]"
         >
           Start Playing Free
         </button>
-        <p className="text-lg [font-family:'Caveat',Helvetica] font-bold text-gray-500 mt-4">
+        <p className="text-lg [font-family:'Caveat',Helvetica] font-bold text-gray-500 mt-4 ">
         Start for Free, Get full access later
         </p>
       </section>
