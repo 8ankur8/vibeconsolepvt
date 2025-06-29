@@ -172,7 +172,7 @@ function App() {
         >
           Start Playing Free
         </button>
-        <p className="text-sm [font-family:'Caveat',Helvetica] font-bold text-gray-500 mt-4">
+        <p className="text-lg [font-family:'Caveat',Helvetica] font-bold text-gray-500 mt-4">
           Join thousands of players worldwide
         </p>
       </section>
