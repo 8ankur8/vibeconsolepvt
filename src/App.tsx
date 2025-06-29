@@ -168,14 +168,14 @@ function App() {
     <div className="absolute inset-0">
       {/* First overlay image */}
       <img
-        className="absolute w-[35%] sm:w-[40%] h-auto top-[65%] left-[40%] z-10"
+        className="absolute w-[30%] sm:w-[35%] h-auto top-[65%] left-[40%] z-10"
         alt="Image"
         src="/image-11.png"
       />
       
       {/* Second overlay image */}
       <img
-        className="absolute w-[20%] sm:w-[35%] h-auto top-[40%] right-[0%] z-10"
+        className="absolute w-[25%] sm:w-[25%] h-auto top-[40%] right-[0%] z-10"
         alt="Image"
         src="/image-12.png"
       />
