@@ -187,7 +187,7 @@ function App() {
       <section id="features" className="py-20 px-4 bg-black/20">
         <div className="container mx-auto">
           <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl text-center ">
-             Vibe Anywhere Code on any screen
+             Vibe code MultipLayer on any screen
           </h2>
           <p className="text-lg text-center [font-family:'Caveat',Helvetica] font-bold text-gray-500 mb-12">
         Turn any screen into a multiplayer code editor like a console,
