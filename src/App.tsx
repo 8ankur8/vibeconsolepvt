@@ -197,15 +197,33 @@ function App() {
             ))}
           </div>
         </div> */}
-        <div className="w-full max-w-7xl mt-[70px] mx-auto px-4 sm:px-6 lg:px-8">
-  <div className="relative h-[40vh] sm:h-[50vh] lg:h-[60vh]">
-    <img className="w-full h-full object-cover" src="/landing-wiget-1.png" alt="Landing widget" />
-    <img className="absolute bottom-[10%] left-[30%] w-[30%] h-auto" src="/image-11.png" alt="Image" />
-    <img className="absolute top-[20%] right-[10%] w-[20%] h-auto" src="/image-12.png" alt="Image" />
+        <div className="w-full max-w-7xl h-auto mt-[70px] mx-auto relative px-4 sm:px-6 lg:px-8">
+  {/* Main background image */}
+  <div className="relative w-full" style={{ aspectRatio: '899/593' }}>
+    <img
+      className="w-full h-full object-cover rounded-lg"
+      alt="Landing widget"
+      src="/landing-wiget-1.png"
+    />
+    
+    {/* Overlaid images - positioned responsively */}
+    <div className="absolute inset-0">
+      {/* First overlay image */}
+      <img
+        className="absolute w-[35%] sm:w-[40%] h-auto top-[60%] sm:top-[65%] left-[35%] sm:left-[40%] z-10"
+        alt="Image"
+        src="/image-11.png"
+      />
+      
+      {/* Second overlay image */}
+      <img
+        className="absolute w-[20%] sm:w-[23%] h-auto top-[30%] sm:top-[35%] right-[5%] sm:right-[8%] z-10"
+        alt="Image"
+        src="/image-12.png"
+      />
+    </div>
   </div>
 </div>
-      </section>
-
       {/* Features */}
       <section id="features" className="py-20 px-4 bg-black/20">
         <div className="container mx-auto">
