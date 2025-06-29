@@ -168,7 +168,7 @@ function App() {
         </p>
         <button 
           onClick={() => setIsOnboarding(true)}
-          className="hover:bg-indigo-600 text-white px-8 py-3 rounded-full font-medium transition-colors bg-[#c48c4b] opacity-[0.52] absolute w-[100px] h-[60px] rounded-[50px/30.19px] blur-[25px] shadow-[0px_0px_12px_#ffaa3e]"
+          className="hover:bg-indigo-600 text-white px-8 py-3  font-medium transition-colors bg-[#c48c4b] opacity-[0.52] absolute w-[100px] h-[60px] rounded-[50px/30.19px] blur-[25px] shadow-[0px_0px_12px_#ffaa3e]"
         >
           Start Playing Free
         </button>
