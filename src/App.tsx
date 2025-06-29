@@ -197,7 +197,7 @@ function App() {
             ))}
           </div>
         </div> */}
-        <div className="w-full max-w-7xl h-auto mt-[70px] mx-auto relative px-4 sm:px-6 lg:px-8">
+  <div className="w-full max-w-7xl h-auto mt-[70px] mx-auto relative px-4 sm:px-6 lg:px-8">
   {/* Main background image */}
   <div className="relative w-full" style={{ aspectRatio: '899/593' }}>
     <img
@@ -217,7 +217,7 @@ function App() {
       
       {/* Second overlay image */}
       <img
-        className="absolute w-[20%] sm:w-[23%] h-auto top-[30%] sm:top-[35%] right-[5%] sm:right-[8%] z-10"
+        className="absolute w-[20%] sm:w-[23%] h-auto top-[30%] sm:top-[65%] right-[5%] sm:right-[8%] z-10"
         alt="Image"
         src="/image-12.png"
       />
