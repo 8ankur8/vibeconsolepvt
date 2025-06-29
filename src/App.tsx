@@ -162,7 +162,7 @@ function App() {
             <br />
             been so easy
         </h1>
-        <p className="text-lg  [font-family:'Caveat',Helvetica] font-bold text-indigo-200 mb-8 max-w-2xl mx-auto">
+        <p className="text-xl [font-family:'Caveat',Helvetica] font-bold text-indigo-200 mb-8 max-w-2xl mx-auto">
             Use your phone as Controllers and <br />
             start Vibing instantly
         </p>
