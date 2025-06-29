@@ -337,12 +337,10 @@ function App() {
     <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl sm:text-3xl lg:text-4xl text-center tracking-[0] leading-tight">
       VibeConsole Pro
     </h2>
-
-    <p className="mt-[10px] [font-family:'Caveat',Helvetica] font-bold text-white text-xl sm:text-2xl lg:text-[32px] text-center tracking-[0] leading-tight">
-      Unlock the full potential of VibeConsole with Pro. Get unlimited
-      collaborators, advanced debugging, priority support, custom
-      integrations.
-    </p>
+    <p className="text-lg text-center [font-family:'Caveat',Helvetica] font-bold text-gray-500 mb-12">
+        Unlock the full potential of VibeConsole with Pro. Get unlimited
+      lobbies, priority support, custom themes.
+        </p>
   </div>
 
   {/* Pricing Cards */}
