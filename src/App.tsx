@@ -291,6 +291,119 @@ function App() {
           />
       </section>
 
+      <section className="mt-[60px] sm:mt-[80px] lg:mt-[100px] px-4 sm:px-6 lg:px-8">
+  <div className="max-w-4xl mx-auto">
+    <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl sm:text-3xl lg:text-4xl text-center tracking-[0] leading-tight">
+      Editor for every taste and every team
+    </h2>
+
+    <p className="mt-[10px] [font-family:'Caveat',Helvetica] font-bold text-white text-xl sm:text-2xl lg:text-[32px] text-center tracking-[0] leading-tight">
+      You will find over 20+ editors in our library- from Bolt to Cursor and many more yet to come!
+    </p>
+  </div>
+</section>
+
+{/* Stats Section */}
+<section className="mt-[60px] sm:mt-[70px] lg:mt-[80px] px-4 sm:px-6 lg:px-8">
+  <div className="max-w-7xl mx-auto">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-6">
+      {stats.map((stat, index) => (
+        <Card
+          key={index}
+          className="flex flex-col items-start gap-6 sm:gap-9 p-4 sm:p-6 bg-[#283038] rounded-lg border-none h-auto min-h-[140px] sm:min-h-[174px]"
+        >
+          <CardContent className="p-0 w-full">
+            <div className="flex flex-col items-start relative self-stretch w-full">
+              <div className="relative self-stretch [font-family:'Space_Grotesk',Helvetica] font-medium text-white text-sm sm:text-base tracking-[0] leading-6">
+                {stat.label}
+              </div>
+            </div>
+            <div className="flex flex-col items-start relative self-stretch w-full mt-4 sm:mt-9">
+              <div className="relative self-stretch [font-family:'Space_Grotesk',Helvetica] font-bold text-white text-3xl sm:text-4xl lg:text-[64px] tracking-[0] leading-tight">
+                {stat.value}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </div>
+</section>
+
+{/* Pro Section */}
+<section className="mt-[60px] sm:mt-[70px] lg:mt-[80px] px-4 sm:px-6 lg:px-8">
+  {/* Pro Header */}
+  <div className="max-w-4xl mx-auto">
+    <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl sm:text-3xl lg:text-4xl text-center tracking-[0] leading-tight">
+      VibeConsole Pro
+    </h2>
+
+    <p className="mt-[10px] [font-family:'Caveat',Helvetica] font-bold text-white text-xl sm:text-2xl lg:text-[32px] text-center tracking-[0] leading-tight">
+      Unlock the full potential of VibeConsole with Pro. Get unlimited
+      collaborators, advanced debugging, priority support, custom
+      integrations.
+    </p>
+  </div>
+
+  {/* Pricing Cards */}
+  <div className="max-w-7xl mx-auto mt-[30px] sm:mt-[40px]">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      {pricingPlans.map((plan, index) => (
+        <Card
+          key={index}
+          className="flex flex-col items-start gap-4 p-4 sm:p-6 bg-[#1c2126] rounded-lg border border-solid border-[#3a4754] h-full"
+        >
+          <CardContent className="p-0 w-full flex flex-col h-full">
+            {/* Plan Header */}
+            <div className="flex-col items-start gap-1 self-stretch flex relative w-full">
+              <div className="flex flex-col items-start relative self-stretch w-full">
+                <div className="relative self-stretch [font-family:'Space_Grotesk',Helvetica] font-bold text-white text-base tracking-[0] leading-5">
+                  {plan.name}
+                </div>
+              </div>
+              <div className="flex items-baseline gap-1 self-stretch w-full relative">
+                <div className="inline-flex flex-col items-start relative">
+                  <div className="relative self-stretch [font-family:'Space_Grotesk',Helvetica] font-bold text-white text-2xl sm:text-3xl lg:text-4xl tracking-[-1.00px] leading-tight whitespace-nowrap">
+                    {plan.price}
+                  </div>
+                </div>
+                <div className="inline-flex flex-col items-start relative">
+                  <div className="relative self-stretch [font-family:'Space_Grotesk',Helvetica] font-bold text-white text-sm sm:text-base tracking-[0] leading-5 whitespace-nowrap">
+                    /month
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <Button className="w-full h-10 mt-4 items-center justify-center px-4 py-0 bg-[#283038] rounded-lg overflow-hidden flex hover:bg-[#343e48] transition-colors">
+              <span className="[font-family:'Space_Grotesk',Helvetica] font-bold text-white text-sm text-center tracking-[0] leading-[21px] whitespace-nowrap">
+                {plan.buttonText}
+              </span>
+            </Button>
+
+            {/* Features List */}
+            <div className="flex-col items-start gap-2 self-stretch flex relative w-full mt-4 flex-grow">
+              {plan.features.map((feature, featureIndex) => (
+                <div
+                  key={featureIndex}
+                  className="flex items-start gap-3 relative self-stretch w-full"
+                >
+                  <div className="inline-flex flex-col items-start relative flex-shrink-0 mt-1">
+                    <div className="relative w-4 h-4 bg-[url(/vector---0.svg)] bg-cover bg-center" />
+                  </div>
+                  <div className="relative flex-1 [font-family:'Space_Grotesk',Helvetica] font-normal text-white text-[13px] tracking-[0] leading-5">
+                    {feature}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </div>
+</section>
 
 
       {/* Pricing */}
