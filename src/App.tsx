@@ -195,7 +195,7 @@ function App() {
         </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Monitor, text: "PC (Brower)", desc: "Instant response and feedback" },
+              { icon: Monitor, text: "PC (Browser)", desc: "Instant response and feedback" },
               { icon: Car, text: "Cars", desc: "Your vehicle your rules" },
               { icon: Tv, text: "Android TV", desc: "Big Screen experience" },
               { icon: Cast, text: "Fire TV", desc: "No limits, Code anywhere" }
