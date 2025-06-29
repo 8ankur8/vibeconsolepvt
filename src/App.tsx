@@ -152,7 +152,7 @@ function App() {
             <a href="#faq" className="text-indigo-200 hover:text-white transition-colors">FAQ</a>
           </div>
         </div>
-        <div class=" bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+        <div class="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
       </nav>
 
       {/* Hero Section */}
