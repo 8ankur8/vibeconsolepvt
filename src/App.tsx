@@ -22,6 +22,12 @@ const platformLogos = [
   {
     name: "Coda",
   },
+  {
+    name: "Cursor",
+  },
+  {
+    name: "Zapier",
+  },
 ];
 
 const secondRowLogos = [
@@ -36,15 +42,6 @@ const secondRowLogos = [
   },
   {
     name: "Co.dev",
-  },
-];
-
-const thirdRowLogos = [
-  {
-    name: "Cursor",
-  },
-  {
-    name: "Zapier",
   },
   {
     name: "Windsurf",
