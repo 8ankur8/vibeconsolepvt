@@ -405,55 +405,6 @@ function App() {
   </div>
 </section>
 
-
-      {/* Pricing */}
-      <section id="pricing" className="py-20 px-4">
-        <div className="container mx-auto max-w-4xl">
-          <h2 className="text-3xl font-bold text-center mb-12">Simple Pricing</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-indigo-900/30 p-8 rounded-lg border border-indigo-500/20">
-              <h3 className="text-xl font-semibold mb-4">Free</h3>
-              <div className="text-4xl font-bold mb-6">$0</div>
-              <ul className="space-y-4">
-                <li className="flex items-center">
-                  <Lock size={20} className="text-indigo-300 mr-2" />
-                  Limited lobbies
-                </li>
-                <li className="flex items-center">
-                  <Users size={20} className="text-indigo-300 mr-2" />
-                  Up to 4 players
-                </li>
-                <li className="flex items-center">
-                  <Clock size={20} className="text-indigo-300 mr-2" />
-                  30-minute sessions
-                </li>
-              </ul>
-            </div>
-            <div className="bg-indigo-600/20 p-8 rounded-lg border border-indigo-400/30 relative">
-              <div className="absolute -top-3 right-4 bg-indigo-500 px-3 py-1 rounded-full text-sm">
-                Popular
-              </div>
-              <h3 className="text-xl font-semibold mb-4">Pro</h3>
-              <div className="text-4xl font-bold mb-6">$9.99</div>
-              <ul className="space-y-4">
-                <li className="flex items-center">
-                  <Lock size={20} className="text-indigo-300 mr-2" />
-                  Unlimited lobbies
-                </li>
-                <li className="flex items-center">
-                  <Users size={20} className="text-indigo-300 mr-2" />
-                  Up to 8 players
-                </li>
-                <li className="flex items-center">
-                  <Heart size={20} className="text-indigo-300 mr-2" />
-                  Priority support
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="bg-black/40 border-t border-white/10 py-12">
         <div className="container mx-auto px-4">
