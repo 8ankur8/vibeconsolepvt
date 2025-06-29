@@ -197,23 +197,13 @@ function App() {
             ))}
           </div>
         </div> */}
-        <div className="w-[1108px] h-[646px] mt-[70px] mx-auto relative">
-          <img
-            className="absolute w-[899px] h-[593px] top-0 left-0 object-cover"
-            alt="Landing widget"
-            src="/landing-wiget-1.png"
-          />
-          <img
-            className="absolute w-[439px] h-64 top-[390px] left-[386px]"
-            alt="Image"
-            src="/image-11.png"
-          />
-          <img
-            className="absolute w-[258px] h-[448px] top-48 left-[850px]"
-            alt="Image"
-            src="/image-12.png"
-          />
-        </div>
+        <div className="w-full max-w-7xl mt-[70px] mx-auto px-4 sm:px-6 lg:px-8">
+  <div className="relative h-[40vh] sm:h-[50vh] lg:h-[60vh]">
+    <img className="w-full h-full object-cover" src="/landing-wiget-1.png" alt="Landing widget" />
+    <img className="absolute bottom-[10%] left-[30%] w-[30%] h-auto" src="/image-11.png" alt="Image" />
+    <img className="absolute top-[20%] right-[10%] w-[20%] h-auto" src="/image-12.png" alt="Image" />
+  </div>
+</div>
       </section>
 
       {/* Features */}
