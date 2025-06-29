@@ -309,7 +309,7 @@ function App() {
         </p>
         </div>
         <img
-            className="w-full h-[717px] mt-[80px] object-cover"
+            className="w-full mt-[80px] object-cover"
             alt="Coolicons"
             src="/coolicons-4.png"
           />
