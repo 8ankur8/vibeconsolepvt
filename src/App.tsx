@@ -296,10 +296,9 @@ function App() {
     <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl sm:text-3xl lg:text-4xl text-center tracking-[0] leading-tight">
       Editor for every taste and every team
     </h2>
-
-    <p className="mt-[10px] [font-family:'Caveat',Helvetica] font-bold text-white text-xl sm:text-2xl lg:text-[32px] text-center tracking-[0] leading-tight">
-      You will find over 20+ editors in our library- from Bolt to Cursor and many more yet to come!
-    </p>
+    <p className="text-lg text-center [font-family:'Caveat',Helvetica] font-bold text-gray-500 mb-12">
+        You will find over 20+ editors in our library- from Bolt to Cursor and many more yet to come!
+        </p>
   </div>
 </section>
 
