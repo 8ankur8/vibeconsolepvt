@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useSearchParams } from 'react-router-dom';
-import { Code, Smartphone, Monitor, Car, Users, Heart, Lock, Clock, Github } from 'lucide-react';
+import { Code, Smartphone, Monitor,Tv, Car, Users,Cast, Heart, Lock, Clock, Github } from 'lucide-react';
 import ConsoleDisplay from './components/ConsoleDisplay';
 import PhoneController from './components/PhoneController';
 import LobbyJoin from './components/LobbyJoin';
@@ -195,10 +195,10 @@ function App() {
         </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Monitor, text: "PC (Brower)", desc: "Big screen experience" },
+              { icon: Monitor, text: "PC (Brower)", desc: "Instant response and feedback" },
               { icon: Car, text: "Cars", desc: "Your vehicle your rules" },
-              { icon: Music2, text: "Real-time Sync", desc: "Instant response and feedback" },
-              { icon: Users, text: "Multiplayer", desc: "Up to 8 players per lobby" }
+              { icon: Tv, text: "Android TV", desc: "Big Screen experience" },
+              { icon: Cast, text: "Multiplayer", desc: "Up to 8 players per lobby" }
             ].map((item, i) => (
               <div key={i} className="bg-indigo-900/30 p-6 rounded-lg border border-indigo-500/20">
                 <item.icon size={32} className="text-indigo-300 mb-4" />
