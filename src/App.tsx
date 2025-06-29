@@ -168,7 +168,7 @@ function App() {
     <div className="absolute inset-0">
       {/* First overlay image */}
       <img
-        className="absolute w-[40%] sm:w-[40%] h-auto top-[65%] left-[-1%] z-10"
+        className="absolute w-[40%] sm:w-[40%] h-auto top-[65%] left-[-2%] z-10"
         alt="Image"
         src="/image-11.png"
       />
