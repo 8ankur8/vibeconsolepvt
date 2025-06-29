@@ -238,8 +238,8 @@ function App() {
         </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Monitor, text: "Console Display", desc: "Big screen gaming experience" },
-              { icon: Smartphone, text: "Phone Controller", desc: "Your phone becomes the gamepad" },
+              { icon: Monitor, text: "PC (Brower)", desc: "Big screen experience" },
+              { icon: Car, text: "Cars", desc: "Your vehicle your rules" },
               { icon: Music2, text: "Real-time Sync", desc: "Instant response and feedback" },
               { icon: Users, text: "Multiplayer", desc: "Up to 8 players per lobby" }
             ].map((item, i) => (
