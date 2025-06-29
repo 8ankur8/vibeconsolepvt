@@ -138,7 +138,7 @@ function App() {
   const LandingPage = () => (
     <div className="min-h-screen bg-[#1f252a] backdrop-blur-md border-b border-white/10 flex flex-col justify-center w-full text-white">
       {/* Navigation */}
-      <nav className="fixed w-full z-50 bg-black/20 backdrop-blur-md border-b border-white/10">
+      <nav className="w-full z-50 bg-black/20 backdrop-blur-md border-b border-white/10">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Code size={28} className="text-indigo-300" />
