@@ -303,7 +303,7 @@ function App() {
    Phone + Screen = Console
           </h2>
           <p className="text-lg text-center [font-family:'Caveat',Helvetica] font-bold text-gray-500 mb-12">
-        You already own everything you need. Start vibing instantly
+        You already own everything you need. Start instantly
             <br />
             code together on one screen
         </p>
