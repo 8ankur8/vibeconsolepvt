@@ -232,7 +232,7 @@ function App() {
           <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl text-center ">
              Vibe Anywhere Code on any screen
           </h2>
-          <p className="text-lg text-center [font-family:'Caveat',Helvetica] font-bold text-gray-500 mt-4 mb-12">
+          <p className="text-lg text-center [font-family:'Caveat',Helvetica] font-bold text-gray-500 mb-12">
         Turn any screen into a multiplayer code editor like a console,
             supported on
         </p>
