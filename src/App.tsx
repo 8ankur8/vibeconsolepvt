@@ -297,6 +297,21 @@ function App() {
           </div>
         </section>
 
+      <section id="features" className="pt-20 pb-4 px-4 ">
+        <div className="container mx-auto">
+          <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl text-center ">
+   Phone + Screen = Console
+          </h2>
+          <p className="text-lg text-center [font-family:'Caveat',Helvetica] font-bold text-gray-500 mb-12">
+        You already own everything you need. Start vibing instantly code{" "}
+            <br />
+            code together on one screen
+        </p>
+         
+        </div>
+      </section>
+
+
 
       {/* Pricing */}
       <section id="pricing" className="py-20 px-4">
