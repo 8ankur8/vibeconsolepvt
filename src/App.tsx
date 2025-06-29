@@ -403,7 +403,7 @@ function App() {
 </section>
 
       {/* Footer */}
-      <footer className="bg-black/40 border-t border-white/10 py-12">
+      <footer className=" py-12">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
