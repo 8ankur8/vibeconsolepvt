@@ -307,8 +307,12 @@ function App() {
             <br />
             code together on one screen
         </p>
-         
         </div>
+        <img
+            className="w-full h-[717px] mt-[80px] object-cover"
+            alt="Coolicons"
+            src="/coolicons-4.png"
+          />
       </section>
 
 
