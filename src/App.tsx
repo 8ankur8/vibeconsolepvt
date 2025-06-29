@@ -179,14 +179,8 @@ function App() {
 
       {/* Demo Section */}
       <section className="relative flex justify-center -mt-10-vh overflow-hidden">
-        <div className="container mx-auto flex flex-col items-center">
-          <div className="relative w-full max-w-4xl aspect-video rounded-lg overflow-hidden border border-indigo-500/20 shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/60 to-blue-900/60">
-              <div className="h-full flex items-center justify-center">
-                <Visualizer />
-              </div>
-            </div>
-          </div>
+        <div className="relative w-4/5 px-36-vh laptop-l:w-3/4">
+          <Visualizer />
           <div className="mt-8 grid grid-cols-2 gap-4 max-w-xs">
             {[1, 2].map((i) => (
               <div key={i} className="bg-black/30 p-4 rounded-lg border border-indigo-500/20">
