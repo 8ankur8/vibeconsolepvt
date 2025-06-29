@@ -185,7 +185,7 @@ function App() {
       </section>
 
       {/* Features */}
-      <section id="features" className="pt-20 pb-4 px-4 bg-black/20">
+      <section id="features" className="pt-20 pb-4 px-4 ">
         <div className="container mx-auto">
           <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl text-center ">
              Vibe code MultipLayer on any screen
