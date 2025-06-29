@@ -170,7 +170,7 @@ function App() {
           onClick={() => setIsOnboarding(true)}
           className="hover:bg-indigo-600 text-white px-8 py-3 bg-[#c48c4b] rounded-md transition-colors shadow-[0px_0px_12px_#ffaa3e]"
         >
-          Start Playing Free
+          Start Coding Now
         </button>
         <p className="text-lg [font-family:'Caveat',Helvetica] font-bold text-gray-500 mt-4 ">
         Start for Free, Get full access later
