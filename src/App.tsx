@@ -5,11 +5,138 @@ import ConsoleDisplay from './components/ConsoleDisplay';
 import PhoneController from './components/PhoneController';
 import LobbyJoin from './components/LobbyJoin';
 
+const platformLogos = [
+  {
+    name: "Bubble",
+    src: "/bubble-logo.png",
+    width: "w-[212.36px]",
+    height: "h-[48.13px]",
+  },
+  {
+    name: "Framer",
+    src: "/framer-logo.png",
+    width: "w-[147.73px]",
+    height: "h-[48.09px]",
+  },
+  {
+    name: "Airtable",
+    src: "/aitable-logo.png",
+    width: "w-[220.36px]",
+    height: "h-[48.14px]",
+  },
+  {
+    name: "FlutterFlow",
+    src: "/flutterflow-logo.png",
+    width: "w-[266.19px]",
+    height: "h-[48.17px]",
+  },
+  {
+    name: "Coda",
+    src: "/coda-logo.png",
+    width: "w-[139.01px]",
+    height: "h-12",
+  },
+];
+
+const secondRowLogos = [
+  {
+    name: "Bolt",
+    src: "/bolt-logo.png",
+    width: "w-[111.78px]",
+    height: "h-12",
+  },
+  {
+    name: "Webflow",
+    src: "/webflow-logo.png",
+    width: "w-[287.96px]",
+    height: "h-12",
+  },
+  {
+    name: "Lovable",
+    src: "/lovable-logo.png",
+    width: "w-60",
+    height: "h-12",
+    objectCover: true,
+  },
+  {
+    name: "Glide",
+    src: "/glide-logo.png",
+    width: "w-[155.09px]",
+    height: "h-12",
+  },
+];
+
+const thirdRowLogos = [
+  {
+    name: "Cursor",
+    src: "/cursor-logo.png",
+    width: "w-[202.72px]",
+    height: "h-12",
+  },
+  {
+    name: "Zapier",
+    src: "/zapier-logo.png",
+    width: "w-[177.13px]",
+    height: "h-12",
+  },
+  {
+    name: "Windsurf",
+    isComponent: true,
+    width: "w-[221.49px]",
+    height: "h-12",
+  },
+  {
+    name: "Softr",
+    src: "/softr-logo.png",
+    width: "w-[172.55px]",
+    height: "h-12",
+  },
+  {
+    name: "Make",
+    isComponent: true,
+    width: "w-[232.61px]",
+    height: "h-12",
+  },
+];
+
+const navItems = [
+  { name: "Build", active: true },
+  { name: "FAQ", active: false },
+  { name: "Community", active: false },
+  { name: "About", active: false },
+];
+
+const pricingPlans = [
+  {
+    name: "Free",
+    price: "$0",
+    buttonText: "Get Started",
+    features: ["Limited lobbies", "Upto 4 members", "Community support"],
+  },
+  {
+    name: "Pro",
+    price: "$15",
+    buttonText: "Upgrade",
+    features: [
+      "Unlimited lobbies",
+      "Upto 6 members",
+      "Priority support",
+    ],
+  },
+];
+
+const stats = [
+  { label: "Active Users", value: "100K+" },
+  { label: "Projects Created", value: "50K+" },
+];
+
+
+
 function App() {
   const [isOnboarding, setIsOnboarding] = useState(false);
 
   const LandingPage = () => (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white">
+    <div className="min-h-screen bg-[#1f252a] flex flex-row justify-center w-full text-white">
       {/* Navigation */}
       <nav className="fixed w-full z-50 bg-black/20 backdrop-blur-md border-b border-white/10">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
