@@ -224,6 +224,8 @@ function App() {
     </div>
   </div>
 </div>
+      </section>
+
       {/* Features */}
       <section id="features" className="py-20 px-4 bg-black/20">
         <div className="container mx-auto">
