@@ -213,7 +213,7 @@ function App() {
         </div>
       </section>
 
-       <section className="mt-[20px] overflow-hidden py-8">
+       <section className="mt-[20px] overflow-hidden ">
           <style jsx>{`
             @keyframes scrollRight {
               0% {
