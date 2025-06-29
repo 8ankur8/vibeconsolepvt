@@ -157,7 +157,7 @@ function App() {
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 w-full text-center px-4 " >
-        <h1 className="text-4xl w-full md:text-6xl font-bold mb-6 bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 bg-clip-text text-transparent ">
+        <h1 className="text-4xl w-full md:text-6xl [font-family:'Slackey',Helvetica] mb-6 bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 bg-clip-text text-transparent ">
           Real-time multiplayer gaming made simple
         </h1>
         <p className="text-lg text-indigo-200 mb-8 max-w-2xl mx-auto">
