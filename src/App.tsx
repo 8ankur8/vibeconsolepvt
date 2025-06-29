@@ -146,7 +146,7 @@ function App() {
               VibeConsole
             </span>
             <div class="relative p-1 rounded-lg bg-gradient-to-r from-green-400 via-yellow-400 to-red-400">
-  <div class="absolute inset-0  rounded-lg mask mask-border"></div>
+  <div class="absolute inset-0 boarder-b rounded-lg mask mask-border"></div>
   <div class="relative p-4 bg-white rounded-lg">
     Gradient Border Example
   </div>
