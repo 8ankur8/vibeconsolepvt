@@ -155,7 +155,7 @@ function App() {
             ))}
           </div>
         </div> */}
-  <div className="w-full max-w-7xl h-auto mt-8 mx-auto relative px-4 sm:px-6 lg:px-8">
+  <div className="w-full max-w-7xl h-auto mt-4 mx-auto relative px-4 sm:px-6 lg:px-8">
   {/* Main background image */}
   <div className="relative w-full" style={{ aspectRatio: '899/593' }}>
     <img
