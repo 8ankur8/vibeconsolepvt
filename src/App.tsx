@@ -8,94 +8,51 @@ import LobbyJoin from './components/LobbyJoin';
 const platformLogos = [
   {
     name: "Bubble",
-    src: "/bubble-logo.png",
-    width: "w-[212.36px]",
-    height: "h-[48.13px]",
   },
   {
     name: "Framer",
-    src: "/framer-logo.png",
-    width: "w-[147.73px]",
-    height: "h-[48.09px]",
   },
   {
     name: "Airtable",
-    src: "/aitable-logo.png",
-    width: "w-[220.36px]",
-    height: "h-[48.14px]",
   },
   {
     name: "FlutterFlow",
-    src: "/flutterflow-logo.png",
-    width: "w-[266.19px]",
-    height: "h-[48.17px]",
   },
   {
     name: "Coda",
-    src: "/coda-logo.png",
-    width: "w-[139.01px]",
-    height: "h-12",
   },
 ];
 
 const secondRowLogos = [
   {
     name: "Bolt",
-    src: "/bolt-logo.png",
-    width: "w-[111.78px]",
-    height: "h-12",
   },
   {
-    name: "Webflow",
-    src: "/webflow-logo.png",
-    width: "w-[287.96px]",
-    height: "h-12",
+    name: "Rentprompts",
   },
   {
     name: "Lovable",
-    src: "/lovable-logo.png",
-    width: "w-60",
-    height: "h-12",
-    objectCover: true,
   },
   {
-    name: "Glide",
-    src: "/glide-logo.png",
-    width: "w-[155.09px]",
-    height: "h-12",
+    name: "Co.dev",
   },
 ];
 
 const thirdRowLogos = [
   {
     name: "Cursor",
-    src: "/cursor-logo.png",
-    width: "w-[202.72px]",
-    height: "h-12",
   },
   {
     name: "Zapier",
-    src: "/zapier-logo.png",
-    width: "w-[177.13px]",
-    height: "h-12",
   },
   {
     name: "Windsurf",
-    isComponent: true,
-    width: "w-[221.49px]",
-    height: "h-12",
   },
   {
-    name: "Softr",
-    src: "/softr-logo.png",
-    width: "w-[172.55px]",
-    height: "h-12",
+    name: "Zed",
   },
   {
     name: "Make",
-    isComponent: true,
-    width: "w-[232.61px]",
-    height: "h-12",
   },
 ];
 
