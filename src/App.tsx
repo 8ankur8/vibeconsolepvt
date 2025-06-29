@@ -145,13 +145,6 @@ function App() {
             <span className="text-xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
               VibeConsole
             </span>
-            <div class="relative p-1 rounded-lg bg-gradient-to-r from-green-400 via-yellow-400 to-red-400">
-  <div class="absolute inset-0 boarder-b rounded-lg mask mask-border"></div>
-  <div class="relative p-4 bg-white rounded-lg">
-    Gradient Border Example
-  </div>
-</div>
-
           </div>
           <div className="flex items-center gap-6">
             <a href="#features" className="text-indigo-200 hover:text-white transition-colors">Features</a>
@@ -159,6 +152,7 @@ function App() {
             <a href="#faq" className="text-indigo-200 hover:text-white transition-colors">FAQ</a>
           </div>
         </div>
+        <div class="h-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
       </nav>
 
       {/* Hero Section */}
