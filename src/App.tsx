@@ -198,7 +198,7 @@ function App() {
               { icon: Monitor, text: "PC (Brower)", desc: "Instant response and feedback" },
               { icon: Car, text: "Cars", desc: "Your vehicle your rules" },
               { icon: Tv, text: "Android TV", desc: "Big Screen experience" },
-              { icon: Cast, text: "Multiplayer", desc: "Up to 8 players per lobby" }
+              { icon: Cast, text: "Fire TV", desc: "No limits, Code anywhere" }
             ].map((item, i) => (
               <div key={i} className="bg-indigo-900/30 p-6 rounded-lg border border-indigo-500/20">
                 <item.icon size={32} className="text-indigo-300 mb-4" />
