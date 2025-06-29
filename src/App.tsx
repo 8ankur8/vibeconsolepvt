@@ -175,7 +175,7 @@ function App() {
       
       {/* Second overlay image */}
       <img
-        className="absolute w-[23%] sm:w-[25%] h-auto top-[40%] right-[0%] z-10"
+        className="absolute w-[23%] sm:w-[23%] h-auto top-[40%] right-[0%] z-10"
         alt="Image"
         src="/image-12.png"
       />
