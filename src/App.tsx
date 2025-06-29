@@ -376,11 +376,11 @@ function App() {
             </div>
 
             {/* CTA Button */}
-            <Button className="w-full h-10 mt-4 items-center justify-center px-4 py-0 bg-[#283038] rounded-lg overflow-hidden flex hover:bg-[#343e48] transition-colors">
+            <button className="w-full h-10 mt-4 items-center justify-center px-4 py-0 bg-[#283038] rounded-lg overflow-hidden flex hover:bg-[#343e48] transition-colors">
               <span className="[font-family:'Space_Grotesk',Helvetica] font-bold text-white text-sm text-center tracking-[0] leading-[21px] whitespace-nowrap">
                 {plan.buttonText}
               </span>
-            </Button>
+            </button>
 
             {/* Features List */}
             <div className="flex-col items-start gap-2 self-stretch flex relative w-full mt-4 flex-grow">
