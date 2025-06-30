@@ -602,104 +602,128 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         </div>
       )}
 
-      {/* NEW: Stage 5 - Editor Selection Mode - Full Height Horizontal Scroll Carousel */}
+      {/* NEW: Stage 5 - Editor Selection Mode - Optimized for Screen Height */}
       {gameStatus === 'editor_selection' && (
-        <div className="flex-1 flex flex-col">
-          {isHost && (
-            <div className="mb-4">
+        <div className="flex-1 flex flex-col h-full">
+          {/* Header Section - Fixed at top */}
+          <div className="flex-shrink-0 mb-4">
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-bold mb-2">Choose Your Editor</h2>
+              <p className="text-sm text-gray-400">Swipe to browse • Tap to launch</p>
+            </div>
+            
+            {isHost && (
               <button
                 onClick={unlockLobby}
-                className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
+                className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm transition-colors mb-4"
               >
                 Unlock Lobby
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* NEW: Full Height Horizontal Scroll Carousel */}
-          <div className="flex-1 flex items-center">
-            <div className="flex h-full min-h-[60vh] overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide w-full">
-              {editors.map((editor, index) => {
-                const IconComponent = editor.icon;
-                const isSelected = index === phoneSelectedEditorIndex;
-                
-                return (
-                  <div
-                    key={editor.id}
-                    className={`flex-shrink-0 w-64 h-full snap-center transition-all duration-300 transform cursor-pointer ${
-                      isSelected ? 'scale-105' : 'scale-95 opacity-70'
-                    }`}
-                    onClick={() => {
-                      console.log('📱 [PHONE] Editor selected:', editor.name);
-                      setPhoneSelectedEditorIndex(index);
-                      handlePhoneEditorSelection(editor.id);
-                    }}
-                  >
-                    {/* Selection Ring */}
-                    {isSelected && (
-                      <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl blur opacity-75 animate-pulse"></div>
-                    )}
-                    
-                    <div className={`relative bg-gradient-to-br ${editor.bgGradient} backdrop-blur-md border-2 ${
-                      isSelected ? 'border-indigo-400 shadow-xl shadow-indigo-500/25' : 'border-white/10'
-                    } rounded-xl p-4 h-full flex flex-col justify-between transition-all duration-300`}>
-                      
-                      {/* Header */}
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className={`p-2 rounded-lg bg-black/30 ${editor.color} ${
-                          isSelected ? 'animate-pulse' : ''
-                        }`}>
-                          <IconComponent size={20} />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-white">{editor.name}</h3>
-                          <p className="text-gray-300 text-xs">{editor.description}</p>
-                        </div>
-                      </div>
-
-                      {/* Features */}
-                      <div className="space-y-2 mb-4 flex-1">
-                        {editor.features.slice(0, 3).map((feature, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${editor.color.replace('text-', 'bg-')} ${
-                              isSelected ? 'animate-pulse' : ''
-                            }`}></div>
-                            <span className="text-gray-200 text-xs">{feature}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* URL Preview */}
-                      <div className="bg-black/30 rounded-lg p-2 mb-3">
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <ExternalLink size={10} />
-                          <span className="font-mono truncate">{editor.url}</span>
-                        </div>
-                      </div>
-
-                      {/* Selection Indicator */}
+          {/* Carousel Section - Takes remaining height */}
+          <div className="flex-1 flex items-center justify-center min-h-0">
+            <div className="w-full h-full flex items-center">
+              <div className="flex h-full max-h-[70vh] overflow-x-auto space-x-4 snap-x snap-mandatory scrollbar-hide w-full px-2">
+                {editors.map((editor, index) => {
+                  const IconComponent = editor.icon;
+                  const isSelected = index === phoneSelectedEditorIndex;
+                  
+                  return (
+                    <div
+                      key={editor.id}
+                      className={`flex-shrink-0 w-72 h-full snap-center transition-all duration-300 transform cursor-pointer ${
+                        isSelected ? 'scale-105' : 'scale-95 opacity-70'
+                      }`}
+                      onClick={() => {
+                        console.log('📱 [PHONE] Editor selected:', editor.name);
+                        setPhoneSelectedEditorIndex(index);
+                        handlePhoneEditorSelection(editor.id);
+                      }}
+                    >
+                      {/* Selection Ring */}
                       {isSelected && (
-                        <div className="text-center">
-                          <div className="bg-indigo-500 text-white px-3 py-1 rounded-full text-xs font-medium animate-bounce">
-                            ✨ Launching...
-                          </div>
-                        </div>
+                        <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl blur opacity-75 animate-pulse"></div>
                       )}
                       
-                      {/* Index indicator */}
-                      <div className="absolute top-2 right-2">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          isSelected 
-                            ? 'bg-indigo-500 text-white' 
-                            : 'bg-gray-700 text-gray-300'
-                        }`}>
-                          {index + 1}
+                      <div className={`relative bg-gradient-to-br ${editor.bgGradient} backdrop-blur-md border-2 ${
+                        isSelected ? 'border-indigo-400 shadow-xl shadow-indigo-500/25' : 'border-white/10'
+                      } rounded-xl p-6 h-full flex flex-col justify-between transition-all duration-300`}>
+                        
+                        {/* Header */}
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className={`p-3 rounded-lg bg-black/30 ${editor.color} ${
+                            isSelected ? 'animate-pulse' : ''
+                          }`}>
+                            <IconComponent size={24} />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold text-white">{editor.name}</h3>
+                            <p className="text-gray-300 text-sm">{editor.description}</p>
+                          </div>
+                        </div>
+
+                        {/* Features - Flexible height */}
+                        <div className="space-y-3 mb-6 flex-1">
+                          {editor.features.map((feature, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${editor.color.replace('text-', 'bg-')} ${
+                                isSelected ? 'animate-pulse' : ''
+                              }`}></div>
+                              <span className="text-gray-200 text-sm">{feature}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* URL Preview */}
+                        <div className="bg-black/30 rounded-lg p-3 mb-4">
+                          <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <ExternalLink size={12} />
+                            <span className="font-mono truncate">{editor.url}</span>
+                          </div>
+                        </div>
+
+                        {/* Selection Indicator */}
+                        {isSelected && (
+                          <div className="text-center">
+                            <div className="bg-indigo-500 text-white px-4 py-2 rounded-full text-sm font-medium animate-bounce">
+                              ✨ Launching...
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Index indicator */}
+                        <div className="absolute top-3 right-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                            isSelected 
+                              ? 'bg-indigo-500 text-white' 
+                              : 'bg-gray-700 text-gray-300'
+                          }`}>
+                            {index + 1}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Section - Fixed at bottom */}
+          <div className="flex-shrink-0 mt-4">
+            <div className="bg-black/20 rounded-lg p-3 border border-indigo-500/20">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 text-xs text-purple-300">
+                  <div className={`w-2 h-2 rounded-full ${
+                    webrtc.status.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-yellow-400'
+                  } animate-pulse`}></div>
+                  <span>
+                    {webrtc.status.connectedDevices.length > 0 ? 'Connected to Console' : 'Connecting...'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
