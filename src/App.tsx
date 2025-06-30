@@ -191,7 +191,7 @@ function App() {
         Turn any screen into a multiplayer code editor like a console,
             supported on
         </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4  gap-4">
             {[
               { icon: Monitor, text: "PC (Browser)", desc: "Instant response and feedback" },
               { icon: Car, text: "Cars", desc: "Your vehicle your rules" },
