@@ -710,6 +710,8 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               </div>
             </div>
           </div>
+
+        </div>
       )}
 
       {/* Waiting State */}
