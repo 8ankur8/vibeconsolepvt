@@ -369,7 +369,7 @@ function App() {
             </div>
 
             {/* CTA Button */}
-            <button className="w-full h-10 mt-4 items-center justify-center px-4 py-0 bg-[#283038] rounded-lg overflow-hidden flex hover:bg-[#343e48] transition-colors">
+            <button className="w-full h-10 mt-4 items-center justify-center px-4 py-0 bg-[#283038] rounded-lg overflow-hidden flex hover:bg-[#283038] transition-colors">
               <span className="[font-family:'Space_Grotesk',Helvetica] font-bold text-white text-sm text-center tracking-[0] leading-[21px] whitespace-nowrap">
                 {plan.buttonText}
               </span>
