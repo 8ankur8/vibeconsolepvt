@@ -104,7 +104,6 @@ function App() {
           <div className="flex items-center gap-6">
             <a href="#features" className="text-indigo-200 hover:text-white transition-colors">Features</a>
             <a href="#pricing" className="text-indigo-200 hover:text-white transition-colors">Pricing</a>
-            <a href="#faq" className="text-indigo-200 hover:text-white transition-colors">FAQ</a>
           </div>
         </div>
         <div class="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
