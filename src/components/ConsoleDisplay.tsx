@@ -723,7 +723,7 @@ const ConsoleDisplay: React.FC = () => {
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <QrCode className="text-indigo-300" />
-                Join Game
+                Join Lobby
               </h3>
               
               {isCreatingSession ? (
