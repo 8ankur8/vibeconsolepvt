@@ -646,11 +646,11 @@ const ConsoleDisplay: React.FC = () => {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
               VibeConsole
             </h1>
-          </div>
+          </a>
           <div className="flex items-center gap-4">
             {lobbyCode}
           </div>
-        </a>
+        </div>
       </header>
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
