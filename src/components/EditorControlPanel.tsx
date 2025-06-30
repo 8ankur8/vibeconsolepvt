@@ -260,7 +260,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
       <div className="flex-1 mb-4 relative">
         <canvas
           ref={canvasRef}
-          className="w-full h-2/3 bg-gray-800 rounded-lg border-4 border-purple-600 touch-none"
+          className="w-full h-96 bg-gray-800 rounded-lg border-4 border-purple-600 touch-none"
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
