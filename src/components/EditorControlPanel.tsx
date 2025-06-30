@@ -292,7 +292,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
             {/* Up */}
             <button 
               onClick={() => handleDpadPress('up')}
-              className="absolute top-0 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
+              className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12  bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
             >
               <ChevronUp size={16} className="text-white" />
             </button>
@@ -300,7 +300,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
             {/* Down */}
             <button 
               onClick={() => handleDpadPress('down')}
-              className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
+              className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12  bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
             >
               <ChevronDown size={16} className="text-white" />
             </button>
@@ -308,7 +308,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
             {/* Left */}
             <button 
               onClick={() => handleDpadPress('left')}
-              className="absolute left-0 top-1/2 transform -translate-y-1/2 w-16 h-16 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
+              className="absolute left-0 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
             >
               <ChevronLeft size={16} className="text-white" />
             </button>
@@ -316,7 +316,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
             {/* Right */}
             <button 
               onClick={() => handleDpadPress('right')}
-              className="absolute right-0 top-1/2 transform -translate-y-1/2 w-16 h-16 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
+              className="absolute right-0 top-1/2 transform -translate-y-1/2 w-12 h-12  bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
             >
               <ChevronRight size={16} className="text-white" />
             </button>
