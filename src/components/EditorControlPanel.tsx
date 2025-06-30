@@ -260,7 +260,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
       <div className="flex-1 mb-4 relative">
         <canvas
           ref={canvasRef}
-          className="w-full h-2/3 bg-gray-800 rounded-lg border-4 border-purple-600 touch-none"
+          className="w-full h-96 bg-gray-800 rounded-lg border-4 border-purple-600 touch-none"
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
@@ -287,7 +287,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
       {/* Control Panel */}
       <div className="grid grid-cols-3 gap- items-end">
         {/* D-Pad */}
-        <div className="fixed left-[20%] bottom-[10%] w-36 h-36 mx-auto">
+        <div className="fixed left-[10%] bottom-[10%] w-36 h-36 mx-auto">
           <div className="absolute inset-0 bg-gray-800 rounded-full border-4 border-gray-700">
             {/* Up */}
             <button 
