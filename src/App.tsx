@@ -326,7 +326,7 @@ function App() {
 </section> */}
 
 {/* Pro Section */}
-<section className="mt-[10px] sm:mt-[70px] lg:mt-[80px] px-4 sm:px-6 lg:px-8">
+<section className="mt-[20px] sm:mt-[25px] lg:mt-[30px] px-4 sm:px-6 lg:px-8">
   {/* Pro Header */}
   <div className="max-w-4xl mx-auto">
     <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl sm:text-3xl lg:text-4xl text-center tracking-[0] leading-tight">
