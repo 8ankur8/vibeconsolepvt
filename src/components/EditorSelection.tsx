@@ -115,21 +115,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
         {/* Instructions */}
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-4">Choose Your Development Environment</h2>
-          <p className="text-xl text-indigo-200 mb-6">
-            Use your phone to select an editor
-          </p>
-          
-          {/* Current selection indicator */}
-          <div className="mt-6 bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 max-w-md mx-auto">
-            <div className="flex items-center justify-center gap-2 text-indigo-300">
-              <span className="text-sm">Currently Highlighted:</span>
-              <span className="font-bold text-white">{editors[selectedIndex].name}</span>
-              <span className="text-xs bg-indigo-500 px-2 py-1 rounded">{selectedIndex + 1}/{editors.length}</span>
-            </div>
-            <div className="mt-2 text-xs text-purple-300">
-              Waiting for phone controller selection...
-            </div>
-          </div>
         </div>
 
         {/* Editor Cards - Purely Presentational */}
@@ -143,7 +128,7 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 key={editor.id}
                 className={`relative group transition-all duration-500 transform ${
                   isSelected 
-                    ? 'scale-110 z-10' 
+                    ? 'scale-100 z-10' 
                     : 'scale-95 opacity-60'
                 }`}
               >
