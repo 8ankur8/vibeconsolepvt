@@ -151,11 +151,11 @@ function App() {
             ))}
           </div>
         </div> */}
-  <div className="w-full max-w-7xl h-auto mt-4 mx-auto relative px-4 sm:px-6 lg:px-8">
+  <div className="w-full max-w-5xl h-auto mt-4 mx-auto relative px-4 sm:px-6 lg:px-8">
   {/* Main background image */}
   <div className="relative w-full">
     <img
-      className="w-full h-full object-cover rounded-lg"
+      className="w-full max-w-4xl h-full object-cover rounded-lg"
       alt="Landing widget"
       src="/screen.webp"
     />
@@ -164,7 +164,7 @@ function App() {
     <div className="absolute inset-0">
       {/* First overlay image */}
       <img
-        className="absolute w-[40%] sm:w-[40%] h-auto top-[65%] left-[-2%] z-10"
+        className="absolute w-[39%] sm:w-[39%] h-auto top-[65%] left-[-2%] z-10"
         alt="Image"
         src="/image-11.png"
       />
@@ -299,7 +299,7 @@ function App() {
 </section>
 
 {/* Stats Section */}
-<section className="mt-[40px] px-4 sm:px-6 lg:px-8">
+{/* <section className="mt-[40px] px-4 sm:px-6 lg:px-8">
   <div className="max-w-7xl mx-auto">
     <div className="grid grid-cols-2 gap-4 sm:gap-6 justify-center max-w-2xl mx-auto">
       {stats.map((stat, index) => (
@@ -323,7 +323,7 @@ function App() {
       ))}
     </div>
   </div>
-</section>
+</section> */}
 
 {/* Pro Section */}
 <section className="mt-[60px] sm:mt-[70px] lg:mt-[80px] px-4 sm:px-6 lg:px-8">
