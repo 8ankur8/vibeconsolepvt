@@ -39,21 +39,18 @@ export class WebRTCManager {
     this.onMessageCallback = onMessage;
     this.onConnectionStateChange = onConnectionStateChange;
     
-    console.log(`🚀 [WebRTC] Manager initialized - Session: ${sessionId}, Device: ${deviceId}, Host: ${isHost}`);
+    console.log(`🚀 [WebRTC] Manager initialized - Session: ${sessionId.slice(-8)}, Device: ${deviceId.slice(-8)}, Host: ${isHost}`);
   }
 
   // ICE servers configuration (using free STUN servers)
   private getIceServers(): RTCIceServer[] {
     return [
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' }
+      { urls: 'stun:stun1.l.google.com:19302' }
     ];
   }
 
-  // ENHANCED: Check if we should attempt connection to a device
+  // Check if we should attempt connection to a device
   private shouldAttemptConnection(targetDeviceId: string): boolean {
     const existingConnection = this.connections.get(targetDeviceId);
     const currentTime = Date.now();
@@ -61,10 +58,8 @@ export class WebRTCManager {
     // Don't connect if already connected or connecting
     if (existingConnection) {
       const state = existingConnection.peerConnection.connectionState;
-      console.log(`🔍 [WebRTC] Existing connection to ${targetDeviceId.slice(-8)} state: ${state}`);
       
       if (state === 'connected' || state === 'connecting') {
-        console.log(`⚠️ [WebRTC] Skipping connection - already ${state} to ${targetDeviceId.slice(-8)}`);
         return false;
       }
       
@@ -72,7 +67,6 @@ export class WebRTCManager {
       if (existingConnection.lastConnectionAttempt) {
         const timeSinceLastAttempt = currentTime - existingConnection.lastConnectionAttempt;
         if (timeSinceLastAttempt < this.connectionCooldown) {
-          console.log(`⏳ [WebRTC] Connection cooldown active for ${targetDeviceId.slice(-8)} (${this.connectionCooldown - timeSinceLastAttempt}ms remaining)`);
           return false;
         }
       }
@@ -81,14 +75,13 @@ export class WebRTCManager {
     // Check attempt count
     const attempts = this.connectionAttempts.get(targetDeviceId) || 0;
     if (attempts >= this.maxConnectionAttempts) {
-      console.log(`🚫 [WebRTC] Max connection attempts reached for ${targetDeviceId.slice(-8)} (${attempts}/${this.maxConnectionAttempts})`);
       return false;
     }
     
     return true;
   }
 
-  // ENHANCED: Create a new peer connection with improved state tracking
+  // Create a new peer connection
   private createPeerConnection(targetDeviceId: string, isInitiator: boolean): RTCPeerConnection {
     console.log(`🔗 [WebRTC] Creating peer connection to ${targetDeviceId.slice(-8)} (initiator: ${isInitiator})`);
     
@@ -100,7 +93,7 @@ export class WebRTCManager {
     // Handle ICE candidates
     peerConnection.onicecandidate = async (event) => {
       if (event.candidate) {
-        console.log(`📡 [WebRTC] Sending ICE candidate to ${targetDeviceId.slice(-8)}:`, event.candidate.candidate);
+        console.log(`📡 [WebRTC] Sending ICE candidate to ${targetDeviceId.slice(-8)}`);
         try {
           await this.sendSignal(targetDeviceId, 'candidate', {
             candidate: event.candidate.toJSON(),
@@ -108,7 +101,7 @@ export class WebRTCManager {
             deviceType: this.isHost ? 'console' : 'controller'
           });
         } catch (error) {
-          console.error(`❌ [WebRTC] Error sending ICE candidate to ${targetDeviceId.slice(-8)}:`, error);
+          console.error(`❌ [WebRTC] Error sending ICE candidate:`, error);
         }
       } else {
         console.log(`✅ [WebRTC] ICE gathering complete for ${targetDeviceId.slice(-8)}`);
@@ -158,10 +151,7 @@ export class WebRTCManager {
         
         // Schedule retry if under max attempts
         if (attempts + 1 < this.maxConnectionAttempts) {
-          console.log(`🔄 [WebRTC] Scheduling retry for ${targetDeviceId.slice(-8)} (attempt ${attempts + 2}/${this.maxConnectionAttempts})`);
           setTimeout(() => this.reconnectToPeer(targetDeviceId), this.connectionCooldown);
-        } else {
-          console.log(`🚫 [WebRTC] Max retry attempts reached for ${targetDeviceId.slice(-8)}`);
         }
       } else if (state === 'disconnected') {
         console.log(`⚠️ [WebRTC] Connection disconnected with ${targetDeviceId.slice(-8)}`);
@@ -192,7 +182,7 @@ export class WebRTCManager {
     console.log(`🔧 [WebRTC] Setting up data channel for ${deviceId.slice(-8)}`);
     
     dataChannel.onopen = () => {
-      console.log(`✅ [WebRTC] Data channel opened with ${deviceId.slice(-8)} (readyState: ${dataChannel.readyState})`);
+      console.log(`✅ [WebRTC] Data channel opened with ${deviceId.slice(-8)}`);
       
       // Update connection state
       const connection = this.connections.get(deviceId);
@@ -224,7 +214,7 @@ export class WebRTCManager {
     dataChannel.onmessage = (event) => {
       try {
         const message: WebRTCMessage = JSON.parse(event.data);
-        console.log(`📩 [WebRTC] Received message from ${deviceId.slice(-8)}:`, message);
+        console.log(`📩 [WebRTC] Received message from ${deviceId.slice(-8)}:`, message.type);
         this.onMessageCallback?.(message, deviceId);
       } catch (error) {
         console.error(`❌ [WebRTC] Error parsing message from ${deviceId.slice(-8)}:`, error);
@@ -258,22 +248,18 @@ export class WebRTCManager {
     }
   }
 
-  // ENHANCED: Initialize connection to a peer with improved duplicate prevention
+  // Initialize connection to a peer
   async connectToPeer(targetDeviceId: string): Promise<void> {
-    console.log(`🤝 [WebRTC] ===== CONNECTION REQUEST =====`);
-    console.log(`🤝 [WebRTC] Target: ${targetDeviceId.slice(-8)}`);
-    console.log(`🤝 [WebRTC] Initiator: ${this.deviceId.slice(-8)}`);
+    console.log(`🤝 [WebRTC] Connecting to ${targetDeviceId.slice(-8)}`);
     
     // Check if we should attempt this connection
     if (!this.shouldAttemptConnection(targetDeviceId)) {
-      console.log(`🚫 [WebRTC] Connection attempt blocked for ${targetDeviceId.slice(-8)}`);
       return;
     }
     
     // Clean up any existing failed connection
     const existingConnection = this.connections.get(targetDeviceId);
     if (existingConnection && existingConnection.connectionState === 'failed') {
-      console.log(`🧹 [WebRTC] Cleaning up failed connection to ${targetDeviceId.slice(-8)}`);
       existingConnection.dataChannel?.close();
       existingConnection.peerConnection.close();
       this.connections.delete(targetDeviceId);
@@ -289,7 +275,7 @@ export class WebRTCManager {
     
     this.setupDataChannel(dataChannel, targetDeviceId);
 
-    // Store connection with enhanced tracking
+    // Store connection
     const connection: WebRTCConnection = {
       peerConnection,
       dataChannel,
@@ -304,8 +290,6 @@ export class WebRTCManager {
     // Increment attempt counter
     const attempts = this.connectionAttempts.get(targetDeviceId) || 0;
     this.connectionAttempts.set(targetDeviceId, attempts + 1);
-    
-    console.log(`📊 [WebRTC] Connection attempt ${attempts + 1}/${this.maxConnectionAttempts} for ${targetDeviceId.slice(-8)}`);
 
     try {
       // Create and send offer
@@ -315,11 +299,9 @@ export class WebRTCManager {
         offerToReceiveVideo: false
       });
       
-      console.log(`🔧 [WebRTC] Setting local description for ${targetDeviceId.slice(-8)}`);
       await peerConnection.setLocalDescription(offer);
-      console.log(`✅ [WebRTC] Local description set, signaling state: ${peerConnection.signalingState}`);
+      console.log(`✅ [WebRTC] Local description set for ${targetDeviceId.slice(-8)}`);
       
-      console.log(`📤 [WebRTC] Sending offer to ${targetDeviceId.slice(-8)}`);
       await this.sendSignal(targetDeviceId, 'offer', {
         sdp: offer,
         timestamp: Date.now(),
@@ -327,7 +309,6 @@ export class WebRTCManager {
       });
       
       console.log(`🎯 [WebRTC] Offer sent successfully to ${targetDeviceId.slice(-8)}`);
-      console.log(`🤝 [WebRTC] ===== CONNECTION REQUEST COMPLETE =====`);
     } catch (error) {
       console.error(`💥 [WebRTC] Error creating/sending offer for ${targetDeviceId.slice(-8)}:`, error);
       
@@ -345,10 +326,7 @@ export class WebRTCManager {
   async handleSignal(signal: any): Promise<void> {
     const { sender_device_id, type, payload } = signal;
     
-    console.log(`📡 [WebRTC] ===== INCOMING SIGNAL =====`);
-    console.log(`📡 [WebRTC] Type: ${type}`);
-    console.log(`📡 [WebRTC] From: ${sender_device_id.slice(-8)}`);
-    console.log(`📡 [WebRTC] To: ${this.deviceId.slice(-8)}`);
+    console.log(`📡 [WebRTC] Handling ${type} signal from ${sender_device_id.slice(-8)}`);
 
     let connection = this.connections.get(sender_device_id);
     
@@ -369,24 +347,20 @@ export class WebRTCManager {
         }
 
         // Set remote description and create answer
-        console.log(`📝 [WebRTC] Setting remote description and creating answer for ${sender_device_id.slice(-8)}`);
         await connection.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-        console.log(`✅ [WebRTC] Remote description set, signaling state: ${connection.peerConnection.signalingState}`);
+        console.log(`✅ [WebRTC] Remote description set for ${sender_device_id.slice(-8)}`);
         
         // Process any pending ICE candidates
         const pendingCandidates = this.pendingCandidates.get(sender_device_id) || [];
         for (const candidate of pendingCandidates) {
-          console.log(`🧊 [WebRTC] Adding pending ICE candidate for ${sender_device_id.slice(-8)}`);
           await connection.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
         }
         this.pendingCandidates.delete(sender_device_id);
         
-        console.log(`🔧 [WebRTC] Creating answer for ${sender_device_id.slice(-8)}`);
         const answer = await connection.peerConnection.createAnswer();
         await connection.peerConnection.setLocalDescription(answer);
-        console.log(`✅ [WebRTC] Answer created and local description set, signaling state: ${connection.peerConnection.signalingState}`);
+        console.log(`✅ [WebRTC] Answer created for ${sender_device_id.slice(-8)}`);
         
-        console.log(`📤 [WebRTC] Sending answer to ${sender_device_id.slice(-8)}`);
         await this.sendSignal(sender_device_id, 'answer', {
           sdp: answer,
           timestamp: Date.now(),
@@ -395,14 +369,12 @@ export class WebRTCManager {
         
       } else if (type === 'answer' && connection) {
         // Handle answer
-        console.log(`📝 [WebRTC] Setting remote description from answer for ${sender_device_id.slice(-8)}`);
         await connection.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-        console.log(`✅ [WebRTC] Remote description set from answer, signaling state: ${connection.peerConnection.signalingState}`);
+        console.log(`✅ [WebRTC] Remote description set from answer for ${sender_device_id.slice(-8)}`);
         
         // Process any pending ICE candidates
         const pendingCandidates = this.pendingCandidates.get(sender_device_id) || [];
         for (const candidate of pendingCandidates) {
-          console.log(`🧊 [WebRTC] Adding pending ICE candidate for ${sender_device_id.slice(-8)}`);
           await connection.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
         }
         this.pendingCandidates.delete(sender_device_id);
@@ -413,11 +385,9 @@ export class WebRTCManager {
           const candidate = new RTCIceCandidate(payload.candidate);
           
           if (connection && connection.peerConnection.remoteDescription) {
-            console.log(`🧊 [WebRTC] Adding ICE candidate for ${sender_device_id.slice(-8)}`);
             await connection.peerConnection.addIceCandidate(candidate);
           } else {
             // Store candidate for later if remote description isn't set yet
-            console.log(`⏳ [WebRTC] Storing ICE candidate for later (${sender_device_id.slice(-8)})`);
             if (!this.pendingCandidates.has(sender_device_id)) {
               this.pendingCandidates.set(sender_device_id, []);
             }
@@ -426,7 +396,6 @@ export class WebRTCManager {
         }
       }
       
-      console.log(`📡 [WebRTC] ===== SIGNAL PROCESSING COMPLETE =====`);
     } catch (error) {
       console.error(`💥 [WebRTC] Error handling ${type} signal from ${sender_device_id.slice(-8)}:`, error);
       
@@ -444,12 +413,10 @@ export class WebRTCManager {
     const connection = this.connections.get(targetDeviceId);
     
     if (!connection?.dataChannel) {
-      console.warn(`⚠️ [WebRTC] No data channel for ${targetDeviceId.slice(-8)}`);
       return false;
     }
     
     if (connection.dataChannel.readyState !== 'open') {
-      console.warn(`⚠️ [WebRTC] Data channel not ready for ${targetDeviceId.slice(-8)} (state: ${connection.dataChannel.readyState})`);
       return false;
     }
 
@@ -461,7 +428,7 @@ export class WebRTCManager {
 
     try {
       connection.dataChannel.send(JSON.stringify(fullMessage));
-      console.log(`📤 [WebRTC] Sent message to ${targetDeviceId.slice(-8)}:`, fullMessage);
+      console.log(`📤 [WebRTC] Sent ${fullMessage.type} message to ${targetDeviceId.slice(-8)}`);
       return true;
     } catch (error) {
       console.error(`❌ [WebRTC] Error sending message to ${targetDeviceId.slice(-8)}:`, error);
@@ -482,25 +449,21 @@ export class WebRTCManager {
       }
     }
 
-    console.log(`📡 [WebRTC] Broadcast: ${webrtcSent.length} via WebRTC, ${fallbackNeeded.length} need fallback`);
     return { webrtc: webrtcSent.length, fallback: fallbackNeeded };
   }
 
-  // ENHANCED: Reconnect to a peer with improved logic
+  // Reconnect to a peer
   private async reconnectToPeer(deviceId: string): Promise<void> {
-    console.log(`🔄 [WebRTC] ===== RECONNECTION ATTEMPT =====`);
-    console.log(`🔄 [WebRTC] Target: ${deviceId.slice(-8)}`);
+    console.log(`🔄 [WebRTC] Attempting reconnection to ${deviceId.slice(-8)}`);
     
     // Check if we should attempt reconnection
     if (!this.shouldAttemptConnection(deviceId)) {
-      console.log(`🚫 [WebRTC] Reconnection blocked for ${deviceId.slice(-8)}`);
       return;
     }
     
     // Clean up old connection
     const oldConnection = this.connections.get(deviceId);
     if (oldConnection) {
-      console.log(`🧹 [WebRTC] Cleaning up old connection to ${deviceId.slice(-8)}`);
       oldConnection.dataChannel?.close();
       oldConnection.peerConnection.close();
       this.connections.delete(deviceId);
@@ -515,14 +478,10 @@ export class WebRTCManager {
     // Reconnect if we were the initiator
     if (oldConnection?.isInitiator) {
       try {
-        console.log(`🔄 [WebRTC] Attempting reconnection to ${deviceId.slice(-8)}`);
         await this.connectToPeer(deviceId);
-        console.log(`🔄 [WebRTC] ===== RECONNECTION COMPLETE =====`);
       } catch (error) {
         console.error(`❌ [WebRTC] Failed to reconnect to ${deviceId.slice(-8)}:`, error);
       }
-    } else {
-      console.log(`⚠️ [WebRTC] Not initiator, waiting for incoming connection from ${deviceId.slice(-8)}`);
     }
   }
 
@@ -544,7 +503,7 @@ export class WebRTCManager {
     return status;
   }
 
-  // ENHANCED: Get list of connected device IDs with improved filtering
+  // Get list of connected device IDs
   getConnectedDevices(): string[] {
     return Array.from(this.connections.keys()).filter(deviceId => {
       const connection = this.connections.get(deviceId);
@@ -553,34 +512,11 @@ export class WebRTCManager {
     });
   }
 
-  // ENHANCED: Get detailed connection info for debugging
-  getDetailedStatus() {
-    const details: any = {};
-    for (const [deviceId, connection] of this.connections) {
-      details[deviceId] = {
-        connectionState: connection.peerConnection.connectionState,
-        iceConnectionState: connection.peerConnection.iceConnectionState,
-        iceGatheringState: connection.peerConnection.iceGatheringState,
-        signalingState: connection.peerConnection.signalingState,
-        dataChannelState: connection.dataChannel?.readyState || 'none',
-        isInitiator: connection.isInitiator,
-        localDescription: !!connection.peerConnection.localDescription,
-        remoteDescription: !!connection.peerConnection.remoteDescription,
-        lastConnectionAttempt: connection.lastConnectionAttempt,
-        attemptCount: this.connectionAttempts.get(deviceId) || 0,
-        internalState: connection.connectionState
-      };
-    }
-    return details;
-  }
-
-  // ENHANCED: Cleanup all connections with improved logging
+  // Cleanup all connections
   cleanup(): void {
-    console.log('🧹 [WebRTC] ===== CLEANUP STARTING =====');
-    console.log(`🧹 [WebRTC] Cleaning up ${this.connections.size} connections`);
+    console.log('🧹 [WebRTC] Cleaning up all connections');
     
     for (const [deviceId, connection] of this.connections) {
-      console.log(`🧹 [WebRTC] Closing connection to ${deviceId.slice(-8)}`);
       connection.dataChannel?.close();
       connection.peerConnection.close();
     }
@@ -588,30 +524,5 @@ export class WebRTCManager {
     this.connections.clear();
     this.pendingCandidates.clear();
     this.connectionAttempts.clear();
-    
-    console.log('🧹 [WebRTC] ===== CLEANUP COMPLETE =====');
-  }
-
-  // ENHANCED: Get connection statistics
-  getConnectionStats(): any {
-    const stats = {
-      totalConnections: this.connections.size,
-      connectedDevices: this.getConnectedDevices().length,
-      connectionStates: {} as Record<string, number>,
-      dataChannelStates: {} as Record<string, number>,
-      attemptCounts: {} as Record<string, number>
-    };
-
-    for (const [deviceId, connection] of this.connections) {
-      const connState = connection.peerConnection.connectionState;
-      const dcState = connection.dataChannel?.readyState || 'none';
-      const attempts = this.connectionAttempts.get(deviceId) || 0;
-
-      stats.connectionStates[connState] = (stats.connectionStates[connState] || 0) + 1;
-      stats.dataChannelStates[dcState] = (stats.dataChannelStates[dcState] || 0) + 1;
-      stats.attemptCounts[deviceId.slice(-8)] = attempts;
-    }
-
-    return stats;
   }
 }
