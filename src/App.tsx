@@ -151,7 +151,7 @@ function App() {
             ))}
           </div>
         </div> */}
-  <div className="w-full max-w-7xl h-auto mt-4 mx-auto relative px-4 sm:px-6 lg:px-8">
+  <div className="w-full max-w-5xl h-auto mt-4 mx-auto relative px-4 sm:px-6 lg:px-8">
   {/* Main background image */}
   <div className="relative w-full">
     <img
@@ -299,7 +299,7 @@ function App() {
 </section>
 
 {/* Stats Section */}
-<section className="mt-[40px] px-4 sm:px-6 lg:px-8">
+{/* <section className="mt-[40px] px-4 sm:px-6 lg:px-8">
   <div className="max-w-7xl mx-auto">
     <div className="grid grid-cols-2 gap-4 sm:gap-6 justify-center max-w-2xl mx-auto">
       {stats.map((stat, index) => (
@@ -323,7 +323,7 @@ function App() {
       ))}
     </div>
   </div>
-</section>
+</section> */}
 
 {/* Pro Section */}
 <section className="mt-[60px] sm:mt-[70px] lg:mt-[80px] px-4 sm:px-6 lg:px-8">
