@@ -182,7 +182,7 @@ function App() {
       </section>
 
       {/* Features */}
-      <section id="features" className="pt-20 pb-4 px-4 ">
+      <section id="features" className="pt-16 pb-4 px-4 ">
         <div className="container mx-auto">
           <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl sm:text-4xl text-center ">
              Vibe code MultipLayer on any screen
@@ -191,19 +191,16 @@ function App() {
         Turn any screen into a multiplayer code editor like a console,
             supported on
         </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { icon: Monitor, text: "PC (Browser)", desc: "Instant response and feedback" },
               { icon: Car, text: "Cars", desc: "Your vehicle your rules" },
               { icon: Glasses, text: "Android TV", desc: "Big Screen experience" },
               { icon: Tv, text: "Fire TV", desc: "No limits, Code anywhere" }
             ].map((item, i) => (
-              <div key={i} className="bg-indigo-900/30 p-6 rounded-lg border border-indigo-500/20">
+              <div key={i} className=" p-6 rounded-lg border border-white/20">
                 <item.icon size={32} className="text-indigo-300 mb-4" />
                 <h3 className="text-xl font-semibold mb-2">{item.text}</h3>
-                <p className="text-indigo-200">
-                  {item.desc}
-                </p>
               </div>
             ))}
           </div>
