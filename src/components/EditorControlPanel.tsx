@@ -250,10 +250,6 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
           <ArrowLeft size={24} />
         </button>
         
-        <div className="text-center">
-          <h1 className="text-lg font-bold">Editor Control</h1>
-          <p className="text-sm text-purple-300">Voice & Canvas Input</p>
-        </div>
 
         <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
           <div className="w-3 h-3 bg-white rounded-full"></div>
@@ -358,25 +354,6 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
         </div>
       </div>
 
-      {/* Status Bar */}
-      <div className="mt-4 bg-black/20 rounded-lg p-3 border border-purple-500/20">
-        <div className="grid grid-cols-3 gap-4 text-xs text-center">
-          <div>
-            <div className="text-purple-300">D-Pad</div>
-            <div className="text-white font-medium">Navigation</div>
-          </div>
-          <div>
-            <div className="text-purple-300">Voice</div>
-            <div className={`font-medium ${isRecording ? 'text-red-300' : 'text-white'}`}>
-              {isRecording ? 'Recording...' : 'Hold to Talk'}
-            </div>
-          </div>
-          <div>
-            <div className="text-purple-300">Canvas</div>
-            <div className="text-white font-medium">Draw Above</div>
-          </div>
-        </div>
-        
         {/* Connection Status */}
         <div className="mt-2 pt-2 border-t border-purple-500/20 text-center">
           <div className="flex items-center justify-center gap-2 text-xs">
