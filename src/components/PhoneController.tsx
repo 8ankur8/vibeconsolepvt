@@ -634,7 +634,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                     <div
                       key={editor.id}
                       className={`flex-shrink-0 w-72 h-full snap-center transition-all duration-300 transform cursor-pointer ${
-                        isSelected ? 'scale-105' : 'scale-95 opacity-70'
+                        isSelected ? 'scale-100' : 'scale-95 opacity-70'
                       }`}
                       onClick={() => {
                         console.log('📱 [PHONE] Editor selected:', editor.name);
@@ -710,23 +710,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               </div>
             </div>
           </div>
-
-          {/* Footer Section - Fixed at bottom */}
-          <div className="flex-shrink-0 mt-4">
-            <div className="bg-black/20 rounded-lg p-3 border border-indigo-500/20">
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 text-xs text-purple-300">
-                  <div className={`w-2 h-2 rounded-full ${
-                    webrtc.status.connectedDevices.length > 0 ? 'bg-green-400' : 'bg-yellow-400'
-                  } animate-pulse`}></div>
-                  <span>
-                    {webrtc.status.connectedDevices.length > 0 ? 'Connected to Console' : 'Connecting...'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Waiting State */}
