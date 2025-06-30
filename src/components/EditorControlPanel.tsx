@@ -354,22 +354,6 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
         </div>
       </div>
 
-      {/* Status Bar */}
-      <div className="mt-4 bg-black/20 rounded-lg p-3 border border-purple-500/20">
-        
-        
-        {/* Connection Status */}
-        <div className="mt-2 pt-2 border-t border-purple-500/20 text-center">
-          <div className="flex items-center justify-center gap-2 text-xs">
-            <div className={`w-2 h-2 rounded-full ${
-              webrtcStatus?.connectedDevices?.length > 0 ? 'bg-green-400' : 'bg-yellow-400'
-            } animate-pulse`}></div>
-            <span className="text-purple-300">
-              {webrtcStatus?.connectedDevices?.length > 0 ? 'Connected to Console' : 'Connecting...'}
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
