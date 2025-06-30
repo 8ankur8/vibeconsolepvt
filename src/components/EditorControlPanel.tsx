@@ -285,9 +285,9 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
       </div>
 
       {/* Control Panel */}
-      <div className="grid grid-cols-3 gap-4 items-end">
+      <div className="grid grid-cols-3 gap- items-end">
         {/* D-Pad */}
-        <div className="relative w-32 h-32 mx-auto">
+        <div className="fixed left-[30%] bottom-[20%] w-32 h-32 mx-auto">
           <div className="absolute inset-0 bg-gray-800 rounded-full border-4 border-gray-700">
             {/* Up */}
             <button 
