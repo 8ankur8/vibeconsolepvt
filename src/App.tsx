@@ -340,7 +340,7 @@ function App() {
 
   {/* Pricing Cards */}
   <div id="pricing" className="max-w-7xl mx-auto mt-[30px] sm:mt-[40px]">
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mx-auto">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mx-4">
       {pricingPlans.map((plan, index) => (
         <Card
           key={index}
