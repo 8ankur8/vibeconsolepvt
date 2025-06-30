@@ -633,7 +633,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                     <div
                       key={editor.id}
                       className={`flex-shrink-0 w-72 h-full snap-center transition-all duration-300 transform cursor-pointer ${
-                        isSelected ? 'scale-100' : 'scale-95 opacity-70'
+                        isSelected ? 'scale-96' : 'scale-95 opacity-70'
                       }`}
                       onClick={() => {
                         console.log('📱 [PHONE] Editor selected:', editor.name);
@@ -709,7 +709,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               </div>
             </div>
           </div>
-
         </div>
       )}
 
