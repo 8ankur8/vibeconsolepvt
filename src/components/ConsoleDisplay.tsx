@@ -675,7 +675,7 @@ const ConsoleDisplay: React.FC = () => {
                   <img 
                     src={qrCodeData} 
                     alt="QR Code" 
-                    className="w-32 h-32 rounded-lg border border-indigo-500/30" 
+                    className="w-32 h-32 rounded-lg p-2 border border-indigo-500/30" 
                   />
                 </div>
               ) : (
