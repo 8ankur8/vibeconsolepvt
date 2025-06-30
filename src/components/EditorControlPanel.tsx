@@ -344,7 +344,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
         </div>
 
         {/* Folder Button */}
-        <div className="flex justify-center">
+        <div className="fixed justify-center">
           <button
             onClick={handleFolderAction}
             className="w-16 h-16 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center transition-colors"
