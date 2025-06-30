@@ -100,10 +100,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full">
-              <Users size={16} />
-              <span>{players.length} players</span>
-            </div>
             <div className="bg-purple-500/20 px-3 py-1 rounded-full">
               <span className="font-mono text-lg">{lobbyCode}</span>
             </div>
@@ -154,8 +150,8 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
                 {/* Enhanced Selection Ring with animation */}
                 {isSelected && (
                   <>
-                    <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-75 animate-pulse"></div>
-                    <div className="absolute -inset-4 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-2xl blur-md opacity-50 animate-ping"></div>
+                    <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-75"></div>
+                    <div className="absolute -inset-4 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-2xl blur-md opacity-50"></div>
                   </>
                 )}
                 
@@ -221,33 +217,6 @@ const EditorSelection: React.FC<EditorSelectionProps> = ({
           })}
         </div>
 
-        {/* Connected Controllers */}
-        <div className="mt-12 bg-black/20 rounded-lg p-6 border border-indigo-500/20 max-w-2xl mx-auto">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Users className="text-indigo-300" />
-            Connected Controllers
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            {players.map((player) => (
-              <div key={player.id} className="flex items-center gap-3 p-3 bg-indigo-900/30 rounded-lg border border-indigo-500/20">
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-white font-medium">{player.name}</span>
-                {player.isHost && <Crown size={12} className="text-yellow-400" />}
-              </div>
-            ))}
-          </div>
-          
-          {/* Info */}
-          <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
-            <div className="flex justify-between mb-2">
-              <span>Session ID:</span>
-              <span className="text-indigo-300 font-mono">{sessionId.slice(-8)}</span>
-            </div>
-            <div className="mt-2 text-center text-green-400 text-xs">
-              ✅ Waiting for phone controller selection
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
