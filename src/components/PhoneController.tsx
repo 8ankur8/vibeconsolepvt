@@ -629,7 +629,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                 {editors.map((editor, index) => {
                   const IconComponent = editor.icon;
                   const isSelected = index === phoneSelectedEditorIndex;
-                  
                   return (
                     <div
                       key={editor.id}
