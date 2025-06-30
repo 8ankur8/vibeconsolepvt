@@ -605,15 +605,8 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
       {/* NEW: Stage 5 - Editor Selection Mode - Horizontal Scroll Carousel */}
       {gameStatus === 'editor_selection' && (
         <div className="flex-1">
-          <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/20 mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Code size={20} className="text-purple-400" />
-              <h3 className="text-lg font-semibold">Choose Your Editor</h3>
-            </div>
             
             <div className="text-center mb-4">
-              <Monitor size={48} className="text-purple-400 mx-auto mb-2" />
-              <h2 className="text-xl font-bold">Select Development Environment</h2>
               <p className="text-sm text-gray-400">Swipe or tap an editor to launch it on the console</p>
             </div>
 
