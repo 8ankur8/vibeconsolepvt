@@ -744,7 +744,7 @@ const ConsoleDisplay: React.FC = () => {
                 {players.filter(p => p.deviceType === 'phone').length === 0 ? (
                   <div className="text-center">
                     <div className="text-6xl mb-4 animate-bounce">🎮</div>
-                    <p className="text-sm text-gray-500 mt-2">First player to join becomes the host</p>
+                    <p className="text-sm text-gray-500 mt-2">First member to join becomes the host</p>
                     <div className="mt-4 flex items-center justify-center gap-2 text-sm text-indigo-300">
                       <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
                       <span>Waiting for connections...</span>
