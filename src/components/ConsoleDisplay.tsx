@@ -637,7 +637,7 @@ const ConsoleDisplay: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen  text-white">
+    <div className="min-h-screen bg-[#1f252a] text-white">
       {/* Header */}
       <header className="p-4 ">
         <div className="container mx-auto flex justify-between items-center">
