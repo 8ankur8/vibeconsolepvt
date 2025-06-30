@@ -486,7 +486,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             <Gamepad2 size={40} className="text-white" />
           </div>
           
-          <h1 className="text-3xl font-bold mb-8">Join Game</h1>
+          <h1 className="text-3xl font-bold mb-8">Join lobby</h1>
           
           <div className="w-full max-w-sm space-y-6">
             <div>
@@ -526,7 +526,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             {isLoadingSession && (
               <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3 text-blue-300 text-sm flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-                <span>Checking game session...</span>
+                <span>Checking session...</span>
               </div>
             )}
 
@@ -543,7 +543,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             </button>
 
             <div className="text-center text-sm text-gray-400">
-              <p>First player to join becomes the host</p>
+              <p>First to join becomes the host</p>
             </div>
           </div>
         </div>
@@ -597,7 +597,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             Lock Lobby & Start Editor Selection
           </button>
           <p className="text-xs text-gray-400 mt-2 text-center">
-            Lock the lobby when all players have joined
+            Lock the lobby when all have joined
           </p>
         </div>
       )}
@@ -761,7 +761,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <Gamepad2 size={64} className="text-indigo-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Ready to Play!</h2>
+            <h2 className="text-2xl font-bold mb-2">Ready to Code!</h2>
             <p className="text-indigo-200 mb-4">Waiting for the host to lock the lobby...</p>
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 text-sm text-purple-300">
               The host will lock the lobby when everyone is ready
