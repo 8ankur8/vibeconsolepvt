@@ -154,11 +154,11 @@ function App() {
         </div> */}
   <div className="w-full max-w-7xl h-auto mt-4 mx-auto relative px-4 sm:px-6 lg:px-8">
   {/* Main background image */}
-  <div className="relative w-full" style={{ aspectRatio: '899/593' }}>
+  <div className="relative w-full" }>
     <img
       className="w-full h-full object-cover rounded-lg"
       alt="Landing widget"
-      src="/landing-wiget-1.png"
+      src="/screen.webp"
     />
     
     {/* Overlaid images - positioned responsively */}
