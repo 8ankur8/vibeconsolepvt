@@ -617,7 +617,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             )}
           {/* NEW: Horizontal Scroll Carousel */}
           <div className="py-8">
-            <div className="flex overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide">
+            <div className="flex h-full overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide">
               {editors.map((editor, index) => {
                 const IconComponent = editor.icon;
                 const isSelected = index === phoneSelectedEditorIndex;
