@@ -191,25 +191,19 @@ function App() {
         Turn any screen into a multiplayer code editor like a console,
             supported on
         </p>
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Monitor, text: "PC (Browser)", desc: "Chrome recommended", logo: "🌐" },
-              { icon: Car, text: "BMW & MINI", desc: "Your vehicle your rules", logo: "🚗" },
-              { icon: Car, text: "Audi", desc: "Premium experience", logo: "🔷" },
-              { icon: Tv, text: "Android TV", desc: "Big Screen experience", logo: "📺" },
-              { icon: Cast, text: "Google TV", desc: "Stream anywhere", logo: "📱" },
-              { icon: Cast, text: "Amazon Fire TV", desc: "No limits, Code anywhere", logo: "🔥" }
+              { icon: Monitor, text: "PC (Browser)", desc: "Instant response and feedback" },
+              { icon: Car, text: "Cars", desc: "Your vehicle your rules" },
+              { icon: Tv, text: "Android TV", desc: "Big Screen experience" },
+              { icon: Cast, text: "Fire TV", desc: "No limits, Code anywhere" }
             ].map((item, i) => (
-              <div key={i} className="bg-[#2a3441] hover:bg-[#323e4d] transition-all duration-300 p-4 rounded-xl border border-gray-700/50 hover:border-indigo-500/30 group">
-                <div className="text-center">
-                  <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
-                    {item.logo}
-                  </div>
-                  <h3 className="text-white font-semibold text-sm mb-1">{item.text}</h3>
-                  <p className="text-gray-400 text-xs leading-relaxed">
-                    {item.desc}
-                  </p>
-                </div>
+              <div key={i} className="bg-indigo-900/30 p-6 rounded-lg border border-indigo-500/20">
+                <item.icon size={32} className="text-indigo-300 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">{item.text}</h3>
+                <p className="text-indigo-200">
+                  {item.desc}
+                </p>
               </div>
             ))}
           </div>
