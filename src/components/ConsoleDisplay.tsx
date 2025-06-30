@@ -663,12 +663,11 @@ const ConsoleDisplay: React.FC = () => {
               
               <div className="relative z-10 text-center">
                 <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
-                  Waiting for Players
+                  Waiting for team
                 </h2>
                 <p className="text-indigo-200 mb-8 text-center max-w-md">
-                  Share the lobby code or scan the QR code to join the game
+                  Scan the QR to join the lobby
                 </p>
-                
                 {players.filter(p => p.deviceType === 'phone').length === 0 ? (
                   <div className="text-center">
                     <div className="text-6xl mb-4 animate-bounce">🎮</div>
