@@ -602,22 +602,23 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
         </div>
       )}
 
-      {/* NEW: Stage 5 - Editor Selection Mode - Horizontal Scroll Carousel */}
+      {/* NEW: Stage 5 - Editor Selection Mode - Full Height Horizontal Scroll Carousel */}
       {gameStatus === 'editor_selection' && (
-        <div className="flex-1">
+        <div className="flex-1 flex flex-col">
           {isHost && (
-              <div className="mb-4">
-                <button
-                  onClick={unlockLobby}
-                  className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
-                >
-                  Unlock Lobby
-                </button>
-              </div>
-            )}
-          {/* NEW: Horizontal Scroll Carousel */}
-          <div className="py-8">
-            <div className="flex h-full overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide">
+            <div className="mb-4">
+              <button
+                onClick={unlockLobby}
+                className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
+              >
+                Unlock Lobby
+              </button>
+            </div>
+          )}
+
+          {/* NEW: Full Height Horizontal Scroll Carousel */}
+          <div className="flex-1 flex items-center">
+            <div className="flex h-full min-h-[60vh] overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide w-full">
               {editors.map((editor, index) => {
                 const IconComponent = editor.icon;
                 const isSelected = index === phoneSelectedEditorIndex;
@@ -625,7 +626,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                 return (
                   <div
                     key={editor.id}
-                    className={`flex-shrink-0 w-64 snap-center transition-all duration-300 transform cursor-pointer ${
+                    className={`flex-shrink-0 w-64 h-full snap-center transition-all duration-300 transform cursor-pointer ${
                       isSelected ? 'scale-105' : 'scale-95 opacity-70'
                     }`}
                     onClick={() => {
@@ -657,7 +658,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
                       </div>
 
                       {/* Features */}
-                      <div className="space-y-2 mb-4">
+                      <div className="space-y-2 mb-4 flex-1">
                         {editor.features.slice(0, 3).map((feature, idx) => (
                           <div key={idx} className="flex items-center gap-2">
                             <div className={`w-1.5 h-1.5 rounded-full ${editor.color.replace('text-', 'bg-')} ${
@@ -701,8 +702,6 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
               })}
             </div>
           </div>
-
-
         </div>
       )}
 
