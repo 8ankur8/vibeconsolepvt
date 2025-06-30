@@ -641,7 +641,7 @@ const ConsoleDisplay: React.FC = () => {
       {/* Header */}
       <header className="p-4 border-b border-indigo-500/20 backdrop-blur-md bg-black/20">
         <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
+          <div href="/" className="flex items-center gap-2">
             <Code size={28} className="text-indigo-300" />
             <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
               VibeConsole
