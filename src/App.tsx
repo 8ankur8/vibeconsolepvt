@@ -122,7 +122,7 @@ function App() {
         </p>
         <button 
           onClick={() => setIsOnboarding(true)}
-          className="hover:bg-indigo-600 text-white px-8 py-3 bg-[#c48c4b] rounded-md transition-colors shadow-[0px_0px_12px_#ffaa3e]"
+          className="hover:bg-[#ffaa3e] text-white px-8 py-3 bg-[#c48c4b] rounded-md transition-colors shadow-[0px_0px_12px_#ffaa3e]"
         >
           Start Coding Now
         </button>
@@ -369,7 +369,7 @@ function App() {
             </div>
 
             {/* CTA Button */}
-            <button className="w-full h-10 mt-4 items-center justify-center px-4 py-0 bg-[#283038] rounded-lg overflow-hidden flex hover:bg-[#283038] transition-colors">
+            <button className="w-full h-10 mt-4 items-center justify-center px-4 py-0 bg-[#283038] rounded-lg overflow-hidden flex hover:bg-[#343e48] transition-colors">
               <span className="[font-family:'Space_Grotesk',Helvetica] font-bold text-white text-sm text-center tracking-[0] leading-[21px] whitespace-nowrap">
                 {plan.buttonText}
               </span>
