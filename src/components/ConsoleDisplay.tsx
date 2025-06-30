@@ -639,7 +639,7 @@ const ConsoleDisplay: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-900 text-white">
       {/* Header */}
-      <header className="p-4 border-b border-indigo-500/20 backdrop-blur-md bg-black/20">
+      <header className="p-4 ">
         <div className="container mx-auto flex justify-between items-center">
           <a href="/" className="flex items-center gap-2">
             <Code size={28} className="text-indigo-300" />
