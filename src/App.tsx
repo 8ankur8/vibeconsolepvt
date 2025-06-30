@@ -272,7 +272,7 @@ function App() {
 
       <section className="pt-20 pb-4 ">
         <div className="container px-4">
-          <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl sm:text-4xl text-center ">
+          <h2 className="[font-family:'Slackey',Helvetica] font-normal text-white text-2xl sm:text-4xl text-center">
    Phone + Screen = Console
           </h2>
           <p className="text-lg text-center [font-family:'Caveat',Helvetica] font-bold text-gray-500 mb-12">
