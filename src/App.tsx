@@ -155,7 +155,7 @@ function App() {
   {/* Main background image */}
   <div className="relative w-full">
     <img
-      className="w-full h-full object-cover rounded-lg"
+      className="w-full max-w-4xl h-full object-cover rounded-lg"
       alt="Landing widget"
       src="/screen.webp"
     />
