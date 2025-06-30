@@ -198,8 +198,8 @@ function App() {
               { icon: Glasses, text: "Android TV", desc: "Big Screen experience" },
               { icon: Tv, text: "Fire TV", desc: "No limits, Code anywhere" }
             ].map((item, i) => (
-              <div key={i} className=" p-6 rounded-lg border border-white/20">
-                <item.icon size={32} className="text-indigo-300 mb-4" />
+              <div key={i} className="p-6 rounded-lg border border-white/20 text-center">
+                <item.icon size={32} className="text-indigo-300 mb-4 mx-auto" />
                 <h3 className="text-xl font-semibold mb-2">{item.text}</h3>
               </div>
             ))}
