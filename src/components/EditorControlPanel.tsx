@@ -327,7 +327,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
         </div>
 
         {/* Voice Button */}
-        <div className="fixed right-[30%] bottom-[15%] justify-center">
+        <div className="fixed right-[30%] bottom-[10%] justify-center">
           <button
             onMouseDown={startVoiceRecording}
             onMouseUp={stopVoiceRecording}
