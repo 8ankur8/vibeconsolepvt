@@ -327,13 +327,13 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
         </div>
 
         {/* Voice Button */}
-        <div className="flex justify-center">
+        <div className="fixed right-[30%] bottom-[15%] justify-center">
           <button
             onMouseDown={startVoiceRecording}
             onMouseUp={stopVoiceRecording}
             onTouchStart={startVoiceRecording}
             onTouchEnd={stopVoiceRecording}
-            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 ${
+            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 ${
               isRecording 
                 ? 'bg-red-500 scale-110 animate-pulse' 
                 : 'bg-gray-800 hover:bg-gray-700'
@@ -347,7 +347,7 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
         <div className="fixed right-[10%] bottom-[20%] justify-center">
           <button
             onClick={handleFolderAction}
-            className="w-16 h-16 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center transition-colors"
+            className="w-20 h-20 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center transition-colors"
           >
             <Folder size={24} className="text-gray-300" />
           </button>
