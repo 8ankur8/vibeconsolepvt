@@ -354,6 +354,10 @@ const EditorControlPanel: React.FC<EditorControlPanelProps> = ({
         </div>
       </div>
 
+      {/* Status Bar */}
+      <div className="mt-4 bg-black/20 rounded-lg p-3 border border-purple-500/20">
+        
+        
         {/* Connection Status */}
         <div className="mt-2 pt-2 border-t border-purple-500/20 text-center">
           <div className="flex items-center justify-center gap-2 text-xs">
