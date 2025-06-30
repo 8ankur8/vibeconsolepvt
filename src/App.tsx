@@ -154,7 +154,7 @@ function App() {
         </div> */}
   <div className="w-full max-w-7xl h-auto mt-4 mx-auto relative px-4 sm:px-6 lg:px-8">
   {/* Main background image */}
-  <div className="relative w-full" }>
+  <div className="relative w-full">
     <img
       className="w-full h-full object-cover rounded-lg"
       alt="Landing widget"
