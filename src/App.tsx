@@ -302,7 +302,7 @@ function App() {
 {/* Stats Section */}
 <section className="mt-[40px] px-4 sm:px-6 lg:px-8">
   <div className="max-w-7xl mx-auto">
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-6">
+    <div className="grid grid-cols-2 gap-4 sm:gap-6 justify-center max-w-2xl mx-auto">
       {stats.map((stat, index) => (
         <Card
           key={index}
