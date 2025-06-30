@@ -702,43 +702,7 @@ const PhoneController: React.FC<PhoneControllerProps> = ({ lobbyCode }) => {
             </div>
           </div>
 
-          {/* Instructions */}
-          <div className="bg-black/20 rounded-lg p-4 border border-indigo-500/20">
-            <h4 className="text-indigo-300 font-medium mb-2">Instructions:</h4>
-            <ul className="text-sm text-gray-400 space-y-1">
-              <li>• Swipe horizontally to browse editors</li>
-              <li>• Tap any editor card to launch it on the console screen</li>
-              <li>• The selected editor will open in fullscreen mode</li>
-              <li>• All players will see the same editor interface</li>
-            </ul>
-          </div>
 
-          {/* Debug Info */}
-          <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex justify-between">
-                <span>Session:</span>
-                <span className="text-indigo-300 font-mono">{currentSessionId.slice(-8)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Player ID:</span>
-                <span className="text-purple-300 font-mono">{myPlayerId.slice(-8)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>WebRTC:</span>
-                <span className={webrtc.status.isInitialized ? 'text-green-300' : 'text-red-300'}>
-                  {webrtc.status.isInitialized ? 'Ready' : 'Disabled'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Connected:</span>
-                <span className="text-blue-300">{webrtc.status.connectedDevices.length}</span>
-              </div>
-            </div>
-            <div className="mt-2 text-center text-green-400 text-xs">
-              ✅ Horizontal carousel editor selection
-            </div>
-          </div>
         </div>
       )}
 
