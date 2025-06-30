@@ -654,70 +654,9 @@ const ConsoleDisplay: React.FC = () => {
       </header>
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Game Area */}
-          <div className="lg:col-span-2">
-            <div className="bg-black/20 rounded-lg p-8 border border-indigo-500/20 h-96 flex flex-col items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 animate-pulse"></div>
-              </div>
-              
-              <div className="relative z-10 text-center">
-                <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
-                  Waiting for team
-                </h2>
-                <p className="text-indigo-200 mb-8 text-center max-w-md">
-                  Scan the QR to join the lobby
-                </p>
-                {players.filter(p => p.deviceType === 'phone').length === 0 ? (
-                  <div className="text-center">
-                    <div className="text-6xl mb-4 animate-bounce">🎮</div>
-                    <p className="text-sm text-gray-500 mt-2">First player to join becomes the host</p>
-                    <div className="mt-4 flex items-center justify-center gap-2 text-sm text-indigo-300">
-                      <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
-                      <span>Waiting for connections...</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <div className="text-4xl mb-4 animate-pulse">👥</div>
-                    <p className="text-green-400 font-medium text-xl mb-2">
-                      {players.filter(p => p.deviceType === 'phone').length} player{players.filter(p => p.deviceType === 'phone').length > 1 ? 's' : ''} connected!
-                    </p>
-                    {players.find(p => p.isHost && p.deviceType === 'phone') && (
-                      <p className="text-purple-300 text-sm mt-2 flex items-center justify-center gap-1">
-                        <Crown size={16} className="text-yellow-400" />
-                        Host: {players.find(p => p.isHost && p.deviceType === 'phone')?.name}
-                      </p>
-                    )}
-                    <p className="text-gray-400 text-sm mt-2">
-                      Waiting for host to lock the lobby...
-                    </p>
-                    
-                    {/* Player avatars */}
-                    <div className="flex justify-center gap-2 mt-4">
-                      {players.filter(p => p.deviceType === 'phone').map((player) => (
-                        <div key={player.id} className="relative">
-                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
-                            {player.name.charAt(0).toUpperCase()}
-                          </div>
-                          {player.isHost && (
-                            <Crown size={12} className="absolute -top-1 -right-1 text-yellow-400" />
-                          )}
-                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-900 ${
-                            webrtc.status.connectedDevices.includes(player.id) ? 'bg-green-400' : 'bg-yellow-400'
-                          } animate-pulse`}></div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-               
-          {/* Sidebar */}
+          {/* Sidebar - Now First */}
           <div className="space-y-6">
-            {/* Connection Info - Now First */}
+            {/* Connection Info */}
             <div className="bg-black/20 rounded-lg p-6 border border-indigo-500/20">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <QrCode className="text-indigo-300" />
@@ -783,6 +722,67 @@ const ConsoleDisplay: React.FC = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Game Area - Now Second */}
+          <div className="lg:col-span-2">
+            <div className="bg-black/20 rounded-lg p-8 border border-indigo-500/20 h-96 flex flex-col items-center justify-center relative overflow-hidden">
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 animate-pulse"></div>
+              </div>
+              
+              <div className="relative z-10 text-center">
+                <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+                  Waiting for team
+                </h2>
+                <p className="text-indigo-200 mb-8 text-center max-w-md">
+                  Scan the QR to join the lobby
+                </p>
+                {players.filter(p => p.deviceType === 'phone').length === 0 ? (
+                  <div className="text-center">
+                    <div className="text-6xl mb-4 animate-bounce">🎮</div>
+                    <p className="text-sm text-gray-500 mt-2">First player to join becomes the host</p>
+                    <div className="mt-4 flex items-center justify-center gap-2 text-sm text-indigo-300">
+                      <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
+                      <span>Waiting for connections...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="text-4xl mb-4 animate-pulse">👥</div>
+                    <p className="text-green-400 font-medium text-xl mb-2">
+                      {players.filter(p => p.deviceType === 'phone').length} player{players.filter(p => p.deviceType === 'phone').length > 1 ? 's' : ''} connected!
+                    </p>
+                    {players.find(p => p.isHost && p.deviceType === 'phone') && (
+                      <p className="text-purple-300 text-sm mt-2 flex items-center justify-center gap-1">
+                        <Crown size={16} className="text-yellow-400" />
+                        Host: {players.find(p => p.isHost && p.deviceType === 'phone')?.name}
+                      </p>
+                    )}
+                    <p className="text-gray-400 text-sm mt-2">
+                      Waiting for host to lock the lobby...
+                    </p>
+                    
+                    {/* Player avatars */}
+                    <div className="flex justify-center gap-2 mt-4">
+                      {players.filter(p => p.deviceType === 'phone').map((player) => (
+                        <div key={player.id} className="relative">
+                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
+                            {player.name.charAt(0).toUpperCase()}
+                          </div>
+                          {player.isHost && (
+                            <Crown size={12} className="absolute -top-1 -right-1 text-yellow-400" />
+                          )}
+                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-900 ${
+                            webrtc.status.connectedDevices.includes(player.id) ? 'bg-green-400' : 'bg-yellow-400'
+                          } animate-pulse`}></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
