@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useSearchParams } from 'react-router-dom';
-import { Code, Smartphone, Monitor,Tv, Car, Users, RectangleGoggles, Heart, Lock, Clock, Github } from 'lucide-react';
+import { Code, Smartphone, Monitor,Tv, Car, Users, Glasses, Heart, Lock, Clock, Github } from 'lucide-react';
 import ConsoleDisplay from './components/ConsoleDisplay';
 import { Card, CardContent } from "./components/card";
 import PhoneController from './components/PhoneController';
@@ -195,7 +195,7 @@ function App() {
             {[
               { icon: Monitor, text: "PC (Browser)", desc: "Instant response and feedback" },
               { icon: Car, text: "Cars", desc: "Your vehicle your rules" },
-              { icon: RectangleGoggles, text: "Android TV", desc: "Big Screen experience" },
+              { icon: Glasses, text: "Android TV", desc: "Big Screen experience" },
               { icon: Tv, text: "Fire TV", desc: "No limits, Code anywhere" }
             ].map((item, i) => (
               <div key={i} className="bg-indigo-900/30 p-6 rounded-lg border border-indigo-500/20">
