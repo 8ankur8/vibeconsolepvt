@@ -35,6 +35,30 @@
     <style>
       @import url("https://fonts.googleapis.com/css?family=Teko:600|DM+Sans:400|Slackey:400|Caveat:700|Space+Grotesk:500,700,400");
     </style>
+    <style>
+  .bolt-badge {
+    transition: all 0.3s ease;
+  }
+  @keyframes badgeIntro {
+    0% { transform: scale(0.1); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .bolt-badge-intro {
+    animation: badgeIntro 0.7s ease-out 1s both;
+  }
+  .bolt-badge-intro.animated {
+    animation: none;
+  }
+  .bolt-badge:hover {
+    animation: bounce 0.6s ease-in-out;
+  }
+  @keyframes bounce {
+    0%, 20%, 60%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-10px); }
+    80% { transform: translateY(-5px); }
+  }
+</style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
@@ -43,5 +67,14 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <div class="fixed bottom-4 left-4 z-50">
+  <a href="https://bolt.new/?rid=os72mi" target="_blank" rel="noopener noreferrer" 
+     class="block transition-all duration-300 hover:shadow-2xl">
+    <img src="https://storage.bolt.army/white_circle_360x360.png" 
+         alt="Built with Bolt.new badge" 
+         class="w-20 h-20 md:w-28 md:h-28 rounded-full shadow-lg  bolt-badge bolt-badge-intro"
+         onanimationend="this.classList.add('animated')" />
+  </a>
+      </div>
   </body>
 </html>
